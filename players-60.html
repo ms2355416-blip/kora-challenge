@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080d0b">
+  <meta name="description" content="Kora Challenge - كام لاعب تقدر تجيب في 60 ثانية؟">
+  <title>Kora Challenge | 60 ثانية</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="players-60.css">
+</head>
+<body>
+
+<!-- SVG Icons -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     style="position:absolute;width:0;height:0;overflow:hidden"
+     aria-hidden="true">
+
+  <symbol id="icon-ball" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="4"/>
+    <path d="m32 18 11 8-4 13H25l-4-13Z" fill="currentColor"/>
+    <path d="m32 18-1-12M43 26l13-4M39 39l7 12M25 39l-7 12M21 26 8 22"
+          fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="icon-arrow" viewBox="0 0 24 24">
+    <path d="M5 12h14m-6-6 6 6-6 6"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="icon-bolt" viewBox="0 0 24 24">
+    <path d="M13 2 4 13h7l-1 9 10-13h-7Z" fill="currentColor"/>
+  </symbol>
+</svg>
+
+
+<header class="top">
+  <button
+    class="menu-toggle"
+    id="menuToggle"
+    type="button"
+    aria-label="فتح القائمة"
+    aria-controls="settingsPanel"
+    aria-expanded="false"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 6h18M3 12h18M3 18h18"></path>
+    </svg>
+  </button>
+
+  <div class="brand">
+    <svg class="svg-icon brand-ball" aria-hidden="true">
+      <use href="#icon-ball"></use>
+    </svg>
+    KORA <span>CHALLENGE</span>
+  </div>
+
+  <div class="header-actions">
+    <button
+      class="settings-toggle"
+      type="button"
+      aria-label="الإعدادات"
+      aria-expanded="false"
+      aria-controls="settingsPanel"
+      title="الإعدادات"
+    >
+      <svg viewBox="0 0 24 24" width="24" height="24"
+        fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round"
+        aria-hidden="true">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="m19.4 15 .1.1 1.4 1.1-1.5 2.6-1.7-.6a8 8 0 0 1-1.8 1l-.3 1.8h-3l-.3-1.8a8 8 0 0 1-1.8-1l-1.7.6-1.5-2.6L6.7 15a8 8 0 0 1 0-2l-1.4-1.1 1.5-2.6 1.7.6a8 8 0 0 1 1.8-1l.3-1.8h3l.3 1.8a8 8 0 0 1 1.8 1l1.7-.6 1.5 2.6-1.4 1.1a8 8 0 0 1 0 2Z"
+          transform="translate(-1 -1) scale(1.08)"></path>
+      </svg>
+    </button>
+
+    <a class="back home-icon" href="index.html"
+      aria-label="الصفحة الرئيسية" title="الصفحة الرئيسية">
+      <svg viewBox="0 0 24 24" width="25" height="25"
+        fill="none" stroke="currentColor" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round"
+        aria-hidden="true">
+        <path d="m3 10 9-7 9 7"></path>
+        <path d="M5 9v12h14V9"></path>
+        <path d="M9 21v-7h6v7"></path>
+      </svg>
+    </a>
+  </div>
+</header>
+
+<div class="menu-overlay" id="menuOverlay"></div>
+
+<aside class="menu-drawer" id="menuDrawer" aria-hidden="true">
+  <div class="menu-drawer-header">
+    <h2>القائمة</h2>
+    <button id="menuClose" type="button" aria-label="إغلاق القائمة">×</button>
+  </div>
+
+  <button class="menu-item" id="openSettings" type="button">
+    <span>⚙️</span>
+    <span>الإعدادات</span>
+    <span>←</span>
+  </button>
+
+  <a class="menu-item" href="index.html#games">
+    <span>⚽</span>
+    <span>الألعاب</span>
+    <span>←</span>
+  </a>
+</aside>
+
+<div class="settings-overlay" id="settingsOverlay"></div>
+
+<aside class="settings-panel" id="settingsPanel"
+  aria-label="إعدادات الموقع" aria-hidden="true">
+
+  <div class="settings-heading">
+    <div>
+      <span class="section-kicker">KORA CHALLENGE</span>
+      <h2>الإعدادات ⚙️</h2>
+    </div>
+
+    <button class="settings-close" id="settingsClose"
+      type="button" aria-label="إغلاق الإعدادات">✕</button>
+  </div>
+
+  <div class="setting-group">
+    <label for="languageSelect">🌐 لغة الموقع</label>
+    <select id="languageSelect">
+      <option value="en">🇬🇧 English</option>
+      <option value="ar" selected>🇪🇬 العربية</option>
+      <option value="ru">🇷🇺 Русский</option>
+      <option value="de">🇩🇪 Deutsch</option>
+      <option value="ku">🟩 کوردی</option>
+      <option value="fr">🇫🇷 Français</option>
+      <option value="es">🇪🇸 Español</option>
+    </select>
+  </div>
+
+  <div class="setting-group">
+    <label>🎨 مظهر الموقع</label>
+
+    <div class="theme-options">
+      <button class="theme-option active"
+        id="themeDark" type="button" data-theme="dark"
+        aria-pressed="true">
+        <span>🌙</span>
+        <span>داكن</span>
+      </button>
+
+      <button class="theme-option"
+        id="themeLight" type="button" data-theme="light"
+        aria-pressed="false">
+        <span>☀️</span>
+        <span>فاتح</span>
+      </button>
+    </div>
+  </div>
+
+  <p class="settings-note">
+    اختار اللغة والمظهر اللي يناسبك.
+    اختياراتك هتتخزن على جهازك.
+  </p>
+</aside>
+
+
+<main class="p60">
+
+  <!-- ===== شاشة البداية ===== -->
+  <section class="p60-panel p60-intro" id="p60Intro">
+    <span class="section-kicker">تحدي السرعة</span>
+    <h1>كام لاعب <span>هتعرف؟</span></h1>
+
+    <button type="button" class="btn btn-primary p60-start" id="p60Start">
+      ابدأ
+      <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+    </button>
+
+    <p class="p60-faded">كم تقدر تجيب لاعبين في 60 ثانية</p>
+  </section>
+
+  <!-- ===== شاشة اللعب ===== -->
+  <section class="p60-panel p60-play" id="p60Play" hidden>
+
+    <div class="p60-stage">
+      <div class="p60-photo" id="p60Photo">
+        <img id="p60Img" alt="صورة اللاعب" draggable="false">
+        <div class="p60-loader" id="p60Loader" aria-live="polite">
+          <span class="p60-spinner"></span>
+          <small>بحمّل الصورة…</small>
+        </div>
+      </div>
+
+      <aside class="p60-side">
+        <div class="p60-timer" id="p60Timer" role="timer" aria-label="الوقت المتبقي">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="p60-ring-bg" cx="50" cy="50" r="44"></circle>
+            <circle class="p60-ring" id="p60Ring" cx="50" cy="50" r="44"></circle>
+          </svg>
+          <span class="p60-time" id="p60Time">60</span>
+        </div>
+
+        <div class="p60-score">
+          <strong id="p60Score">0</strong>
+          <small>صح</small>
+        </div>
+      </aside>
+    </div>
+
+    <div class="p60-feedback" id="p60Feedback" aria-live="polite"></div>
+
+    <form class="p60-answer" id="p60Form" autocomplete="off">
+      <ul class="p60-suggest" id="p60Suggest" role="listbox" hidden></ul>
+
+      <input
+        type="text"
+        id="p60Input"
+        dir="auto"
+        placeholder="اكتب اسم اللاعب (عربي أو English)"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        enterkeyhint="done"
+        aria-label="اسم اللاعب"
+        aria-autocomplete="list"
+      >
+
+      <button type="submit" class="p60-confirm" id="p60Confirm" disabled>
+        تأكيد
+      </button>
+    </form>
+
+    <button type="button" class="p60-skip" id="p60Skip">تخطي</button>
+  </section>
+
+  <!-- ===== شاشة النتيجة ===== -->
+  <section class="p60-panel p60-result" id="p60Result" hidden>
+    <span class="section-kicker" id="p60ResultKicker">انتهى الوقت</span>
+    <div class="p60-big" id="p60ResultScore">0</div>
+    <p class="p60-result-label" id="p60ResultLabel">لاعب في 60 ثانية</p>
+    <p class="p60-best" id="p60Best"></p>
+
+    <div class="p60-chips" id="p60Chips"></div>
+
+    <div class="p60-result-actions">
+      <button type="button" class="btn btn-primary" id="p60Again">
+        العب تاني
+        <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+      </button>
+      <a href="index.html#games" class="btn btn-outline">الرئيسية</a>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="script.js"></script>
+<script src="players-60.js"></script>
+
+</body>
+</html>

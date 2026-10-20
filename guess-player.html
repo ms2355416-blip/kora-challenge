@@ -1,0 +1,255 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080a09">
+  <title>Kora Challenge | خمن اللاعب</title>
+
+  <link rel="stylesheet" href="guess-player.css">
+
+  <script src="translations.js" defer></script>
+  <script src="guess-player.js" defer></script>
+</head>
+<body>
+  <main class="wrap">
+
+    <header class="top">
+      <div class="brand">⚽ KORA <span>CHALLENGE</span></div>
+
+      <div class="header-actions">
+        <button class="icon-button settings-toggle" id="settingsToggle"
+          type="button" aria-label="الإعدادات" aria-expanded="false"
+          aria-controls="settingsPanel" title="الإعدادات">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a8 8 0 0 0 0-6l1.5-1.1-1.5-2.6-1.8.6a8 8 0 0 0-5.2-1.5L12 2.5H9l-.4 1.9a8 8 0 0 0-2.2 1.3l-1.8-.6-1.5 2.6L4.6 9a8 8 0 0 0 0 6l-1.5 1.1 1.5 2.6 1.8-.6a8 8 0 0 0 2.2 1.3l.4 1.9h3l.4-1.9a8 8 0 0 0 2.2-1.3l1.8.6 1.5-2.6z"></path>
+          </svg>
+        </button>
+
+        <a class="icon-button home-button"
+          href="index.html" aria-label="الصفحة الرئيسية"
+          title="الصفحة الرئيسية">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m3 10 9-7 9 7"/>
+            <path d="M5 9v12h14V9"/>
+            <path d="M9 21v-7h6v7"/>
+          </svg>
+        </a>
+      </div>
+    </header>
+
+    <div class="settings-overlay" id="settingsOverlay"></div>
+
+    <aside class="settings-panel" id="settingsPanel"
+      aria-label="إعدادات الموقع" aria-hidden="true">
+
+      <div class="settings-heading">
+        <div>
+          <span class="section-kicker">KORA CHALLENGE</span>
+          <h2>الإعدادات ⚙️</h2>
+        </div>
+        <button class="settings-close" id="settingsClose"
+          type="button" aria-label="إغلاق الإعدادات">✕</button>
+      </div>
+
+      <div class="setting-group">
+        <label for="languageSelect">🌐 لغة الموقع</label>
+        <select id="languageSelect">
+          <option value="en">🇬🇧 English</option>
+          <option value="ar">🇪🇬 العربية</option>
+          <option value="ru">🇷🇺 Русский</option>
+          <option value="de">🇩🇪 Deutsch</option>
+          <option value="ku">🟩 کوردی</option>
+          <option value="fr">🇫🇷 Français</option>
+          <option value="es">🇪🇸 Español</option>
+        </select>
+      </div>
+
+      <div class="setting-group">
+        <label>🎨 مظهر الموقع</label>
+        <div class="theme-options">
+          <button class="theme-option" id="themeDark"
+            type="button" data-theme="dark" aria-pressed="false">
+            <span>🌙</span><span>داكن</span>
+          </button>
+          <button class="theme-option" id="themeLight"
+            type="button" data-theme="light" aria-pressed="false">
+            <span>☀️</span><span>فاتح</span>
+          </button>
+        </div>
+      </div>
+
+      <p class="settings-note">
+        اختار اللغة والمظهر اللي يناسبك. اختياراتك هتتخزن على جهازك.
+      </p>
+    </aside>
+
+    <!-- شاشة اختيار المستوى -->
+    <section id="levelScreen" class="screen active">
+      <div class="heading">
+        <div class="eyebrow">WHO'S THE PLAYER?</div>
+        <h1>خمن اللاعب <span class="green">⚽</span></h1>
+        <p>اعرف النجم من التلميحات… وخلي عينك على الظل!</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span>أفضل نتيجة</span>
+          <b id="bestScore">0</b>
+        </div>
+        <div class="stat">
+          <span>إجمالي النقاط</span>
+          <b id="totalPoints">0</b>
+        </div>
+        <div class="stat">
+          <span>جولات لعبتها</span>
+          <b id="roundsPlayed">0</b>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>اختار مستوى الصعوبة</h3>
+
+        <div class="levels">
+          <button class="level active" data-level="easy">
+            🟢 سهل<small>ابدأ هنا</small>
+          </button>
+          <button class="level" data-level="medium">
+            🟡 متوسط<small>ركز في التلميحات</small>
+          </button>
+          <button class="level" data-level="hard">
+            🟠 صعب<small>الظل أغمق</small>
+          </button>
+          <button class="level" data-level="impossible" id="impossibleBtn" disabled>
+            💀 مستحيل<small>اقفل المستويات الأول</small>
+          </button>
+        </div>
+
+        <p class="small-note">
+          عدد اللاعبين بيختلف حسب المستوى. ترتيبهم عشوائي ومن غير تكرار داخل الجولة.
+        </p>
+
+        <button class="primary" id="startBtn">ابدأ التحدي</button>
+      </div>
+    </section>
+
+    <!-- شاشة اللعب -->
+    <section id="gameScreen" class="screen">
+      <div class="game-top">
+        <div>
+          <div class="eyebrow" id="levelName">المستوى السهل</div>
+          <h2>مين اللاعب ده؟</h2>
+        </div>
+
+        <button class="icon-button quit-button" id="quitBtn"
+          type="button" aria-label="الانسحاب من التحدي"
+          title="الانسحاب من التحدي">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19 12H5"/>
+            <path d="m12 19-7-7 7-7"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="panel">
+        <div class="progress-row">
+          <span id="questionCount">السؤال 1</span>
+          <span id="scoreNow">النقاط: 0</span>
+        </div>
+
+        <div class="progress">
+          <div id="progressBar"></div>
+        </div>
+
+        <div class="game-grid">
+          <div>
+            <div class="photo-box" id="photoBox">
+              <img id="playerImage" src="" alt="صورة اللاعب مخفية">
+              <div class="photo-shade"></div>
+              <div class="photo-label" id="photoLabel">
+                هوية اللاعب مخفية 🕵️
+              </div>
+            </div>
+
+            <div class="facts">
+              <div class="fact">
+                <span>الجنسية</span>
+                <b id="nationality">؟؟؟</b>
+              </div>
+              <div class="fact">
+                <span>المركز</span>
+                <b id="position">؟؟؟</b>
+              </div>
+              <div class="fact">
+                <span>العمر</span>
+                <b id="age">؟؟؟</b>
+              </div>
+              <div class="fact">
+                <span>الحالة</span>
+                <b id="status">؟؟؟</b>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="question" id="questionText">تقدر تعرفني؟</div>
+
+            <div class="hints-title">
+              <b>التلميحات</b>
+              <small id="hintsCount">استخدمت 0 من 4</small>
+            </div>
+
+            <div class="hint-list" id="hintList"></div>
+
+            <button class="hint-btn" id="hintBtn">
+              💡 أظهر التلميح التالي
+            </button>
+
+            <div class="answer-area">
+              <label for="answerInput">اكتب اسم اللاعب</label>
+              <input id="answerInput" autocomplete="off"
+                placeholder="اكتب أول حرفين من اسمه...">
+              <div id="suggestions" class="suggestions" hidden></div>
+            </div>
+
+            <div class="submit-row">
+              <button class="primary" id="submitBtn">تأكيد الإجابة</button>
+              <button class="ghost" id="giveUpBtn">استسلام وكشف اللاعب</button>
+            </div>
+
+            <div class="message" id="message" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- شاشة النتيجة -->
+    <section id="resultScreen" class="screen">
+      <div class="heading">
+        <div class="eyebrow">CHALLENGE RESULT</div>
+        <h1 id="resultTitle">خلصت الجولة!</h1>
+      </div>
+
+      <div class="panel center">
+        <div>نتيجتك</div>
+        <div class="big-score" id="finalScore">0</div>
+        <div class="comment" id="resultComment"></div>
+        <p id="resultDetails" class="small-note"></p>
+
+        <button class="primary" id="againBtn">
+          العب تاني بنفس المستوى
+        </button>
+
+        <button class="ghost full-width" id="levelsBtn">
+          اختيار مستوى تاني
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+</body>
+</html>
