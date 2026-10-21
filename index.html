@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080d0b">
+  <meta name="description" content="Kora Challenge - اختبر معلوماتك الكروية وتحدى نفسك!">
+  <title>Kora Challenge | تحدي الكورة</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- SVG Icons -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     style="position:absolute;width:0;height:0;overflow:hidden"
+     aria-hidden="true">
+
+  <symbol id="icon-ball" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="4"/>
+    <path d="m32 18 11 8-4 13H25l-4-13Z" fill="currentColor"/>
+    <path d="m32 18-1-12M43 26l13-4M39 39l7 12M25 39l-7 12M21 26 8 22"
+          fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="icon-trophy" viewBox="0 0 48 48">
+    <path d="M14 7h20v7c0 9-4 14-10 14S14 23 14 14Z"
+          fill="none" stroke="currentColor" stroke-width="2.5"/>
+    <path d="M14 11H7v5c0 7 4 10 11 10M34 11h7v5c0 7-4 10-11 10M24 28v7M16 40h16M19 35h10"
+          fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="m24 12 2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1Z"
+          fill="currentColor"/>
+  </symbol>
+
+  <symbol id="icon-player" viewBox="0 0 48 48">
+    <circle cx="20" cy="15" r="8" fill="none" stroke="currentColor" stroke-width="3"/>
+    <path d="M5 40c0-9 6-14 15-14 5 0 9 2 12 6"
+          fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="34" cy="31" r="8" fill="none" stroke="currentColor" stroke-width="3"/>
+    <path d="m40 37 5 5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="icon-globe" viewBox="0 0 48 48">
+    <circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-width="2.5"/>
+    <ellipse cx="24" cy="24" rx="9" ry="19" fill="none" stroke="currentColor" stroke-width="2"/>
+    <path d="M6 18h36M6 30h36" fill="none" stroke="currentColor" stroke-width="2"/>
+  </symbol>
+
+  <symbol id="icon-team" viewBox="0 0 48 48">
+    <circle cx="24" cy="13" r="7" fill="none" stroke="currentColor" stroke-width="2.5"/>
+    <circle cx="10" cy="19" r="5" fill="none" stroke="currentColor" stroke-width="2.5"/>
+    <circle cx="38" cy="19" r="5" fill="none" stroke="currentColor" stroke-width="2.5"/>
+    <path d="M9 40v-4c0-8 6-13 15-13s15 5 15 13v4Z"
+          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M2 38v-3c0-4 2-7 6-8M46 38v-3c0-4-2-7-6-8"
+          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="icon-star" viewBox="0 0 24 24">
+    <path d="m12 2 3 6.5 7 1-5 5 .2 7L12 18l-5.2 3.5.2-7-5-5 7-1Z"
+          fill="currentColor"/>
+  </symbol>
+
+  <symbol id="icon-bolt" viewBox="0 0 24 24">
+    <path d="M13 2 4 13h7l-1 9 10-13h-7Z" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="icon-gamepad" viewBox="0 0 48 48">
+    <path d="M15 13h18c6 0 9 5 10 12l2 9c1 6-5 8-9 4l-7-7H19l-7 7c-4 4-10 2-9-4l2-9c1-7 4-12 10-12Z"
+          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M12 20v10M7 25h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="33" cy="22" r="2" fill="currentColor"/>
+    <circle cx="37" cy="28" r="2" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="icon-arrow" viewBox="0 0 24 24">
+    <path d="M5 12h14m-6-6 6 6-6 6"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="icon-target" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    <circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="icon-question" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    <path d="M9.5 9a2.6 2.6 0 1 1 4.6 1.7c-1.1 1.1-2.1 1.4-2.1 3M12 17.5v.1"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="icon-brain" viewBox="0 0 24 24">
+    <path d="M12 5a3 3 0 0 0-5.7-1A3.5 3.5 0 0 0 4 9a3.5 3.5 0 0 0 1 6.5A3.5 3.5 0 0 0 9 20h3Zm0 0a3 3 0 0 1 5.7-1A3.5 3.5 0 0 1 20 9a3.5 3.5 0 0 1-1 6.5A3.5 3.5 0 0 1 15 20h-3"
+          fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M8 8v2m8-2v2M8 15h2m4 0h2M12 5v15"
+          fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="icon-list" viewBox="0 0 24 24">
+    <path d="M9 6h11M9 12h11M9 18h11"
+          fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="4" cy="6" r="1" fill="currentColor"/>
+    <circle cx="4" cy="12" r="1" fill="currentColor"/>
+    <circle cx="4" cy="18" r="1" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="icon-heart" viewBox="0 0 24 24">
+    <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"
+          fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+
+<header class="top">
+    <button
+  class="menu-toggle"
+  id="menuToggle"
+  type="button"
+  aria-label="فتح القائمة"
+  aria-controls="settingsPanel"
+  aria-expanded="false"
+>
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 6h18M3 12h18M3 18h18"></path>
+  </svg>
+</button>
+  <div class="brand">
+         <svg class="svg-icon brand-ball" aria-hidden="true">
+      <use href="#icon-ball"></use>
+    </svg>
+    KORA <span>CHALLENGE</span>
+  </div>
+
+  <div class="header-actions">
+    <button
+      class="settings-toggle"
+      
+      type="button"
+      aria-label="الإعدادات"
+      aria-expanded="false"
+      aria-controls="settingsPanel"
+      title="الإعدادات"
+    >
+      <svg viewBox="0 0 24 24" width="24" height="24"
+        fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round"
+        aria-hidden="true">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="m19.4 15 .1.1 1.4 1.1-1.5 2.6-1.7-.6a8 8 0 0 1-1.8 1l-.3 1.8h-3l-.3-1.8a8 8 0 0 1-1.8-1l-1.7.6-1.5-2.6L6.7 15a8 8 0 0 1 0-2l-1.4-1.1 1.5-2.6 1.7.6a8 8 0 0 1 1.8-1l.3-1.8h3l.3 1.8a8 8 0 0 1 1.8 1l1.7-.6 1.5 2.6-1.4 1.1a8 8 0 0 1 0 2Z"
+          transform="translate(-1 -1) scale(1.08)"></path>
+      </svg>
+    </button>
+
+    <a class="back home-icon" href="index.html"
+      aria-label="الصفحة الرئيسية" title="الصفحة الرئيسية">
+      <svg viewBox="0 0 24 24" width="25" height="25"
+        fill="none" stroke="currentColor" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round"
+        aria-hidden="true">
+        <path d="m3 10 9-7 9 7"></path>
+        <path d="M5 9v12h14V9"></path>
+        <path d="M9 21v-7h6v7"></path>
+      </svg>
+    </a>
+  </div>
+</header>
+
+<div class="menu-overlay" id="menuOverlay"></div>
+
+<aside class="menu-drawer" id="menuDrawer" aria-hidden="true">
+  <div class="menu-drawer-header">
+    <h2>القائمة</h2>
+    <button id="menuClose" type="button" aria-label="إغلاق القائمة">×</button>
+  </div>
+
+  <button class="menu-item" id="openSettings" type="button">
+    <span>⚙️</span>
+    <span>الإعدادات</span>
+    <span>←</span>
+  </button>
+
+  <a class="menu-item" href="index.html#games">
+    <span>⚽</span>
+    <span>الألعاب</span>
+    <span>←</span>
+  </a>
+</aside>
+
+<div class="settings-overlay" id="settingsOverlay"></div>
+
+<aside class="settings-panel" id="settingsPanel"
+  aria-label="إعدادات الموقع" aria-hidden="true">
+
+  <div class="settings-heading">
+    <div>
+      <span class="section-kicker">KORA CHALLENGE</span>
+      <h2>الإعدادات ⚙️</h2>
+    </div>
+
+    <button class="settings-close" id="settingsClose"
+      type="button" aria-label="إغلاق الإعدادات">✕</button>
+  </div>
+
+  <div class="setting-group">
+    <label for="languageSelect">🌐 لغة الموقع</label>
+    <select id="languageSelect">
+      <option value="en">🇬🇧 English</option>
+      <option value="ar" selected>🇪🇬 العربية</option>
+      <option value="ru">🇷🇺 Русский</option>
+      <option value="de">🇩🇪 Deutsch</option>
+      <option value="ku">🟩 کوردی</option>
+      <option value="fr">🇫🇷 Français</option>
+      <option value="es">🇪🇸 Español</option>
+    </select>
+  </div>
+
+  <div class="setting-group">
+    <label>🎨 مظهر الموقع</label>
+
+    <div class="theme-options">
+      <button class="theme-option active"
+        id="themeDark" type="button" data-theme="dark"
+        aria-pressed="true">
+        <span>🌙</span>
+        <span>داكن</span>
+      </button>
+
+      <button class="theme-option"
+        id="themeLight" type="button" data-theme="light"
+        aria-pressed="false">
+        <span>☀️</span>
+        <span>فاتح</span>
+      </button>
+    </div>
+  </div>
+
+  <p class="settings-note">
+    اختار اللغة والمظهر اللي يناسبك.
+    اختياراتك هتتخزن على جهازك.
+  </p>
+</aside>
+
+
+<main>
+  <section class="hero" id="home">
+    <div class="hero-content">
+      <div class="eyebrow">
+        <span class="live-dot"></span>
+        عالم التحديات الكروية
+      </div>
+
+      <h1>إنت فاهم كورة<br>ولا <span>مجرد مشجع؟</span></h1>
+
+      <p>
+        اختبر معلوماتك الكروية، اكتشف مستواك،
+        وتحدى نفسك في مجموعة من أقوى ألعاب كرة القدم.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#games" class="btn btn-primary">
+          ابدأ التحدي
+          <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+        </a>
+        <a href="#stats" class="btn btn-outline">إحصائياتي</a>
+      </div>
+
+      <div class="hero-note">
+        <svg class="svg-icon" aria-hidden="true"><use href="#icon-trophy"></use></svg>
+        العب، اجمع النقاط، واثبت إنك أسطورة
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="visual-glow"></div>
+      <div class="football">
+        <svg class="hero-ball-icon" aria-hidden="true"><use href="#icon-ball"></use></svg>
+      </div>
+
+      <div class="floating-card card-top">
+        <svg class="svg-icon floating-icon" aria-hidden="true"><use href="#icon-bolt"></use></svg>
+        <div><b>التحدي بدأ!</b><small>ورينا معلوماتك</small></div>
+      </div>
+
+      <div class="floating-card card-bottom">
+        <svg class="svg-icon floating-icon" aria-hidden="true"><use href="#icon-trophy"></use></svg>
+        <div><b>كن الأسطورة</b><small>وصل لأعلى نتيجة</small></div>
+      </div>
+
+      <div class="orbit orbit-one"></div>
+      <div class="orbit orbit-two"></div>
+    </div>
+  </section>
+
+  <section class="stats-strip" id="stats">
+    <div class="stat-item">
+      <span class="stat-icon">
+        <svg class="svg-icon" aria-hidden="true"><use href="#icon-gamepad"></use></svg>
+      </span>
+      <div><strong id="gamesPlayed">0</strong><small>جولات لعبتها</small></div>
+    </div>
+
+    <div class="stat-item">
+      <span class="logo-icon">
+        <svg class="svg-icon" aria-hidden="true"><use href="#icon-star"></use></svg>
+      </span>
+      <div><strong id="bestScore">0%</strong><small>أفضل نتيجة</small></div>
+    </div>
+
+    <div class="stat-item">
+      <span class="stat-icon">
+        <svg class="svg-icon" aria-hidden="true"><use href="#icon-bolt"></use></svg>
+      </span>
+      <div><strong id="totalPoints">0</strong><small>مجموع النقاط</small></div>
+    </div>
+  </section>
+
+  <section class="games-section" id="games">
+    <div class="section-heading">
+      <div>
+        <span class="section-kicker">اختار لعبتك</span>
+        <h2>التحديات <span>الكروية</span></h2>
+        <p>كل لعبة فيها تحدي مختلف. تفتكر هتقدر تحلهم كلهم؟</p>
+      </div>
+
+      <span class="logo-icon heading-icon">
+        <svg class="svg-icon" aria-hidden="true"><use href="#icon-ball"></use></svg>
+      </span>
+    </div>
+
+    <div class="games-grid">
+
+      <!-- 01 - خمن اللاعب -->
+      <article class="game-card featured">
+        <div class="game-art player-art">
+          <span class="art-label">الأكثر لعبًا</span>
+          <span class="art-emoji">
+            <svg class="art-svg" aria-hidden="true"><use href="#icon-player"></use></svg>
+          </span>
+          <span class="art-number">01</span>
+        </div>
+
+        <div class="game-info">
+          <span class="game-category">تحدي المعلومات</span>
+          <h3>خمن اللاعب</h3>
+          <p>
+            اكتشف هوية نجم كرة القدم من خلال تلميحات عن ناديه
+            وجنسيته ومسيرته. اختار الإجابة الصح واجمع النقاط،
+            وكل ما تتقدم هتواجه أسئلة أصعب!
+          </p>
+
+          <div class="game-meta">
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-target"></use></svg> 4 مستويات</span>
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-question"></use></svg> 5 أسئلة</span>
+          </div>
+
+          <button class="game-btn" data-game="player">
+            العب دلوقتي
+            <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+          </button>
+        </div>
+      </article>
+
+      <!-- 02 - خمن المنتخب -->
+      <article class="game-card">
+        <div class="game-art country-art">
+          <span class="art-emoji">
+            <svg class="art-svg" aria-hidden="true"><use href="#icon-globe"></use></svg>
+          </span>
+          <span class="art-number">02</span>
+        </div>
+
+        <div class="game-info">
+          <span class="game-category">تحدي المنتخبات</span>
+          <h3>خمن المنتخب</h3>
+          <p>
+            اختبر معلوماتك عن منتخبات العالم! تعرّف على المنتخب
+            من خلال أعلامه وألوانه ونجومه وإنجازاته،
+            وشوف تقدر تميّز كام منتخب من غير مساعدة.
+          </p>
+
+          <div class="game-meta">
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-globe"></use></svg> منتخبات العالم</span>
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-brain"></use></svg> اختبر ذاكرتك</span>
+          </div>
+
+          <button class="game-btn" data-game="country">
+            العب دلوقتي
+            <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+          </button>
+        </div>
+      </article>
+
+      <!-- 03 - كوّن فريقك -->
+      <article class="game-card">
+        <div class="game-art team-art">
+          <span class="art-emoji">
+            <svg class="art-svg" aria-hidden="true"><use href="#icon-team"></use></svg>
+          </span>
+          <span class="art-number">03</span>
+        </div>
+
+        <div class="game-info">
+          <span class="game-category">تحدي التكتيك</span>
+          <h3>كوّن فريقك</h3>
+          <p>
+            أنت المدرب دلوقتي! اختار حارس المرمى والدفاع والوسط
+            والهجوم، وابنِ تشكيلتك المفضلة حسب الخطة اللي تناسبك.
+            هل تقدر تجمع فريق متكامل ومتوازن؟
+          </p>
+
+          <div class="game-meta">
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-list"></use></svg> خطط مختلفة</span>
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-trophy"></use></svg> تشكيلتك أنت</span>
+          </div>
+
+          <a href="myteam.html" class="game-btn" style="text-decoration: none; display: inline-flex; justify-content: center; align-items: center;">
+            العب دلوقتي
+            <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+          </a>
+        </div>
+      </article>
+
+      <!-- 04 - اختبر معلوماتك عن فريقك المفضل -->
+      <article class="game-card">
+        <div class="game-art favorite-club-art">
+          <span class="art-emoji">
+            <svg class="art-svg" aria-hidden="true"><use href="#icon-heart"></use></svg>
+          </span>
+          <span class="art-number">04</span>
+        </div>
+
+        <div class="game-info">
+          <span class="game-category">تحدي الأندية</span>
+          <h3>اختبر معلوماتك عن فريقك المفضل</h3>
+          <p>
+            اختار ناديك المفضل من بين 20 ناديًا حول العالم،
+            واستعد تختبر معلوماتك عن تاريخه ونجومه وبطولاته.
+          </p>
+
+          <div class="game-meta">
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-team"></use></svg> 20 ناديًا</span>
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-question"></use></svg> أسئلة خاصة بكل نادي</span>
+          </div>
+
+          <button class="game-btn" data-game="favorite-club">
+            اختار ناديك
+            <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+          </button>
+        </div>
+      </article>
+
+      <!-- 05 - كام لاعب في 60 ثانية -->
+      <article class="game-card">
+        <div class="game-art sprint-art">
+          <span class="art-emoji">
+            <svg class="art-svg" aria-hidden="true"><use href="#icon-bolt"></use></svg>
+          </span>
+          <span class="art-number">05</span>
+        </div>
+
+        <div class="game-info">
+          <span class="game-category">تحدي السرعة</span>
+          <h3>كام لاعب في 60 ثانية؟</h3>
+          <p>
+            هتشوف صور لاعبين مشهورين، وعليك تكتب اسم كل واحد
+            بأسرع ما تقدر. العداد شغال، وكل اسم صح بيزود نتيجتك.
+            تقدر تجيب كام لاعب قبل ما الوقت يخلص؟
+          </p>
+
+          <div class="game-meta">
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-bolt"></use></svg> 60 ثانية</span>
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-player"></use></svg> 100 لاعب</span>
+          </div>
+
+          <button class="game-btn" data-game="players60">
+            العب دلوقتي
+            <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+          </button>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="challenge-banner">
+    <div class="banner-ball">
+      <svg class="banner-trophy-icon" aria-hidden="true"><use href="#icon-trophy"></use></svg>
+    </div>
+
+    <div>
+      <span class="section-kicker">التحدي الحقيقي</span>
+      <h2>هل تقدر تحقق <span>100%؟</span></h2>
+      <p>ابدأ بالسهل، طور مستواك، وافتح أصعب التحديات.</p>
+    </div>
+
+    <a href="#games" class="btn btn-primary">
+      ابدأ الآن
+      <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+    </a>
+  </section>
+</main>
+
+<footer>
+  <a href="#" class="logo footer-logo">
+    <span class="logo-icon">
+      <svg class="svg-icon" aria-hidden="true"><use href="#icon-ball"></use></svg>
+    </span>
+    <span>KORA <b>CHALLENGE</b></span>
+  </a>
+
+
+  <p>
+    صُنع لعشاق كرة القدم
+    <svg class="svg-icon footer-heart" aria-hidden="true"><use href="#icon-heart"></use></svg>
+  </p>
+
+  <small>© 2026 Kora Challenge</small>
+</footer>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="translations.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
