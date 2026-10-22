@@ -1,0 +1,418 @@
+/* =====================================
+   KORA CHALLENGE - ACCOUNT (shared)
+   بيشتغل مع style.css و guess-player.css و players90.css
+   ===================================== */
+
+:root {
+  --a-surface: var(--surface, var(--panel, #101814));
+  --a-surface-2: var(--surface-2, var(--panel-light, #151f19));
+  --a-bg: var(--bg, #080d0b);
+  --a-green: var(--green, #24e982);
+  --a-border: var(--border, #25352b);
+  --a-text: var(--text, #f2f7f3);
+  --a-muted: var(--muted, #94a49a);
+  --a-danger: #ff6b6b;
+}
+
+:root[data-theme="light"] {
+  --a-danger: #d93636;
+}
+
+/* ---------- زرار صورة الحساب في الهيدر ---------- */
+.acc-head-btn {
+  flex: none;
+  width: 43px;
+  height: 43px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid var(--a-green);
+  border-radius: 50%;
+  background: var(--a-surface);
+  color: var(--a-green);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+}
+
+.acc-head-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--a-green) 18%, transparent);
+}
+
+.acc-head-btn img,
+.acc-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ---------- كارت الحساب أعلى الإعدادات ---------- */
+.settings-panel .acc-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 28px;
+  padding: 26px 18px 20px;
+  border: 1px solid var(--a-border);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--a-green) 11%, var(--a-surface-2)),
+      var(--a-surface-2) 70%);
+  text-align: center;
+}
+
+.acc-avatar-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.acc-avatar {
+  width: 98px;
+  height: 98px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid var(--a-green);
+  border-radius: 50%;
+  background: var(--a-bg);
+  color: var(--a-green);
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--a-green) 14%, transparent);
+}
+
+.acc-cam {
+  position: absolute;
+  bottom: -2px;
+  inset-inline-end: -4px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 3px solid var(--a-surface-2);
+  border-radius: 50%;
+  background: var(--a-green);
+  color: #06140b;
+  cursor: pointer;
+  transition: transform .2s;
+}
+
+:root[data-theme="light"] .acc-cam {
+  color: #fff;
+}
+
+.acc-cam:hover {
+  transform: scale(1.1);
+}
+
+.acc-cam svg,
+.acc-edit svg,
+.acc-logout svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.acc-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.acc-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--a-text);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.6;
+}
+
+.acc-edit {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--a-border);
+  border-radius: 10px;
+  background: var(--a-surface);
+  color: var(--a-muted);
+  cursor: pointer;
+  transition: .2s;
+}
+
+.acc-edit:hover {
+  color: var(--a-green);
+  border-color: var(--a-green);
+}
+
+.acc-edit svg {
+  width: 15px;
+  height: 15px;
+}
+
+.acc-email {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--a-muted);
+  font-size: 12px;
+  direction: ltr;
+}
+
+.acc-email:empty {
+  display: none;
+}
+
+/* تعديل الاسم */
+.acc-name-edit {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.acc-name-edit[hidden] {
+  display: none;
+}
+
+.acc-name-edit input {
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--a-border);
+  border-radius: 10px;
+  background: var(--a-bg);
+  color: var(--a-text);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.acc-name-edit input:focus {
+  border-color: var(--a-green);
+}
+
+.acc-save,
+.acc-cancel {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: .2s;
+}
+
+.acc-save {
+  border: 1px solid var(--a-green);
+  background: var(--a-green);
+  color: #06140b;
+}
+
+:root[data-theme="light"] .acc-save {
+  color: #fff;
+}
+
+.acc-cancel {
+  border: 1px solid var(--a-border);
+  background: transparent;
+  color: var(--a-muted);
+}
+
+.acc-cancel:hover {
+  color: var(--a-text);
+  border-color: var(--a-muted);
+}
+
+.acc-remove {
+  margin-top: 6px;
+  padding: 2px 8px;
+  border: 0;
+  background: none;
+  color: var(--a-muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.acc-remove[hidden] {
+  display: none;
+}
+
+.acc-remove:hover {
+  color: var(--a-danger);
+}
+
+/* ---------- زرار الداكن / الفاتح (مفتاح واحد متصل) ---------- */
+.settings-panel .theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--a-border);
+  border-radius: 14px;
+  background: var(--a-bg);
+}
+
+.settings-panel .theme-options .theme-option {
+  min-height: 46px;
+  flex-direction: row;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--a-muted);
+  font-size: 14px;
+  box-shadow: none;
+  transform: none;
+}
+
+.settings-panel .theme-options .theme-option > span:first-child {
+  font-size: 18px;
+}
+
+.settings-panel .theme-options .theme-option:hover {
+  background: var(--a-surface-2);
+  color: var(--a-text);
+}
+
+.settings-panel .theme-options .theme-option.active,
+.settings-panel .theme-options .theme-option[aria-pressed="true"] {
+  background: var(--a-green);
+  color: #06140b;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--a-green) 30%, transparent);
+}
+
+:root[data-theme="light"] .settings-panel .theme-options .theme-option.active,
+:root[data-theme="light"] .settings-panel .theme-options .theme-option[aria-pressed="true"] {
+  color: #fff;
+}
+
+/* اللغة بنفس شكل باقي الحقول */
+.settings-panel #languageSelect {
+  border-radius: 12px;
+  background: var(--a-bg);
+}
+
+/* ---------- تسجيل الخروج ---------- */
+.settings-panel .acc-logout {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 4px 0 20px;
+  border: 1px solid color-mix(in srgb, var(--a-danger) 55%, transparent);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--a-danger);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: .2s;
+}
+
+.settings-panel .acc-logout:hover {
+  background: var(--a-danger);
+  border-color: var(--a-danger);
+  color: #fff;
+}
+
+/* ---------- رسالة صغيرة ---------- */
+.acc-toast {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  z-index: 400;
+  max-width: 90%;
+  padding: 12px 20px;
+  border: 1px solid var(--a-green);
+  border-radius: 12px;
+  background: var(--a-surface);
+  color: var(--a-text);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 16px);
+  transition: .25s;
+}
+
+.acc-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.acc-toast.error {
+  border-color: var(--a-danger);
+}
+
+/* ---------- وصول وحركة ---------- */
+.acc-head-btn:focus-visible,
+.acc-cam:focus-visible,
+.acc-edit:focus-visible,
+.acc-save:focus-visible,
+.acc-cancel:focus-visible,
+.acc-remove:focus-visible,
+.acc-logout:focus-visible,
+.settings-panel .theme-option:focus-visible {
+  outline: 2px solid var(--a-green);
+  outline-offset: 2px;
+}
+
+@media (max-width: 580px) {
+  .acc-head-btn {
+    width: 39px;
+    height: 39px;
+    font-size: 15px;
+  }
+
+  .acc-avatar {
+    width: 88px;
+    height: 88px;
+    font-size: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acc-head-btn,
+  .acc-cam,
+  .acc-toast {
+    transition: none;
+  }
+}
+
+.acc-name-row[hidden] {
+  display: none;
+}
