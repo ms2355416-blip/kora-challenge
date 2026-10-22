@@ -153,30 +153,6 @@
       result: "Раунд завершён!",
       again: "Играть снова",
       levels: "Выбрать другой уровень"
-    },
-    ku: {
-      easy: "ئاستی ئاسان",
-      medium: "ئاستی مامناوەند",
-      hard: "ئاستی قورس",
-      impossible: "ئاستی مەحاڵ",
-      question: "پرسیار",
-      points: "خاڵ",
-      correct: "وەڵامی ڕاستە! ⚽",
-      wrong: "هەوڵێکی تر بدە!",
-      revealed: "وەڵامی ڕاست:",
-      hint: "💡 ئاماژەی داهاتوو",
-      noHints: "ئاماژەی زیاتر نییە",
-      answerPlaceholder: "ناوی یاریزان بنووسە...",
-      streak: "ڕۆژ بەردەوام",
-      quitTitle: "دەرچوون لە یارییەکە؟",
-      quitText: "ئەم خولە وەک ئەنجامی کۆتایی پاشەکەوت ناکرێت.",
-      continue: "بەردەوام بە",
-      quit: "دەرچوون",
-      continueTitle: "🔥 قۆناغ تەواو بوو",
-      continueText: "بەردەوام بیت بۆ زیادکردنی لێکدەر؟",
-      result: "خول تەواو بوو!",
-      again: "هەمان ئاست دووبارە بکەوە",
-      levels: "ئاستێکی تر هەڵبژێرە"
     }
   };
 
@@ -612,7 +588,8 @@
   let continueModalOpen = false;
 
   function getLanguage() {
-    return localStorage.getItem(STORAGE_LANGUAGE) || "ar";
+    const saved = localStorage.getItem(STORAGE_LANGUAGE) || "ar";
+    return saved === "ku" ? "ar" : saved;
   }
 
   function tr(key) {
@@ -1376,7 +1353,7 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
         localStorage.setItem(STORAGE_LANGUAGE, languageSelect.value);
         const lang = languageSelect.value;
         document.documentElement.lang = lang;
-        document.documentElement.dir = lang === "ar" || lang === "ku" ? "rtl" : "ltr";
+        document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
 
         if (typeof window.koraTranslatePage === "function") {
           window.koraTranslatePage(lang);
@@ -1421,7 +1398,7 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
   function init() {
     const lang = getLanguage();
     document.documentElement.lang = lang;
-    document.documentElement.dir = lang === "ar" || lang === "ku" ? "rtl" : "ltr";
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
 
     if ($("languageSelect")) $("languageSelect").value = lang;
 
