@@ -7,11 +7,9 @@
   <meta name="description" content="Kora Challenge - اختبر معلوماتك الكروية وتحدى نفسك!">
   <title>Kora Challenge | تحدي الكورة</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="account.css">
 <style>html.auth-pending body{visibility:hidden}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 /* حارس تسجيل الدخول: لو مفيش مستخدم مسجّل يرجّعك لصفحة login.html */
 (function () {
@@ -182,24 +180,6 @@
   </div>
 
   <div class="header-actions">
-    <button
-      class="settings-toggle"
-      
-      type="button"
-      aria-label="الإعدادات"
-      aria-expanded="false"
-      aria-controls="settingsPanel"
-      title="الإعدادات"
-    >
-      <svg viewBox="0 0 24 24" width="24" height="24"
-        fill="none" stroke="currentColor" stroke-width="1.8"
-        stroke-linecap="round" stroke-linejoin="round"
-        aria-hidden="true">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="m19.4 15 .1.1 1.4 1.1-1.5 2.6-1.7-.6a8 8 0 0 1-1.8 1l-.3 1.8h-3l-.3-1.8a8 8 0 0 1-1.8-1l-1.7.6-1.5-2.6L6.7 15a8 8 0 0 1 0-2l-1.4-1.1 1.5-2.6 1.7.6a8 8 0 0 1 1.8-1l.3-1.8h3l.3 1.8a8 8 0 0 1 1.8 1l1.7-.6 1.5 2.6-1.4 1.1a8 8 0 0 1 0 2Z"
-          transform="translate(-1 -1) scale(1.08)"></path>
-      </svg>
-    </button>
 
     <a class="back home-icon" href="index.html"
       aria-label="الصفحة الرئيسية" title="الصفحة الرئيسية">
@@ -264,6 +244,7 @@
       <option value="ar" selected>🇪🇬 العربية</option>
       <option value="ru">🇷🇺 Русский</option>
       <option value="de">🇩🇪 Deutsch</option>
+      <option value="ku">🟩 کوردی</option>
       <option value="fr">🇫🇷 Français</option>
       <option value="es">🇪🇸 Español</option>
     </select>
@@ -423,43 +404,13 @@
         </div>
       </article>
 
-      <!-- 02 - خمن المنتخب -->
-      <article class="game-card">
-        <div class="game-art country-art">
-          <span class="art-emoji">
-            <svg class="art-svg" aria-hidden="true"><use href="#icon-globe"></use></svg>
-          </span>
-          <span class="art-number">02</span>
-        </div>
-
-        <div class="game-info">
-          <span class="game-category">تحدي المنتخبات</span>
-          <h3>خمن المنتخب</h3>
-          <p>
-            اختبر معلوماتك عن منتخبات العالم! تعرّف على المنتخب
-            من خلال أعلامه وألوانه ونجومه وإنجازاته،
-            وشوف تقدر تميّز كام منتخب من غير مساعدة.
-          </p>
-
-          <div class="game-meta">
-            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-globe"></use></svg> منتخبات العالم</span>
-            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-brain"></use></svg> اختبر ذاكرتك</span>
-          </div>
-
-          <button class="game-btn" data-game="country">
-            العب دلوقتي
-            <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
-          </button>
-        </div>
-      </article>
-
-      <!-- 03 - كوّن فريقك -->
+      <!-- 02 - كوّن فريقك -->
       <article class="game-card">
         <div class="game-art team-art">
           <span class="art-emoji">
             <svg class="art-svg" aria-hidden="true"><use href="#icon-team"></use></svg>
           </span>
-          <span class="art-number">03</span>
+          <span class="art-number">02</span>
         </div>
 
         <div class="game-info">
@@ -480,6 +431,36 @@
             العب دلوقتي
             <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
           </a>
+        </div>
+      </article>
+
+      <!-- 03 - تحدي ال 90 -->
+      <article class="game-card">
+        <div class="game-art sprint-art">
+          <span class="art-emoji">
+            <svg class="art-svg" aria-hidden="true"><use href="#icon-bolt"></use></svg>
+          </span>
+          <span class="art-number">03</span>
+        </div>
+
+        <div class="game-info">
+          <span class="game-category">تحدي السرعة</span>
+          <h3>تحدي ال 90</h3>
+          <p>
+            هتشوف صور لاعبين مشهورين، وعليك تكتب اسم كل واحد
+            بأسرع ما تقدر. العداد شغال، وكل اسم صح بيزود نتيجتك.
+            تقدر تجيب كام لاعب قبل ما الوقت يخلص؟
+          </p>
+
+          <div class="game-meta">
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-bolt"></use></svg> 90 ثانية</span>
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-player"></use></svg> 100 لاعب</span>
+          </div>
+
+          <button class="game-btn" data-game="players90">
+            العب دلوقتي
+            <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+          </button>
         </div>
       </article>
 
@@ -512,30 +493,30 @@
         </div>
       </article>
 
-      <!-- 05 - تحدي ال 90 -->
+      <!-- 05 - خمن المنتخب -->
       <article class="game-card">
-        <div class="game-art sprint-art">
+        <div class="game-art country-art">
           <span class="art-emoji">
-            <svg class="art-svg" aria-hidden="true"><use href="#icon-bolt"></use></svg>
+            <svg class="art-svg" aria-hidden="true"><use href="#icon-globe"></use></svg>
           </span>
           <span class="art-number">05</span>
         </div>
 
         <div class="game-info">
-          <span class="game-category">تحدي السرعة</span>
-          <h3>تحدي ال 90</h3>
+          <span class="game-category">تحدي المنتخبات</span>
+          <h3>خمن المنتخب</h3>
           <p>
-            هتشوف صور لاعبين مشهورين، وعليك تكتب اسم كل واحد
-            بأسرع ما تقدر. العداد شغال، وكل اسم صح بيزود نتيجتك.
-            تقدر تجيب كام لاعب قبل ما الوقت يخلص؟
+            اختبر معلوماتك عن منتخبات العالم! تعرّف على المنتخب
+            من خلال أعلامه وألوانه ونجومه وإنجازاته،
+            وشوف تقدر تميّز كام منتخب من غير مساعدة.
           </p>
 
           <div class="game-meta">
-            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-bolt"></use></svg> 90 ثانية</span>
-            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-player"></use></svg> 100 لاعب</span>
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-globe"></use></svg> منتخبات العالم</span>
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-brain"></use></svg> اختبر ذاكرتك</span>
           </div>
 
-          <button class="game-btn" data-game="players90">
+          <button class="game-btn" data-game="country">
             العب دلوقتي
             <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
           </button>
@@ -584,7 +565,6 @@
 
 <script src="translations.js"></script>
 <script src="script.js"></script>
-<script src="account.js"></script>
 
 </body>
 </html>
