@@ -6,6 +6,7 @@
   'use strict';
 
   const GAME_SECONDS = 90;
+  const POINTS_PER_PLAYER = 10; // كل لاعب صح = 10 نقاط
   const RING_LENGTH = 276.46;
   const QUEUE_AHEAD = 3;
   const MAX_FAILS_IN_ROW = 8;
@@ -226,7 +227,7 @@
   function norm(text) {
     return String(text)
       .normalize('NFD')
-      .replace(/[̀-ًͯ-ٰٟـ]/g, '')
+      .replace(/[̀-ًͯ-ٰٟـ]/g, '')
       .replace(/[أإآٱ]/g, 'ا')
       .replace(/ى/g, 'ي')
       .replace(/ة/g, 'ه')
@@ -366,7 +367,7 @@
   let lastTs = 0;
   let tickId = null;
 
-  let score = 0;
+  let score = 0; // النقاط (10 لكل لاعب صح)
   let answered = [];
   let current = null;
 
@@ -611,10 +612,10 @@
     if (!answer) return;
 
     if (isCorrect(current, answer)) {
-      score++;
+      score += POINTS_PER_PLAYER;
       answered.push(current.name);
       scoreEl.textContent = score;
-      showFeedback('✔ ' + current.name, 'ok');
+      showFeedback('✔ ' + current.name + ' +' + POINTS_PER_PLAYER, 'ok');
       showNextPlayer();
     } else {
       showFeedback('✖ مش هو، جرب تاني', 'bad');
@@ -787,6 +788,7 @@
     pump();
   }
 
+  // النقاط بتتضاف لمجموع النقاط الكلي (نفس مفتاح باقي الألعاب)
   function saveStats() {
     let stats = {};
 
@@ -833,12 +835,14 @@
 
     playWhistle();
 
+    const playersCount = answered.length;
+
     resultKickerEl.textContent = 'انتهى الوقت';
     resultScoreEl.textContent = score;
-    resultLabelEl.textContent = 'لاعب في 90 ثانية';
+    resultLabelEl.textContent = 'نقطة (' + playersCount + ' لاعب) في 90 ثانية';
     bestEl.textContent = isRecord && score > 0
       ? '🔥 رقم قياسي جديد!'
-      : 'أفضل نتيجة ليك: ' + best;
+      : 'أفضل نتيجة ليك: ' + best + ' نقطة';
 
     chipsEl.innerHTML = '';
     answered.forEach(name => {
