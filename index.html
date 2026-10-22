@@ -180,7 +180,6 @@
   </div>
 
   <div class="header-actions">
-    <span class="user-chip" data-user-name title="حسابك"></span>
     <button
       class="settings-toggle"
       
@@ -211,11 +210,6 @@
         <path d="M9 21v-7h6v7"></path>
       </svg>
     </a>
-
-    <button class="logout-btn" type="button" data-logout
-      aria-label="تسجيل الخروج" title="تسجيل الخروج">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
-    </button>
   </div>
 </header>
 
@@ -291,6 +285,14 @@
         <span>☀️</span>
         <span>فاتح</span>
       </button>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <label>👤 حسابك</label>
+    <div class="account-box">
+      <span class="account-name" data-user-name></span>
+      <button class="account-logout" type="button" data-logout>تسجيل الخروج</button>
     </div>
   </div>
 
