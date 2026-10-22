@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080d0b">
+  <title>تسجيل الدخول | Kora Challenge</title>
+  <link rel="stylesheet" href="login.css">
+  <script>
+    try {
+      document.documentElement.dataset.theme =
+        localStorage.getItem('koraChallengeTheme') === 'light' ? 'light' : 'dark';
+    } catch (e) {}
+  </script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+</head>
+<body>
+
+<main class="auth-card">
+  <div class="auth-brand">
+    <svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true">
+      <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="4"/>
+      <path d="m32 18 11 8-4 13H25l-4-13Z" fill="currentColor"/>
+      <path d="m32 18-1-12M43 26l13-4M39 39l7 12M25 39l-7 12M21 26 8 22" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>
+    <span>KORA <b>CHALLENGE</b></span>
+  </div>
+
+  <h1 id="authTitle">أهلاً بيك تاني</h1>
+  <p class="auth-sub" id="authSub">سجّل دخولك علشان تدخل الألعاب</p>
+
+  <div class="auth-tabs" role="tablist">
+    <button type="button" class="auth-tab active" data-tab="login" role="tab" aria-selected="true">تسجيل الدخول</button>
+    <button type="button" class="auth-tab" data-tab="signup" role="tab" aria-selected="false">حساب جديد</button>
+  </div>
+
+  <form id="authForm" novalidate>
+    <label class="auth-field" id="authNameField" hidden>
+      <span>الاسم</span>
+      <input id="authName" type="text" autocomplete="nickname" maxlength="30">
+    </label>
+
+    <label class="auth-field">
+      <span>البريد الإلكتروني</span>
+      <input id="authEmail" type="email" dir="ltr" autocomplete="email" inputmode="email">
+    </label>
+
+    <label class="auth-field">
+      <span>كلمة المرور</span>
+      <input id="authPass" type="password" dir="ltr" autocomplete="current-password">
+    </label>
+
+    <div class="auth-error" id="authError" role="alert" aria-live="polite"></div>
+
+    <button type="submit" class="auth-submit" id="authSubmit">دخول</button>
+    <button type="button" class="auth-link" id="authForgot">نسيت كلمة المرور؟</button>
+  </form>
+
+  <div class="auth-divider"><span>أو</span></div>
+
+  <button type="button" class="auth-google" id="authGoogle">
+    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.3 5.7c4.3-4 6.8-9.9 6.8-17z"/>
+      <path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6l7.9-6.1z"/>
+      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.3-5.7c-2 1.4-4.6 2.3-8.6 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/>
+    </svg>
+    المتابعة بحساب جوجل
+  </button>
+</main>
+
+<script src="login.js"></script>
+</body>
+</html>
