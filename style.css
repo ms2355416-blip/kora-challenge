@@ -665,7 +665,7 @@ body.settings-open {
   }
 }
 
-/* Right-to-left layout for Kurdish and Arabic */
+/* Right-to-left layout for Arabic */
 :root[dir="rtl"] .settings-panel {
   right: auto;
   left: 0;
