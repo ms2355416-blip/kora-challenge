@@ -548,10 +548,10 @@
   };
 
   const levelSettings = {
-    easy: { hintPenalty: 10, wrongPenalty: 5 },
-    medium: { hintPenalty: 15, wrongPenalty: 10 },
-    hard: { hintPenalty: 20, wrongPenalty: 15 },
-    impossible: { hintPenalty: 25, wrongPenalty: 20 }
+    easy: { hintPenalty: 10, wrongPenalty: 5, correctPoints: 10 },
+    medium: { hintPenalty: 15, wrongPenalty: 10, correctPoints: 15 },
+    hard: { hintPenalty: 20, wrongPenalty: 15, correctPoints: 20 },
+    impossible: { hintPenalty: 25, wrongPenalty: 20, correctPoints: 25 }
   };
 
   const teamColors = {
@@ -886,8 +886,6 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
 
     currentHints++;
 
-    const penalty = levelSettings[currentLevel].hintPenalty;
-    roundPoints = Math.max(0, roundPoints - (currentHints === 1 ? 0 : penalty));
 
     if ($("hintsCount")) {
       $("hintsCount").textContent = `استخدمت ${currentHints} من ${hints.length}`;
@@ -921,13 +919,8 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
 
     if (answerMatches(input, player)) {
       waiting = true;
-      const basePoints = Math.max(
-        5,
-        100 - currentHints * levelSettings[currentLevel].hintPenalty -
-        wrongAttempts * levelSettings[currentLevel].wrongPenalty
-      );
-
-      const earned = Math.round(basePoints * pointMultiplier);
+      // نقاط ثابتة لكل لاعب صح حسب المستوى (سهل 10 / متوسط 15 / صعب 20)
+      const earned = levelSettings[currentLevel].correctPoints;
       roundPoints += earned;
       roundCorrect++;
 
@@ -1105,10 +1098,10 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
       `${tr("continueTitle")} ${playerIndex + 1} لاعبين`,
       `${tr("continueText")} وصلت لنقاط ${roundPoints}.`,
       [
-        { id: "continueYes", label: `${tr("continue")} ×${nextMultiplier}`, className: "kora-modal-primary" },
+        { id: "continueYes", label: `${tr("continue")}`, className: "kora-modal-primary" },
         { id: "continueNo", label: "إنهاء الجولة وحفظ النتيجة", className: "kora-modal-secondary" }
       ],
-      `<div class="kora-multiplier">المضاعف القادم ×${nextMultiplier}</div>`
+      ``
     );
 
     modal.classList.add("open");
