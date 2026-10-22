@@ -1229,41 +1229,42 @@ body.settings-open {
   );
 }
 
-/* ===== زر الخروج واسم المستخدم (تسجيل الدخول) ===== */
-.user-chip {
-  max-width: 110px;
+/* ===== قسم الحساب داخل الإعدادات ===== */
+.account-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.account-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
   color: var(--text);
-  font-size: 12px;
+  font-weight: 700;
 }
 
-.logout-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 43px;
-  height: 43px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--text);
+.account-logout {
+  flex: none;
+  padding: 8px 14px;
+  border: 1px solid #ff6b6b;
+  border-radius: 10px;
+  background: transparent;
+  color: #ff6b6b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   transition: .2s;
 }
 
-.logout-btn:hover {
-  color: #ff6b6b;
-  border-color: #ff6b6b;
-  transform: translateY(-2px);
-}
-
-@media (max-width: 580px) {
-  .user-chip { display: none; }
-  .logout-btn { width: 36px; height: 36px; }
+.account-logout:hover {
+  background: #ff6b6b;
+  color: #fff;
 }
