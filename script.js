@@ -189,14 +189,14 @@ applyTheme(savedTheme);
 // =====================================
 
 function applyLanguage(language) {
-  const supportedLanguages = ['ar', 'en', 'ru', 'de', 'ku', 'fr', 'es'];
+  const supportedLanguages = ['ar', 'en', 'ru', 'de', 'fr', 'es'];
 
   const selectedLanguage = supportedLanguages.includes(language)
     ? language
     : 'ar';
 
   root.lang = selectedLanguage;
-  root.dir = ['ar', 'ku'].includes(selectedLanguage) ? 'rtl' : 'ltr';
+  root.dir = selectedLanguage === 'ar' ? 'rtl' : 'ltr';
 
   if (languageSelect) {
     languageSelect.value = selectedLanguage;
