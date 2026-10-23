@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="auth-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الترتيب العالمي | Kora Challenge</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="leaderboard.css">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <script>
+    try {
+      if ((localStorage.getItem('koraChallengeTheme') || 'dark') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch (e) {}
+  </script>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+  /* حارس تسجيل الدخول: لو مفيش مستخدم مسجّل يرجّعك لصفحة login.html */
+  (function () {
+    var CFG = {
+      apiKey: "AIzaSyDEDLvC4wKI9_HX7WUG6th4zuUOwxxB54k",
+      authDomain: "kora-e220c.firebaseapp.com",
+      databaseURL: "https://kora-e220c-default-rtdb.firebaseio.com",
+      projectId: "kora-e220c",
+      storageBucket: "kora-e220c.firebasestorage.app",
+      messagingSenderId: "535044321885",
+      appId: "1:535044321885:web:b89615d5eb01a93e1613b4"
+    };
+    window.KoraAuth = { user: null };
+
+    function toLogin() {
+      location.replace('login.html?next=' + encodeURIComponent('leaderboard.html'));
+    }
+
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(CFG);
+    } catch (e) { toLogin(); return; }
+
+    var timer = setTimeout(toLogin, 10000);
+    firebase.auth().onAuthStateChanged(function (u) {
+      clearTimeout(timer);
+      if (!u) { toLogin(); return; }
+      window.KoraAuth.user = u;
+      document.documentElement.classList.remove('auth-pending');
+    });
+  })();
+  </script>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <symbol id="icon-ball" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="4"/>
+    <path d="m32 18 11 8-4 13H25l-4-13Z" fill="currentColor"/>
+    <path d="m32 18-1-12M43 26l13-4M39 39l7 12M25 39l-7 12M21 26 8 22"
+          fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<header class="top">
+  <div class="brand">
+    <svg class="svg-icon brand-ball" aria-hidden="true"><use href="#icon-ball"></use></svg>
+    KORA <span>CHALLENGE</span>
+  </div>
+
+  <div class="header-actions">
+    <a class="back home-icon" href="index.html" aria-label="الصفحة الرئيسية" title="الصفحة الرئيسية">
+      <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m3 10 9-7 9 7"></path>
+        <path d="M5 9v12h14V9"></path>
+        <path d="M9 21v-7h6v7"></path>
+      </svg>
+    </a>
+  </div>
+</header>
+
+<main class="lb-page">
+  <div class="lb-heading">
+    <span class="lb-kicker">GLOBAL RANKING</span>
+    <h1>🏆 الترتيب العالمي</h1>
+    <p>أعلى 10 لاعبين من حيث مجموع النقاط في كل الألعاب</p>
+  </div>
+
+  <section class="lb-me" id="lbMe" hidden>
+    <span>ترتيبك</span>
+    <strong id="lbMeRank">-</strong>
+    <span class="lb-me-points"><b id="lbMePoints">0</b> نقطة</span>
+  </section>
+
+  <ol class="lb-list" id="lbList" aria-live="polite">
+    <li class="lb-state">بحمّل الترتيب…</li>
+  </ol>
+</main>
+
+<script src="points-sync.js" defer></script>
+<script src="leaderboard.js" defer></script>
+</body>
+</html>
