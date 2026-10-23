@@ -446,11 +446,24 @@
     ]
   };
 
+  // نسخة من كل مفتاح من غير إيموجي (الأيقونات بقت SVG مش نص)
+  (function addPlainKeys() {
+    const plain = window.KIcon ? window.KIcon.strip : s => s;
+    Object.keys(translations).forEach(key => {
+      const k = plain(key);
+      if (k && k !== key && !translations[k]) translations[k] = translations[key].map(plain);
+    });
+  })();
+
   const languages = ["en", "ru", "de", "fr", "es"];
   const originalText = new WeakMap();
 
+  const plainText = text => (window.KIcon ? window.KIcon.strip(text) : text);
+  const keepEmoji = (original, translated) =>
+    (window.KIcon ? window.KIcon.keepEmoji(original, translated) : translated);
+
   function normalize(text) {
-    return text.replace(/\s+/g, " ").trim();
+    return plainText(text.replace(/\s+/g, " ").trim());
   }
 
   function translatePage(language) {
@@ -492,7 +505,7 @@
         if (translated) {
           const leading = original.match(/^\s*/)?.[0] || "";
           const trailing = original.match(/\s*$/)?.[0] || "";
-          node.nodeValue = leading + translated + trailing;
+          node.nodeValue = leading + keepEmoji(original, translated) + trailing;
         }
       }
     });
@@ -1231,6 +1244,14 @@
     if (lang === "ar" || !extraTranslations[lang]) return;
 
     const dictionary = extraTranslations[lang];
+    const plain = window.KIcon ? window.KIcon.strip : s => s;
+    if (!dictionary.__plainDone) {
+      Object.keys(dictionary).forEach(key => {
+        const k = plain(key);
+        if (k && k !== key && !(k in dictionary)) dictionary[k] = plain(dictionary[key]);
+      });
+      Object.defineProperty(dictionary, "__plainDone", { value: true, enumerable: false });
+    }
     const walker = document.createTreeWalker(
       root,
       NodeFilter.SHOW_TEXT
@@ -1242,11 +1263,14 @@
     nodes.forEach(node => {
       const original = node.nodeValue;
       const trimmed = original.trim();
-      if (!trimmed || !dictionary[trimmed]) return;
+      if (!trimmed) return;
+      const found = dictionary[trimmed] ? trimmed : plain(trimmed);
+      if (!dictionary[found]) return;
 
       const leading = original.match(/^\s*/)[0];
       const trailing = original.match(/\s*$/)[0];
-      node.nodeValue = leading + dictionary[trimmed] + trailing;
+      const value = found === trimmed ? dictionary[found] : (window.KIcon ? window.KIcon.keepEmoji(trimmed, dictionary[found]) : dictionary[found]);
+      node.nodeValue = leading + value + trailing;
     });
 
     root.querySelectorAll?.(
