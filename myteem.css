@@ -92,3 +92,32 @@ footer{padding:22px 7%;border-top:1px solid #1b2820;color:var(--muted);font-size
   .offer{padding:16px}.offer-actions{width:100%}.offer-actions .btn{flex:1}.bidbox{width:100%}.bidbox input{flex:1;width:auto}
   .navbar{padding:10px 5%}
 }
+.seats{display:grid;gap:8px;margin-bottom:14px}
+.seat{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 14px;font-size:13px}
+.seat.on{border-color:#27834b}.seat.on b{color:var(--green)}.seat:not(.on) b{color:var(--muted)}
+
+/* عداد الدور */
+.turn-timer{margin:8px 0 10px;padding:8px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.turn-timer .tt-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);font-weight:700}
+.turn-timer .tt-top b{font-size:18px;color:var(--text);direction:rtl}
+.turn-timer.mine{border-color:var(--green)}
+.turn-timer.mine .tt-top b{color:var(--green)}
+.tt-bar{height:6px;margin-top:6px;border-radius:6px;background:var(--border);overflow:hidden}
+.tt-bar i{display:block;height:100%;width:100%;background:var(--green);border-radius:6px;transition:width .25s linear}
+.turn-timer.low{border-color:var(--red)}
+.turn-timer.low .tt-top b{color:var(--red)}
+.turn-timer.low .tt-bar i{background:var(--red)}
+.turn-timer.hidden{display:none}
+
+/* محاكاة المباراة */
+.mt-board{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.mt-team{flex:1;text-align:center}.mt-team small{display:block;color:var(--muted);font-weight:800}
+.mt-team b{font-size:46px;line-height:1.1;color:var(--green)}
+.mt-clock{text-align:center;min-width:92px}.mt-clock span{display:block;font-size:22px;font-weight:900;direction:ltr}
+.mt-clock small{color:var(--muted);font-size:12px}
+.mt-feed{max-height:260px;overflow-y:auto;text-align:right;display:grid;gap:6px;margin-bottom:12px}
+.mt-feed>div{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:7px 12px;font-size:13px;animation:pop .3s}
+.mt-feed .mt-ev.goal{border-color:var(--green);background:#10251a;font-weight:800}
+.mt-feed b{color:var(--green)}
+.mt-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.mt-actions h2,.mt-actions p{flex:1 1 100%}
