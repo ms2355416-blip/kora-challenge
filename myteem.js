@@ -12,6 +12,10 @@ const FIREBASE_CONFIG = {
 };
 
 const BUDGET = 100;
+const TURN_MS = 30000;   // وقت كل دور للرد
+const GRACE_MS = 1500;   // مهلة قبل ما الخصم ينهي دورك لو إنت مش متصل
+let clockOffset = 0;
+const now = () => Date.now() + clockOffset;
 const CAP = { GK: 1, DEF: 4, MID: 3, ATT: 3 };
 const POS_AR = { GK: 'حارس', DEF: 'مدافع', MID: 'وسط', ATT: 'مهاجم' };
 const SLOTS = { 
@@ -34,6 +38,7 @@ $('cfgWarn').classList.toggle('hidden', configured);
 let db, initErr = null;
 try { if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); }
 catch (e) { initErr = e; console.error(e); }
+if (db) db.ref('.info/serverTimeOffset').on('value', s => { clockOffset = s.val() || 0; });
 
 const net = p => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))]);
 const fail = e => { console.error(e); toast(e.message === 'timeout'
@@ -57,22 +62,22 @@ function nextOwner(r) {
   if (a + b >= 22) return null;
   return a < b ? 'A' : b < a ? 'B' : (r.n % 2 ? 'B' : 'A');
 }
-const newOffer = (r, o) => ({ pid: draw(r, o, -1), owner: o, bid: 0, turn: other(o) });
+const newOffer = (r, o) => ({ pid: draw(r, o, -1), owner: o, bid: 0, turn: other(o), deadline: now() + TURN_MS });
 
-function decide(r, who, action, amount) {
+function decide(r, who, action, amount, timedOut) {
   const of = r.offer, { pid, owner } = of, P = POOL[pid];
   if (of.turn !== who) return false;
   r.A.p = picksOf(r, 'A'); r.B.p = picksOf(r, 'B');
   if (action === 'raise') {
     if (!Number.isInteger(amount) || amount <= of.bid || amount > r[who].b || !hasRoom(r[who].p, P.p)) return false;
-    of.bid = amount; of.bidder = who; of.turn = other(who);
+    of.bid = amount; of.bidder = who; of.turn = other(who); of.deadline = now() + TURN_MS;
     return true;
   }
   const winner = of.bidder || owner, bid = of.bidder ? of.bid : 0;
   r[winner].p.push(pid); r[winner].b -= bid;
   let repl = null;
   if (winner !== owner) { repl = draw(r, owner, pid); r[owner].p.push(repl); }
-  r.last = { pid, owner, winner, bid, repl };
+  r.last = { pid, owner, winner, bid, repl, timedOut: !!timedOut, by: who };
   r.n++;
   const o = nextOwner(r);
   if (o) r.offer = newOffer(r, o); else { r.offer = null; r.status = 'done'; }
@@ -152,6 +157,229 @@ function pitchHTML(ids, fresh) {
 const total = ids => ids.reduce((s, i) => s + POOL[i].r, 0);
 const money = n => '€' + n + 'M';
 
+
+
+// ---------- اللعب ضد الكمبيوتر (من غير Firebase) ----------
+const BOT_LEVELS = {
+  easy:   { label: 'سهل',   mult: 0.7,  noise: 0.35, step: 3, think: [1000, 2000] },
+  medium: { label: 'متوسط', mult: 1,    noise: 0.18, step: 2, think: [900, 1800] },
+  hard:   { label: 'صعب',   mult: 1.15, noise: 0.05, step: 1, think: [800, 1500] }
+};
+let solo = null, local = null, botTimer = null;
+const stopBot = () => { clearTimeout(botTimer); botTimer = null; };
+
+// قرار الكمبيوتر: يزايد لحد سعر هو شايف إن اللاعب يستاهله، وإلا يسيبه
+function botDecide(r, level) {
+  const L = BOT_LEVELS[level] || BOT_LEVELS.medium, o = r.offer, P = POOL[o.pid], me = r.B, bid = o.bid || 0;
+  if (!hasRoom(picksOf(r, 'B'), P.p)) return { action: 'leave' };
+  const slotsLeft = Math.max(1, 11 - picksOf(r, 'B').length);
+  const perSlot = me.b / slotsLeft;
+  const need = CAP[P.p] - countPos(picksOf(r, 'B'), P.p);
+  let worth = perSlot * clamp(0.4 + (P.r - 80) * 0.16, 0.2, 2.4) * L.mult;
+  if (level === 'hard') worth *= 1 + 0.05 * need;
+  worth *= 1 + (Math.random() * 2 - 1) * L.noise;
+  const maxBid = Math.min(me.b, Math.floor(worth));
+  if (maxBid <= bid) return { action: 'leave' };
+  const amount = bid
+    ? Math.min(maxBid, bid + 1 + Math.floor(Math.random() * L.step))
+    : Math.max(1, Math.min(maxBid, Math.floor(maxBid * (0.2 + Math.random() * 0.25))));
+  return { action: 'raise', amount };
+}
+
+const pushLocal = () => render(JSON.parse(JSON.stringify(local)));
+
+function scheduleBot() {
+  stopBot();
+  if (!solo || !local || local.status !== 'playing' || !local.offer || local.offer.turn !== 'B') return;
+  const L = BOT_LEVELS[solo], wait = L.think[0] + Math.random() * (L.think[1] - L.think[0]);
+  botTimer = setTimeout(() => {
+    if (!solo || !local || !local.offer || local.offer.turn !== 'B') return;
+    const d = botDecide(local, solo);
+    if (!decide(local, 'B', d.action, d.amount)) decide(local, 'B', 'leave', 0);
+    pushLocal(); scheduleBot();
+  }, wait);
+}
+
+function startSolo(level) {
+  if (!BOT_LEVELS[level]) level = 'medium';
+  stopBot(); stopSim();
+  solo = level; role = 'A'; code = 'SOLO' + Date.now().toString(36);
+  local = { status: 'playing', n: 0, A: { b: BUDGET, p: [] }, B: { b: BUDGET, p: [] }, presence: { A: true, B: true } };
+  local.offer = newOffer(local, 'A');
+  prev = null; hadOpp = true;
+  $('result').dataset.sim = ''; $('result').classList.add('hidden');
+  $('roomChip').textContent = '🤖 ' + BOT_LEVELS[level].label; $('roomChip').classList.remove('hidden');
+  history.pushState({ kc: 1 }, '');
+  pushLocal(); scheduleBot();
+}
+
+// ---------- محاكاة المباراة (نفس النتيجة للاعبين من غير أي تدخل) ----------
+let simTimer = null;
+const stopSim = () => { clearTimeout(simTimer); simTimer = null; };
+
+function hashSeed(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  return h >>> 0;
+}
+function makeRng(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const avgPos = (ids, pos, fallback) => {
+  const a = ids.filter(i => POOL[i].p === pos).map(i => POOL[i].r);
+  return a.length ? a.reduce((s, x) => s + x, 0) / a.length : fallback;
+};
+const strengthOf = ids => ({ att: avgPos(ids, 'ATT', 60), mid: avgPos(ids, 'MID', 60), def: avgPos(ids, 'DEF', 60), gk: avgPos(ids, 'GK', 50) });
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+function pickWeighted(rand, ids, weights, exclude) {
+  const list = ids.filter(i => i !== exclude)
+    .map(i => ({ i, w: (weights[POOL[i].p] || 0) * Math.pow(POOL[i].r / 80, 4) })).filter(x => x.w > 0);
+  if (!list.length) return null;
+  let t = list.reduce((s, x) => s + x.w, 0) * rand();
+  for (const x of list) { t -= x.w; if (t <= 0) return x.i; }
+  return list[list.length - 1].i;
+}
+
+function simulateMatch(idsA, idsB, seedStr) {
+  const rand = makeRng(hashSeed(seedStr));
+  const ids = { A: idsA, B: idsB }, S = { A: strengthOf(idsA), B: strengthOf(idsB) };
+  const goals = { A: 0, B: 0 }, shots = { A: 0, B: 0 }, events = [];
+  const pA = 1 / (1 + Math.exp(-(S.A.mid - S.B.mid) / 5));   // نسبة الاستحواذ
+
+  for (let min = 1; min <= 90; min++) {
+    if (rand() < 0.25) {
+      const atk = rand() < pA ? 'A' : 'B', dfn = atk === 'A' ? 'B' : 'A', a = S[atk], d = S[dfn];
+      const shooter = pickWeighted(rand, ids[atk], { ATT: 6, MID: 2.5, DEF: 0.4 });
+      if (shooter != null) {
+        shots[atk]++;
+        const gkId = pickWeighted(rand, ids[dfn], { GK: 1 });
+        const pGoal = clamp(0.07 + (a.att - d.def) * 0.012 + (POOL[shooter].r - d.gk) * 0.01, 0.03, 0.3);
+        const x = rand();
+        if (x < pGoal) {
+          goals[atk]++;
+          const assist = rand() < 0.7 ? pickWeighted(rand, ids[atk], { MID: 3, ATT: 2, DEF: 1 }, shooter) : null;
+          events.push({ min, side: atk, type: 'goal', shooter, assist, score: { A: goals.A, B: goals.B } });
+        } else if (x < pGoal + 0.3) events.push({ min, side: atk, type: 'save', shooter, keeper: gkId });
+        else if (x < pGoal + 0.5) events.push({ min, side: atk, type: 'miss', shooter });
+      }
+    }
+    if (min === 45) events.push({ min: 45, type: 'ht' });
+  }
+  events.push({ min: 90, type: 'ft' });
+
+  let winner = goals.A > goals.B ? 'A' : goals.B > goals.A ? 'B' : null;
+  let pens = null;
+  if (!winner) {
+    const takers = side => ids[side].slice().sort((p, q) => POOL[q].r - POOL[p].r);
+    const list = { A: takers('A'), B: takers('B') }, pk = { A: 0, B: 0 }, taken = { A: 0, B: 0 }, pe = [];
+    const kick = side => {
+      const opp = side === 'A' ? 'B' : 'A', arr = list[side];
+      if (!arr.length) { taken[side]++; pe.push({ type: 'pk', side, shooter: null, ok: false, pk: { ...pk } }); return; }
+      const taker = arr[taken[side]++ % arr.length];
+      const gk = pickWeighted(rand, ids[opp], { GK: 1 });
+      const p = clamp(0.76 + (POOL[taker].r - (gk != null ? POOL[gk].r : 80)) * 0.01, 0.55, 0.92);
+      const ok = rand() < p;
+      if (ok) pk[side]++;
+      pe.push({ type: 'pk', side, shooter: taker, keeper: gk, ok, pk: { ...pk } });
+    };
+    for (let round = 0; round < 5 && !winner; round++) {
+      for (const side of ['A', 'B']) {
+        kick(side);
+        if (pk.A > pk.B + (5 - taken.B) || pk.B > pk.A + (5 - taken.A)) { winner = pk.A > pk.B ? 'A' : 'B'; break; }
+      }
+    }
+    for (let round = 0; round < 20 && !winner; round++) {
+      kick('A'); kick('B');
+      if (pk.A !== pk.B) winner = pk.A > pk.B ? 'A' : 'B';
+    }
+    if (!winner) winner = rand() < 0.5 ? 'A' : 'B';
+    pens = { events: pe, score: pk };
+  }
+
+  return { events, goals, shots, pens, winner, possession: Math.round(pA * 100) };
+}
+
+function eventLine(ev, me) {
+  const who = ev.side === me ? 'إنت' : 'الخصم', n = id => id == null ? 'لاعب' : POOL[id].n;
+  switch (ev.type) {
+    case 'goal': return `⚽ <b>${ev.min}'</b> جووول لـ${who}! <b>${n(ev.shooter)}</b>` + (ev.assist != null ? ` (تمريرة ${n(ev.assist)})` : '');
+    case 'save': return `🧤 <b>${ev.min}'</b> تسديدة من <b>${n(ev.shooter)}</b> وتصدي رائع من <b>${ev.keeper != null ? n(ev.keeper) : 'الحارس'}</b>`;
+    case 'miss': return `💨 <b>${ev.min}'</b> فرصة ضايعة لـ${who}: <b>${n(ev.shooter)}</b>`;
+    case 'ht': return '⏸ نهاية الشوط الأول';
+    case 'ft': return '🏁 صافرة النهاية';
+    case 'pk': return `🎯 ركلة ${who}: <b>${n(ev.shooter)}</b> ${ev.ok ? 'سجّل ✅' : 'ضاعت ❌'}`;
+  }
+  return '';
+}
+
+function showMatchIntro(r, mine, theirs) {
+  const res = $('result');
+  res.innerHTML = `<h2>انتهى <span>الاختيار</span> ⚽</h2>
+    <p>قوة تشكيلتك ${total(mine)} مقابل ${total(theirs)} للخصم</p>
+    <p>المباراة هتتلعب بالمحاكاة بين الفريقين من غير تدخل من أي لاعب، والنتيجة نفسها للطرفين.</p><br>
+    <button class="btn btn-primary" id="simBtn">🎮 ابدأ المباراة</button>`;
+  $('simBtn').onclick = () => playMatch(r);
+}
+
+function playMatch(r) {
+  stopSim();
+  const me = role, op = other(me), res = $('result');
+  const sim = simulateMatch(picksOf(r, 'A'), picksOf(r, 'B'), code + '|' + picksOf(r, 'A').join(',') + '|' + picksOf(r, 'B').join(','));
+  const timeline = sim.events.concat(sim.pens ? [{ type: 'pkstart' }].concat(sim.pens.events) : []);
+
+  res.innerHTML = `<div class="mt-board">
+      <div class="mt-team"><small>إنت</small><b id="mtMe">0</b></div>
+      <div class="mt-clock"><span id="mtMin">0'</span><small id="mtState">بداية المباراة</small></div>
+      <div class="mt-team"><small>الخصم</small><b id="mtOp">0</b></div>
+    </div>
+    <div class="mt-feed" id="mtFeed"></div>
+    <div class="mt-actions" id="mtActions"><button class="btn btn-outline" id="mtSkip">تخطي ⏭</button></div>`;
+
+  let i = 0, skip = false;
+  const setScore = sc => { $('mtMe').textContent = sc[me]; $('mtOp').textContent = sc[op]; };
+  const add = html => { const d = document.createElement('div'); d.innerHTML = html; $('mtFeed').prepend(d); };
+  $('mtSkip').onclick = () => { skip = true; stopSim(); step(); };
+
+  function finish() {
+    const win = sim.winner === me;
+    const pens = sim.pens ? `<p>انتهت بالتعادل ${sim.goals[me]}-${sim.goals[op]} وحسمتها ركلات الترجيح ${sim.pens.score[me]}-${sim.pens.score[op]}</p>` : '';
+    $('mtState').textContent = 'انتهت المباراة';
+    $('mtMin').textContent = "90'";
+    setScore(sim.goals);
+    $('mtActions').innerHTML = `<h2>${win ? '🏆 <span>كسبت المباراة!</span>' : 'الخصم كسب المباراة 😅'}</h2>
+      <p>النتيجة ${sim.goals[me]} - ${sim.goals[op]}</p>${pens}
+      <p>الاستحواذ ${me === 'A' ? sim.possession : 100 - sim.possession}% • التسديدات ${sim.shots[me]} مقابل ${sim.shots[op]}</p><br>
+      <a class="btn btn-primary" href="myteem.html">لعبة جديدة</a>
+      <button class="btn btn-outline" id="mtReplay">شوف المباراة تاني</button>`;
+    $('mtReplay').onclick = () => playMatch(r);
+  }
+
+  function step() {
+    if (!$('mtFeed')) return;
+    if (i >= timeline.length) return finish();
+    const ev = timeline[i++];
+    let delay = 900;
+    if (ev.type === 'pkstart') { $('mtState').textContent = 'ركلات الترجيح'; add('🎯 <b>تعادل!</b> ركلات الترجيح'); delay = 1400; }
+    else {
+      if (ev.min) $('mtMin').textContent = ev.min + "'";
+      if (ev.type === 'goal') { setScore(ev.score); delay = 1700; }
+      if (ev.type === 'ht') $('mtState').textContent = 'استراحة';
+      if (ev.type === 'pk') { setScore(ev.pk); delay = 1200; }
+      add(`<div class="mt-ev ${ev.type}">${eventLine(ev, me)}</div>`);
+      if (ev.type === 'ht') $('mtState').textContent = 'الشوط الثاني';
+    }
+    if (skip) return step();
+    simTimer = setTimeout(step, delay);
+  }
+  step();
+}
+
 function render(r) {
   if (!r) return;
   const pres = r.presence || {}, joined = (pres.A ? 1 : 0) + (pres.B ? 1 : 0), oppHere = !!pres[other(role)];
@@ -181,18 +409,22 @@ function render(r) {
   const L = r.last;
   if (L) {
     const P = POOL[L.pid], w = L.winner === me ? 'إنت' : 'الخصم';
-    $('lastEv').innerHTML = L.bid
+    const tm = L.timedOut ? `⏱ انتهى وقت ${L.by === me ? 'إنت' : 'الخصم'} — ` : '';
+    $('lastEv').innerHTML = tm + (L.bid
       ? `${w} كسب <b>${P.n}</b> بـ ${money(L.bid)}` + (L.repl ? ` — والبديل ${L.owner === me ? 'ليك' : 'للخصم'}: <b>${POOL[L.repl].n}</b>` : '')
-      : `<b>${P.n}</b> راح ${L.owner === me ? 'ليك' : 'للخصم'} مجاناً`;
+      : `<b>${P.n}</b> راح ${L.owner === me ? 'ليك' : 'للخصم'} مجاناً`);
   } else $('lastEv').textContent = '';
 
   const res = $('result');
   if (r.status === 'done') {
-    const a = total(mine), b = total(theirs);
-    res.classList.remove('hidden'); $('offer').classList.add('hidden');
-    res.innerHTML = `<h2>${a === b ? '<span>تعادل!</span>' : a > b ? '🏆 <span>كسبت!</span>' : 'الخصم كسب 😅'}</h2><p>تشكيلتك ${a} مقابل ${b} للخصم</p><br><a class="btn btn-primary" href="myteem.html">لعبة جديدة</a>`;
+    $('offer').classList.add('hidden'); res.classList.remove('hidden');
+    // الشاشة بتتبني مرة واحدة عشان المحاكاة ما تتقطعش لما بيانات الغرفة تتغير
+    if (res.dataset.sim) return;
+    res.dataset.sim = '1';
+    showMatchIntro(r, mine, theirs);
     return;
   }
+  res.dataset.sim = '';
   res.classList.add('hidden'); $('offer').classList.remove('hidden');
 
   const o = r.offer, P = POOL[o.pid], myTurn = o.turn === me, bid = o.bid || 0;
@@ -218,6 +450,10 @@ async function act(raise) {
   if (!o || o.turn !== role) return;
   if (raise && !(amount > (o.bid || 0))) return toast('لازم سعرك يكون أعلى من ' + (o.bid || 0) + ' مليون');
   if (raise && amount > prev[role].b) return toast('ميزانيتك ' + prev[role].b + ' مليون بس');
+  if (solo) {
+    if (decide(local, role, raise ? 'raise' : 'leave', amount)) { $('bid').value = ''; pushLocal(); scheduleBot(); }
+    return;
+  }
   $('buyBtn').disabled =$('passBtn').disabled = true;
   try {
     await net(ref.transaction(r => {
@@ -229,6 +465,48 @@ async function act(raise) {
   $('passBtn').disabled = false; $('bid').value = '';
 }
 
+
+// ---------- عداد الدور (30 ثانية) ----------
+let firedFor = null;
+function ensureTimer() {
+  if ($('turnTimer')) return;
+  const box = document.createElement('div');
+  box.id = 'turnTimer'; box.className = 'turn-timer hidden';
+  box.innerHTML = '<div class="tt-top"><span id="ttLabel"></span><b id="ttNum"></b></div><div class="tt-bar"><i id="ttBar"></i></div>';
+  $('oName').after(box);
+}
+async function timeoutLeave(deadline) {
+  if (solo) {
+    if (local && local.status === 'playing' && local.offer && local.offer.deadline === deadline && decide(local, local.offer.turn, 'leave', 0, true)) { pushLocal(); scheduleBot(); }
+    return;
+  }
+  try {
+    await net(ref.transaction(r => {
+      if (!r) return r;
+      if (r.status !== 'playing' || !r.offer || r.offer.deadline !== deadline) return;
+      return decide(r, r.offer.turn, 'leave', 0, true) ? r : undefined;
+    }));
+  } catch (e) { setTimeout(() => { if (firedFor === deadline) firedFor = null; }, 2000); }
+}
+function tick() {
+  ensureTimer();
+  const box = $('turnTimer'), r = prev, o = r && r.status === 'playing' && r.offer;
+  if ((!ref && !solo) || !o || !o.deadline) { box.classList.add('hidden'); return; }
+  const ms = o.deadline - now(), myTurn = o.turn === role, sec = Math.max(0, Math.ceil(ms / 1000));
+  box.classList.remove('hidden');
+  box.classList.toggle('low', sec <= 10);
+  box.classList.toggle('mine', myTurn);
+  $('ttLabel').textContent = myTurn ? '⏱ وقتك للرد' : '⏱ وقت الخصم للرد';
+  $('ttNum').textContent = sec + ' ث';
+  $('ttBar').style.width = Math.max(0, Math.min(100, ms / TURN_MS * 100)) + '%';
+  if (ms <= 0 && firedFor !== o.deadline && (myTurn || ms <= -GRACE_MS)) {
+    firedFor = o.deadline;
+    timeoutLeave(o.deadline);
+  }
+}
+setInterval(tick, 250);
+
+$('soloBtn').onclick = () => startSolo($('botLevel').value);
 $('createBtn').onclick = createRoom;
 $('joinBtn').onclick = joinRoom;
 $('codeInput').onkeydown = e => e.key === 'Enter' && joinRoom();$('buyBtn').onclick = () => act(true);
@@ -238,12 +516,16 @@ $('copyBtn').onclick = () => { navigator.clipboard && navigator.clipboard.writeT
 $('roomChip').title = 'اخرج من الغرفة';
 $('roomChip').style.cursor = 'pointer';
 function leave(fromPop) {
-  if (!ref) return;
+  if (!ref && !solo) return;
   const inGame = prev && prev.status === 'playing';
   if (inGame && !confirm('اللعبة شغالة — تخرج من الغرفة؟')) { if (fromPop) history.pushState({ kc: 1 }, ''); return; }
-  ref.off(); conn && conn.off();
-  ref.child('presence/' + role).remove().catch(() => {});
-  sessionStorage.removeItem('kc-last'); sessionStorage.removeItem('kc-' + code);
+  stopSim(); $('result').dataset.sim = ''; $('result').classList.add('hidden');
+  stopBot(); solo = local = null;
+  if (ref) {
+    ref.off(); conn && conn.off();
+    ref.child('presence/' + role).remove().catch(() => {});
+    sessionStorage.removeItem('kc-last'); sessionStorage.removeItem('kc-' + code);
+  }
   ref = role = code = prev = conn = null; hadOpp = false;
   $('roomChip').classList.add('hidden');$('plChip').style.display = 'none';
   show('lobby');
