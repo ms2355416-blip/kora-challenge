@@ -1,0 +1,4 @@
+/* يتضاف في آخر leaderboard.css */
+.lb-honor{display:block;font-size:.74rem;font-weight:700;color:var(--unl-gold,#f6c445);margin-top:2px}
+.lb-avatar svg.kavatar{width:60%;height:60%}
+.lb-avatar.kframe{overflow:visible}
