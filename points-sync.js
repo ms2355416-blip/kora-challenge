@@ -57,7 +57,10 @@
 
     busy = true;
     ref.transaction(build(true))
-      .catch(() => ref.transaction(build(false))) // القواعد القديمة ممكن ترفض الحقول الجديدة
+      .catch(err => {
+        console.warn('[Kora] قواعد Firebase رفضت اللقب/الأفاتار، حدّث قواعد leaderboard:', err && err.message);
+        return ref.transaction(build(false)); // القواعد القديمة ممكن ترفض الحقول الجديدة
+      })
       .then(() => { lastKey = key; })
       .catch(() => { /* القواعد ممكن تمنع الكتابة، هنحاول تاني بعدين */ })
       .finally(() => { busy = false; });
