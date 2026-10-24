@@ -75,11 +75,11 @@ body.unl-lock{overflow:hidden}
 .unl-toast.show{opacity:1;transform:translate(-50%,0)}
 
 /* ---------- ثيمات الملاعب ---------- */
-:root:root[data-stadium="night"]{--bg:#050b14;--surface:#0a1524;--surface-2:#10213a;--panel:#0a1524;--panel-light:#10213a;--border:#1b3354;--green:#35d6ff;--text:#e6f4ff;--muted:#86a4c2}
-:root:root[data-stadium="sunset"]{--bg:#140d06;--surface:#221609;--surface-2:#2f1f0d;--panel:#221609;--panel-light:#2f1f0d;--border:#4a3315;--green:#f6c445;--text:#fff3dc;--muted:#c4a574}
-:root:root[data-stadium="neon"]{--bg:#07040f;--surface:#120a22;--surface-2:#1b1033;--panel:#120a22;--panel-light:#1b1033;--border:#33204f;--green:#c15cff;--text:#f3e8ff;--muted:#a58bc7}
-:root:root[data-stadium="grass"]{--bg:#0f2a14;--surface:#143b1c;--surface-2:#1b4a25;--panel:#143b1c;--panel-light:#1b4a25;--border:#2a6a37;--green:#9dff6a;--text:#eefbe8;--muted:#a3c9a0}
-:root[data-stadium] body{background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 70px,transparent 70px 140px);background-attachment:fixed}
+:root:not([data-theme="light"])[data-stadium="night"]{--bg:#050b14;--surface:#0a1524;--surface-2:#10213a;--panel:#0a1524;--panel-light:#10213a;--border:#1b3354;--green:#35d6ff;--text:#e6f4ff;--muted:#86a4c2}
+:root:not([data-theme="light"])[data-stadium="sunset"]{--bg:#140d06;--surface:#221609;--surface-2:#2f1f0d;--panel:#221609;--panel-light:#2f1f0d;--border:#4a3315;--green:#f6c445;--text:#fff3dc;--muted:#c4a574}
+:root:not([data-theme="light"])[data-stadium="neon"]{--bg:#07040f;--surface:#120a22;--surface-2:#1b1033;--panel:#120a22;--panel-light:#1b1033;--border:#33204f;--green:#c15cff;--text:#f3e8ff;--muted:#a58bc7}
+:root:not([data-theme="light"])[data-stadium="grass"]{--bg:#0f2a14;--surface:#143b1c;--surface-2:#1b4a25;--panel:#143b1c;--panel-light:#1b4a25;--border:#2a6a37;--green:#9dff6a;--text:#eefbe8;--muted:#a3c9a0}
+:root[data-stadium]:not([data-theme="light"]) body{background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 70px,transparent 70px 140px);background-attachment:fixed}
 
 /* ---------- موبايل ---------- */
 @media (max-width:520px){
