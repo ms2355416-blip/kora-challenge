@@ -1,0 +1,84 @@
+/* Kora Challenge — لعبة شبكة الأندية */
+.grid-page{max-width:560px;margin:0 auto;padding:18px 16px 60px}
+.grid-heading{text-align:center;margin-bottom:12px}
+.grid-kicker{display:block;font-size:.72rem;letter-spacing:.2em;color:var(--green,#24e982);font-weight:700}
+.grid-heading h1{margin:4px 0 0;font-size:1.7rem}
+.grid-progress{margin:0 0 14px}
+.g-screen[hidden]{display:none}
+.g-lead{color:var(--muted,#8aa397);text-align:center;margin:0 0 14px;line-height:1.7;font-size:.92rem}
+
+/* الأطوار */
+.g-modes{display:flex;flex-direction:column;gap:10px}
+.g-mode{display:flex;align-items:center;gap:12px;width:100%;text-align:start;font:inherit;color:var(--text,#e8f3ee);background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);border-radius:14px;padding:14px;cursor:pointer;transition:transform .2s,border-color .2s}
+.g-mode:hover:not(:disabled){transform:translateY(-2px);border-color:var(--green,#24e982)}
+.g-mode:disabled{opacity:.55;cursor:not-allowed}
+.g-mode-info{flex:1;display:flex;flex-direction:column;gap:3px}
+.g-mode-info b{font-size:1rem}
+.g-mode-info small{color:var(--muted,#8aa397);line-height:1.5}
+.g-mode-tag{font-size:.74rem;font-weight:800;color:#04110a;background:var(--green,#24e982);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.g-mode.locked .g-mode-tag{background:var(--surface-2,#17211d);color:var(--muted,#8aa397)}
+
+/* HUD */
+.g-hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.g-stat{background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);border-radius:12px;padding:8px;text-align:center}
+.g-stat small{display:block;font-size:.7rem;color:var(--muted,#8aa397)}
+.g-stat b{font-size:1.15rem;color:var(--green,#24e982)}
+.g-stat b.warn{color:#ff6b6b}
+
+/* اللوحة */
+.g-board{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.g-h,.g-c,.g-corner{aspect-ratio:1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative}
+.g-corner{background:var(--surface-2,#17211d);border:1px solid var(--border,#1f2b26);color:var(--green,#24e982)}
+.g-corner svg{width:46%;height:46%}
+.g-h{background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);padding:4px}
+.g-h img{width:54%;height:54%;object-fit:contain}
+.g-h span{font-size:.62rem;font-weight:700;line-height:1.2;text-align:center;color:var(--text,#e8f3ee);max-width:100%}
+.g-c{font:inherit;color:var(--text,#e8f3ee);background:var(--surface-2,#17211d);border:2px solid var(--border,#1f2b26);cursor:pointer;padding:4px;transition:border-color .2s,background .2s,transform .15s}
+.g-c:hover:not(.done){border-color:var(--green,#24e982)}
+.g-c.sel{border-color:var(--green,#24e982);background:color-mix(in srgb,var(--green,#24e982) 14%,var(--surface-2,#17211d));transform:scale(1.03)}
+.g-c .plus{font-size:1.7rem;color:var(--muted,#8aa397);line-height:1}
+.g-c.done{cursor:default;background:color-mix(in srgb,var(--green,#24e982) 22%,var(--surface-2,#17211d));border-color:var(--green,#24e982)}
+.g-c.done b{font-size:.7rem;line-height:1.25;text-align:center}
+.g-c.done small{font-size:.58rem;color:var(--muted,#8aa397)}
+.g-c.shake{animation:gShake .4s}
+@keyframes gShake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.g-c.missed{border-color:#ff6b6b}
+
+/* الإدخال */
+.g-hint{text-align:center;color:var(--muted,#8aa397);font-size:.85rem;margin:12px 0 8px;min-height:1.3em}
+.g-hint.bad{color:#ff6b6b}
+.g-input{display:flex;gap:8px;align-items:stretch}
+.g-suggest-wrap{position:relative;flex:1;min-width:0}
+.g-input input{width:100%;height:100%;box-sizing:border-box;font:inherit;color:var(--text,#e8f3ee);background:var(--surface,#101714);border:2px solid var(--border,#1f2b26);border-radius:12px;padding:12px 14px}
+.g-input input:focus{outline:0;border-color:var(--green,#24e982)}
+.g-input input:disabled{opacity:.5}
+.g-btn{font:inherit;font-weight:800;cursor:pointer;color:#04110a;background:var(--green,#24e982);border:2px solid var(--green,#24e982);border-radius:12px;padding:12px 18px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.g-btn:disabled{opacity:.45;cursor:not-allowed}
+.g-btn-ghost{background:transparent;color:var(--green,#24e982)}
+.g-btn-text{font-size:.9rem}
+.g-suggest{position:absolute;inset-inline:0;top:calc(100% + 4px);z-index:20;margin:0;padding:4px;list-style:none;background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.4);max-height:240px;overflow-y:auto}
+.g-suggest[hidden]{display:none}
+.g-suggest li{padding:9px 12px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;font-size:.9rem}
+.g-suggest li small{color:var(--muted,#8aa397)}
+.g-suggest li:hover,.g-suggest li.act{background:var(--surface-2,#17211d)}
+
+/* المساعدات */
+.g-powers{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.g-pw{flex:1;min-width:96px;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--text,#e8f3ee);background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);border-radius:12px;padding:9px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.g-pw em{font-style:normal;color:var(--unl-gold,#f6c445)}
+.g-pw:disabled{opacity:.45;cursor:not-allowed}
+.g-options{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.g-options[hidden]{display:none}
+.g-opt{font:inherit;font-weight:700;cursor:pointer;color:var(--text,#e8f3ee);background:var(--surface-2,#17211d);border:1px solid var(--green,#24e982);border-radius:999px;padding:8px 14px}
+
+/* النتيجة */
+.g-result{text-align:center;background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);border-radius:18px;padding:24px 16px}
+.g-result h2{margin:0 0 6px;font-size:1.4rem}
+.g-result p{margin:0;color:var(--muted,#8aa397)}
+.g-result-pts{margin:16px 0;display:flex;align-items:baseline;justify-content:center;gap:8px}
+.g-result-pts b{font-size:3rem;color:var(--green,#24e982)}
+.g-unlocked{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-direction:column;gap:6px}
+.g-unlocked li{background:var(--surface-2,#17211d);border:1px solid var(--unl-gold,#f6c445);color:var(--unl-gold,#f6c445);border-radius:10px;padding:8px;font-weight:700;font-size:.88rem}
+.g-result-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+@media (prefers-reduced-motion:reduce){.g-c,.g-c.shake{animation:none;transition:none}}

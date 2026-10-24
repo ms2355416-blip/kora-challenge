@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="auth-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>شبكة الأندية | Kora Challenge</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="grid.css">
+  <link rel="stylesheet" href="unlocks.css">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <script>
+    try {
+      if ((localStorage.getItem('koraChallengeTheme') || 'dark') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch (e) {}
+  </script>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+  /* حارس تسجيل الدخول */
+  (function () {
+    var CFG = {
+      apiKey: "AIzaSyDEDLvC4wKI9_HX7WUG6th4zuUOwxxB54k",
+      authDomain: "kora-e220c.firebaseapp.com",
+      databaseURL: "https://kora-e220c-default-rtdb.firebaseio.com",
+      projectId: "kora-e220c",
+      storageBucket: "kora-e220c.firebasestorage.app",
+      messagingSenderId: "535044321885",
+      appId: "1:535044321885:web:b89615d5eb01a93e1613b4"
+    };
+    window.KoraAuth = { user: null };
+    function toLogin() { location.replace('login.html?next=' + encodeURIComponent('grid.html')); }
+    try { if (!firebase.apps.length) firebase.initializeApp(CFG); } catch (e) { toLogin(); return; }
+    var timer = setTimeout(toLogin, 10000);
+    firebase.auth().onAuthStateChanged(function (u) {
+      clearTimeout(timer);
+      if (!u) { toLogin(); return; }
+      window.KoraAuth.user = u;
+      document.documentElement.classList.remove('auth-pending');
+    });
+  })();
+  </script>
+  <script src="icons.js"></script>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <symbol id="icon-ball" viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="4"/><path d="m32 18 11 8-4 13H25l-4-13Z" fill="currentColor"/><path d="m32 18-1-12M43 26l13-4M39 39l7 12M25 39l-7 12M21 26 8 22" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand"><svg class="svg-icon brand-ball" aria-hidden="true"><use href="#icon-ball"></use></svg>KORA <span>CHALLENGE</span></div>
+  <div class="header-actions">
+    <a class="back home-icon" href="index.html" aria-label="الصفحة الرئيسية" title="الصفحة الرئيسية">
+      <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"></path><path d="M5 9v12h14V9"></path><path d="M9 21v-7h6v7"></path></svg>
+    </a>
+  </div>
+</header>
+
+<main class="grid-page">
+  <div class="grid-heading">
+    <span class="grid-kicker">FOOTBALL GRID</span>
+    <h1>شبكة الأندية</h1>
+  </div>
+
+  <div data-unlock-progress class="grid-progress"></div>
+
+  <!-- اختيار الطور -->
+  <section id="gMenu" class="g-screen">
+    <p class="g-lead">اكتب لاعب لعب للفريقين اللي في الصف والعمود. اللاعب ميتكررش في نفس الشبكة.</p>
+    <div id="gModes" class="g-modes"></div>
+  </section>
+
+  <!-- اللعب -->
+  <section id="gPlay" class="g-screen" hidden>
+    <div class="g-hud">
+      <div class="g-stat"><small>الوقت</small><b id="gTime">0:00</b></div>
+      <div class="g-stat"><small>الأرواح</small><b id="gLives"></b></div>
+      <div class="g-stat"><small>النقاط</small><b id="gScore">0</b></div>
+    </div>
+
+    <div class="g-board" id="gBoard" dir="ltr"></div>
+
+    <div class="g-hint" id="gHint">اختار مربع الأول</div>
+
+    <form class="g-input" id="gForm" autocomplete="off">
+      <div class="g-suggest-wrap">
+        <input id="gInput" type="text" placeholder="اكتب اسم اللاعب هنا" dir="auto" disabled>
+        <ul class="g-suggest" id="gSuggest" hidden></ul>
+      </div>
+      <button type="submit" class="g-btn" id="gGuess" disabled>خمّن</button>
+      <button type="button" class="g-btn g-btn-ghost" id="gReset" aria-label="لعبة جديدة" title="لعبة جديدة">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      </button>
+    </form>
+
+    <div class="g-powers" id="gPowers"></div>
+    <div class="g-options" id="gOptions" hidden></div>
+  </section>
+
+  <!-- النتيجة -->
+  <section id="gResult" class="g-screen" hidden>
+    <div class="g-result">
+      <h2 id="rTitle"></h2>
+      <p id="rSub"></p>
+      <div class="g-result-pts"><b id="rPts">0</b><span>نقطة</span></div>
+      <ul class="g-unlocked" id="rUnlocked" hidden></ul>
+      <div class="g-result-actions">
+        <button class="g-btn" id="rAgain" type="button">العب تاني</button>
+        <button class="g-btn g-btn-ghost g-btn-text" id="rMenu" type="button">الأطوار</button>
+        <a class="g-btn g-btn-ghost g-btn-text" href="leaderboard.html">الترتيب</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="unlocks.js"></script>
+<script src="points-sync.js"></script>
+<script src="grid-data.js"></script>
+<script src="grid.js"></script>
+</body>
+</html>
