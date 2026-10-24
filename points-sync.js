@@ -1,5 +1,6 @@
 /* Kora Challenge — مزامنة نقاط اللاعب مع الترتيب العالمي
-   بتاخد totalPoints من الجهاز وتحفظها في Firebase تحت leaderboard/<uid> */
+   بتاخد totalPoints من الجهاز وتحفظها في Firebase تحت leaderboard/<uid>
+   + اللقب والإطار والأفاتار المفعّلين (من unlocks.js) عشان يظهروا في الترتيب. */
 (() => {
   'use strict';
 
@@ -23,25 +24,42 @@
     return name.slice(0, 30);
   }
 
+  function cosmetics() {
+    try {
+      if (window.KoraUnlocks) {
+        const e = window.KoraUnlocks.getEquipped();
+        return { title: e.title, frame: e.frame, avatar: e.avatar };
+      }
+    } catch (err) { /* ignore */ }
+    return null;
+  }
+
   function sync() {
     if (!user || busy) return;
     if (typeof firebase === 'undefined' || !firebase.database) return;
 
     const points = localPoints();
     const name = displayName();
-    const key = points + '|' + name;
+    const cos = cosmetics();
+    const key = points + '|' + name + '|' + (cos ? cos.title + cos.frame + cos.avatar : '');
     if (key === lastKey) return;
 
-    busy = true;
-    firebase.database().ref('leaderboard/' + user.uid).transaction(current => {
+    const ref = firebase.database().ref('leaderboard/' + user.uid);
+    const build = withCos => current => {
       // لو معندوش نقاط ولسه ملوش سجل، منعملش سجل فاضي
       if (!current && points === 0) return;
       // النقاط عمرها ما بتقل (لو الجهاز اتمسح أو اتغير)
       const best = Math.max(Number(current && current.points) || 0, points);
-      return { name, points: best, t: firebase.database.ServerValue.TIMESTAMP };
-    }).then(() => {
-      lastKey = key;
-    }).catch(() => { /* القواعد ممكن تمنع الكتابة، هنحاول تاني بعدين */ })
+      const out = { name, points: best, t: firebase.database.ServerValue.TIMESTAMP };
+      if (withCos && cos) Object.assign(out, cos);
+      return out;
+    };
+
+    busy = true;
+    ref.transaction(build(true))
+      .catch(() => ref.transaction(build(false))) // القواعد القديمة ممكن ترفض الحقول الجديدة
+      .then(() => { lastKey = key; })
+      .catch(() => { /* القواعد ممكن تمنع الكتابة، هنحاول تاني بعدين */ })
       .finally(() => { busy = false; });
   }
 
