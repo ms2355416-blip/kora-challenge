@@ -29,6 +29,19 @@
     return (Array.from(String(name).trim())[0] || '⚽').toUpperCase();
   }
 
+  // لقب/إطار/أفاتار اللاعب: بنقبلهم بس لو موجودين في الكتالوج واللاعب وصل نقاطهم
+  function cosmetic(row) {
+    const out = { titleName: '', frame: 'none', avatar: 'none' };
+    const U = window.KoraUnlocks;
+    if (!U) return out;
+    const ok = (type, id) => { const it = U.item(type, id); return it && (it.at || 0) <= row.points ? it : null; };
+    const t = ok('titles', row.title);
+    if (t) out.titleName = t.name;
+    if (ok('frames', row.frame)) out.frame = row.frame;
+    if (ok('avatars', row.avatar)) out.avatar = row.avatar;
+    return out;
+  }
+
   function render() {
     if (!rows.length) return state('لسه مفيش لاعبين في الترتيب. العب أي لعبة وكون أول واحد! ⚽');
 
@@ -45,7 +58,10 @@
 
       const avatar = document.createElement('span');
       avatar.className = 'lb-avatar';
-      avatar.textContent = initial(row.name);
+      const cos = cosmetic(row);
+      if (cos.frame !== 'none') avatar.classList.add('kframe', 'kframe-' + cos.frame);
+      if (cos.avatar !== 'none' && window.KoraUnlocks) avatar.innerHTML = window.KoraUnlocks.avatarSVG(cos.avatar);
+      else avatar.textContent = initial(row.name);
 
       const info = document.createElement('div');
       info.className = 'lb-info';
@@ -62,6 +78,13 @@
       }
 
       info.appendChild(nameEl);
+
+      if (cos.titleName) {
+        const honor = document.createElement('span');
+        honor.className = 'lb-honor';
+        honor.textContent = cos.titleName;
+        info.appendChild(honor);
+      }
 
       if (TITLES[rank]) {
         const title = document.createElement('span');
@@ -115,7 +138,10 @@
           rows.push({
             uid: child.key,
             name: String(v.name || 'لاعب').slice(0, 30),
-            points: Number(v.points) || 0
+            points: Number(v.points) || 0,
+            title: String(v.title || ''),
+            frame: String(v.frame || ''),
+            avatar: String(v.avatar || '')
           });
         });
         rows.sort((a, b) => b.points - a.points);
