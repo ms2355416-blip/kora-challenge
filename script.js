@@ -517,6 +517,8 @@ document.querySelectorAll('[data-game]').forEach(button => {
       openClubModal();
     } else if (game === 'players90') {
       window.location.href = 'players90.html';
+    } else if (game === 'grid') {
+      window.location.href = 'grid.html';
     }
   });
 });
