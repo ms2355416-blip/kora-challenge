@@ -57,6 +57,12 @@ function draw(r, owner, skip) {
   const c = POOL.filter(x => !taken.has(x.id) && hasRoom(mine, x.p));
   return c[Math.floor(Math.random() * c.length)].id;
 }
+// لاعب بنفس المركز للطرف التاني (من غير مزايدة)
+function drawSamePos(r, pos, skip) {
+  const taken = new Set([...picksOf(r, 'A'), ...picksOf(r, 'B'), skip]);
+  const c = POOL.filter(x => x.p === pos && !taken.has(x.id));
+  return c[Math.floor(Math.random() * c.length)].id;
+}
 function nextOwner(r) {
   const a = picksOf(r, 'A').length, b = picksOf(r, 'B').length;
   if (a + b >= 22) return null;
@@ -75,9 +81,11 @@ function decide(r, who, action, amount, timedOut) {
   }
   const winner = of.bidder || owner, bid = of.bidder ? of.bid : 0;
   r[winner].p.push(pid); r[winner].b -= bid;
-  let repl = null;
-  if (winner !== owner) { repl = draw(r, owner, pid); r[owner].p.push(repl); }
-  r.last = { pid, owner, winner, bid, repl, timedOut: !!timedOut, by: who };
+  // الطرف التاني دايمًا ياخد لاعب بنفس المركز، فالتشكيلتين بيتبنوا بنفس المراكز
+  const loser = other(winner);
+  const repl = drawSamePos(r, P.p, pid);
+  r[loser].p.push(repl);
+  r.last = { pid, owner, winner, loser, bid, repl, timedOut: !!timedOut, by: who };
   r.n++;
   const o = nextOwner(r);
   if (o) r.offer = newOffer(r, o); else { r.offer = null; r.status = 'done'; }
@@ -403,7 +411,7 @@ function render(r) {
 
   $('myPitch').innerHTML = pitchHTML(mine, fresh);$('oppPitch').innerHTML = pitchHTML(theirs, fresh);
   $('myBudget').textContent = money(r[me].b);$('oppBudget').textContent = money(r[op].b);
-  $('roundNo').textContent = Math.min(r.n + 1, 22) + ' / 22';$('myScore').textContent = mine.length ? `مجموع ${total(mine)} • ${mine.length}/11` : '0/11';
+  $('roundNo').textContent = Math.min(r.n + 1, 11) + ' / 11';$('myScore').textContent = mine.length ? `مجموع ${total(mine)} • ${mine.length}/11` : '0/11';
   $('oppScore').textContent = theirs.length ? `مجموع ${total(theirs)} • ${theirs.length}/11` : '0/11';
 
   const L = r.last;
@@ -411,8 +419,9 @@ function render(r) {
     const P = POOL[L.pid], w = L.winner === me ? 'إنت' : 'الخصم';
     const tm = L.timedOut ? `⏱ انتهى وقت ${L.by === me ? 'إنت' : 'الخصم'} — ` : '';
     $('lastEv').innerHTML = tm + (L.bid
-      ? `${w} كسب <b>${P.n}</b> بـ ${money(L.bid)}` + (L.repl ? ` — والبديل ${L.owner === me ? 'ليك' : 'للخصم'}: <b>${POOL[L.repl].n}</b>` : '')
-      : `<b>${P.n}</b> راح ${L.owner === me ? 'ليك' : 'للخصم'} مجاناً`);
+      ? `${w} كسب <b>${P.n}</b> بـ ${money(L.bid)}`
+      : `<b>${P.n}</b> راح ${L.owner === me ? 'ليك' : 'للخصم'} مجاناً`)
+      + (L.repl ? ` — و${L.winner === me ? 'الخصم' : 'إنت'} جاله نفس المركز: <b>${POOL[L.repl].n}</b>` : '');
   } else $('lastEv').textContent = '';
 
   const res = $('result');
