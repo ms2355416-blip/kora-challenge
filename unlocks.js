@@ -492,6 +492,7 @@
       bodyEl.appendChild(el('p', 'unl-note', 'بتشتري المساعدات من رصيدك. الشراء مش بيقلل ترتيبك العالمي.'));
       CATALOG.powerups.forEach(p => bodyEl.appendChild(powerCard(p)));
     } else {
+      if (curTab === 'themes') bodyEl.appendChild(el('p', 'unl-note', 'ثيمات الملاعب بتشتغل في الوضع الليلي بس.'));
       CATALOG[curTab].forEach(i => bodyEl.appendChild(itemCard(curTab, i)));
     }
   }
