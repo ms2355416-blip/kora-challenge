@@ -363,9 +363,20 @@
 
   $('rAgain').addEventListener('click', () => start(game ? game.mode : 'classic'));
   $('rMenu').addEventListener('click', () => { renderMenu(); show('menu'); });
+  const exitOpts = {
+    title: 'تنهي الشبكة دلوقتي؟',
+    message: 'هتتحسب نقاطك لحد هنا وتخلص اللعبة.',
+    okText: 'أنهي', cancelText: 'كمّل اللعب'
+  };
   $('gReset').addEventListener('click', () => {
     if (!game) return;
-    if (!game.over && game.raw > 0) finish('lives'); else start(game.mode);
+    if (game.over || game.raw === 0) { start(game.mode); return; }
+    window.KoraDialog.confirm(exitOpts).then(ok => { if (ok) finish('lives'); });
+  });
+  window.KoraDialog.guardLinks(() => !!game && !game.over && !screens.play.hidden, {
+    title: 'تخرج من الشبكة؟',
+    message: 'اللعبة لسه شغالة. لو خرجت دلوقتي النقاط اللي جمعتها مش هتتسجل.',
+    okText: 'اخرج', cancelText: 'كمّل اللعب'
   });
 
   if (U) U.onChange(() => { if (!screens.menu.hidden) renderMenu(); if (game && !screens.play.hidden) renderPowers(); });
