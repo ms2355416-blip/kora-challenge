@@ -1,0 +1,136 @@
+/* Kora Challenge — كارير مود */
+.cm-page{max-width:640px;margin:0 auto;padding:18px 16px 70px}
+.cm-heading{text-align:center;margin-bottom:12px}
+.cm-kicker{display:block;font-size:.72rem;letter-spacing:.2em;color:var(--green,#24e982);font-weight:700}
+.cm-heading h1{margin:4px 0 0;font-size:1.7rem}
+.cm-screen[hidden]{display:none}
+.cm-lead{color:var(--muted,#8aa397);text-align:center;margin:0 0 14px;line-height:1.7;font-size:.92rem}
+.cm-card{background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);border-radius:16px;padding:16px;margin-bottom:12px}
+.cm-btn{width:100%;font:inherit;font-weight:800;cursor:pointer;color:#04110a;background:var(--green,#24e982);border:2px solid var(--green,#24e982);border-radius:12px;padding:13px 16px;transition:filter .15s,transform .15s}
+.cm-btn:hover{filter:brightness(1.08)}
+.cm-btn:active{transform:scale(.99)}
+.cm-btn:disabled{opacity:.45;cursor:not-allowed}
+.cm-btn.ghost{background:transparent;color:var(--green,#24e982)}
+.cm-row{display:flex;gap:8px}
+.cm-row .cm-btn{flex:1}
+.cm-link{font:inherit;font-size:.82rem;background:none;border:0;color:var(--muted,#8aa397);text-decoration:underline;cursor:pointer}
+.cm-foot{text-align:center;margin-top:10px}
+
+/* الإنشاء */
+.cm-form{display:flex;flex-direction:column;gap:16px}
+.cm-field{display:flex;flex-direction:column;gap:8px}
+.cm-field>span{font-size:.84rem;font-weight:700;color:var(--muted,#8aa397)}
+.cm-field input,.cm-field select{font:inherit;color:var(--text,#e8f3ee);background:var(--surface-2,#17211d);border:2px solid var(--border,#1f2b26);border-radius:12px;padding:12px 14px}
+.cm-field input:focus,.cm-field select:focus{outline:0;border-color:var(--green,#24e982)}
+.cm-chips{display:flex;flex-wrap:wrap;gap:8px}
+.cm-chips-col{flex-direction:column}
+.cm-chip{font:inherit;font-weight:700;cursor:pointer;color:var(--text,#e8f3ee);background:var(--surface-2,#17211d);border:2px solid var(--border,#1f2b26);border-radius:999px;padding:8px 16px;text-align:start}
+.cm-chips-col .cm-chip{border-radius:12px;display:flex;flex-direction:column;gap:2px}
+.cm-chip small{font-weight:500;color:var(--muted,#8aa397)}
+.cm-chip.on{border-color:var(--green,#24e982);background:color-mix(in srgb,var(--green,#24e982) 14%,var(--surface-2,#17211d))}
+.cm-swatches{display:flex;gap:10px}
+.cm-sw{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer;box-shadow:0 0 0 1px var(--border,#1f2b26)}
+.cm-sw.on{border-color:var(--text,#fff)}
+.cm-avatar-preview{width:96px;height:96px;margin:0 auto;border-radius:50%;background:var(--surface-2,#17211d);border:2px solid var(--border,#1f2b26);overflow:hidden}
+.cm-avatar{display:block;width:100%;height:100%}
+
+/* بطاقة اللاعب */
+.cm-player{display:flex;flex-direction:column;gap:12px}
+.cm-ph{display:flex;align-items:center;gap:12px}
+.cm-ph .cm-avatar-sm{width:64px;height:64px;flex:none;border-radius:50%;background:var(--surface-2,#17211d);border:2px solid var(--border,#1f2b26);overflow:hidden}
+.cm-pi{flex:1;min-width:0}
+.cm-pi b{display:block;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm-pi small{color:var(--muted,#8aa397);font-size:.78rem;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cm-flag{width:20px;height:14px;object-fit:cover;border-radius:2px}
+.cm-club{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.9rem}
+.cm-badge{width:30px;height:30px;flex:none;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;font-size:.8rem;color:#fff;overflow:hidden}
+.cm-badge img{width:100%;height:100%;object-fit:contain;background:transparent}
+.cm-energy{display:flex;flex-direction:column;gap:5px}
+.cm-energy-top{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted,#8aa397)}
+.cm-energy-top b{color:var(--green,#24e982);font-size:.95rem}
+.cm-bar{height:10px;border-radius:999px;background:var(--surface-2,#17211d);overflow:hidden}
+.cm-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--green,#24e982),#f6c445);transition:width .5s}
+.cm-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cm-stat{background:var(--surface-2,#17211d);border-radius:12px;padding:8px 4px;text-align:center}
+.cm-stat small{display:block;font-size:.68rem;color:var(--muted,#8aa397)}
+.cm-stat b{font-size:1.05rem}
+.cm-form-dots{display:flex;gap:6px;align-items:center;font-size:.76rem;color:var(--muted,#8aa397)}
+.cm-dot{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:#04110a;background:#8aa397}
+.cm-dot.hi{background:#24e982}.cm-dot.mid{background:#f6c445}.cm-dot.lo{background:#ff7a59}
+
+/* تبويبات */
+.cm-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;scrollbar-width:none}
+.cm-tabs::-webkit-scrollbar{display:none}
+.cm-tab{flex:none;font:inherit;font-size:.82rem;font-weight:700;cursor:pointer;color:var(--muted,#8aa397);background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);border-radius:999px;padding:8px 14px}
+.cm-tab.active{color:#04110a;background:var(--green,#24e982);border-color:var(--green,#24e982)}
+
+/* المباراة الجاية */
+.cm-next{text-align:center}
+.cm-next h3{margin:0 0 4px;font-size:.84rem;color:var(--muted,#8aa397);font-weight:700}
+.cm-vs{display:flex;align-items:center;justify-content:space-around;gap:6px;margin:12px 0}
+.cm-team{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;min-width:0}
+.cm-team .cm-badge{width:48px;height:48px;font-size:1.1rem}
+.cm-team span{font-size:.82rem;font-weight:700}
+.cm-team small{color:var(--muted,#8aa397);font-size:.7rem}
+.cm-vs-mid{font-weight:800;color:var(--muted,#8aa397)}
+.cm-last{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cm-last small{color:var(--muted,#8aa397)}
+
+/* الجداول */
+.cm-leagues{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;scrollbar-width:none}
+.cm-leagues::-webkit-scrollbar{display:none}
+.cm-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.cm-table th{font-weight:700;color:var(--muted,#8aa397);padding:6px 3px;text-align:center}
+.cm-table td{padding:7px 3px;text-align:center;border-top:1px solid var(--border,#1f2b26);font-variant-numeric:tabular-nums}
+.cm-table td.club{text-align:start;font-weight:700;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+.cm-table tr.me td{background:color-mix(in srgb,var(--green,#24e982) 12%,transparent)}
+.cm-table tr.up td:first-child{box-shadow:inset -3px 0 0 var(--green,#24e982)}
+.cm-table tr.down td:first-child{box-shadow:inset -3px 0 0 #ff6b6b}
+.cm-table td.pts{font-weight:800}
+
+/* المباريات */
+.cm-fx{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border,#1f2b26);font-size:.84rem}
+.cm-fx:first-child{border-top:0}
+.cm-fx .rd{flex:none;width:34px;color:var(--muted,#8aa397);font-weight:700;font-size:.74rem}
+.cm-fx .mt{flex:1;min-width:0;font-weight:700}
+.cm-fx .mt small{display:block;color:var(--muted,#8aa397);font-weight:500;font-size:.72rem}
+.cm-fx .sc{font-weight:800;direction:ltr;min-width:46px;text-align:center}
+.cm-fx .rt{flex:none;min-width:36px;text-align:center;border-radius:8px;padding:3px 6px;font-size:.76rem;font-weight:800;color:#04110a;background:#8aa397}
+.cm-fx .rt.hi{background:#24e982}.cm-fx .rt.mid{background:#f6c445}.cm-fx .rt.lo{background:#ff7a59}
+.cm-fx.next{background:color-mix(in srgb,var(--green,#24e982) 8%,transparent);border-radius:10px;padding-inline:8px}
+.cm-soon{text-align:center;color:var(--muted,#8aa397);padding:30px 10px;line-height:1.8}
+
+/* المودال (تقرير المباراة) */
+.cm-modal{position:fixed;inset:0;z-index:9000;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.65);backdrop-filter:blur(4px)}
+.cm-modal[hidden]{display:none}
+.cm-sheet{width:100%;max-width:560px;max-height:92vh;overflow-y:auto;background:var(--surface,#101714);color:var(--text,#e8f3ee);border:1px solid var(--border,#1f2b26);border-radius:20px 20px 0 0;padding:20px 16px 22px;animation:cmUp .25s ease}
+@keyframes cmUp{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.cm-score{display:flex;align-items:center;justify-content:center;gap:12px;font-size:1.3rem;font-weight:800;margin-bottom:6px}
+.cm-score .num{direction:ltr;font-size:1.8rem}
+.cm-sub{text-align:center;color:var(--muted,#8aa397);font-size:.84rem;margin-bottom:12px}
+.cm-role{text-align:center;font-weight:700;margin:6px 0 10px}
+.cm-rating{width:92px;height:92px;margin:6px auto 12px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:4px solid #8aa397;font-weight:800}
+.cm-rating b{font-size:1.8rem;line-height:1}
+.cm-rating small{font-size:.7rem;color:var(--muted,#8aa397)}
+.cm-rating.hi{border-color:#24e982}.cm-rating.mid{border-color:#f6c445}.cm-rating.lo{border-color:#ff7a59}
+.cm-events{display:flex;flex-direction:column;gap:6px;margin:0 0 14px}
+.cm-ev{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--surface-2,#17211d);font-size:.84rem}
+.cm-ev .min{flex:none;width:34px;font-weight:800;color:var(--muted,#8aa397);direction:ltr}
+.cm-ev.good{box-shadow:inset 3px 0 0 #24e982}
+.cm-ev.bad{box-shadow:inset 3px 0 0 #ff6b6b}
+.cm-ev.mine{background:color-mix(in srgb,var(--green,#24e982) 14%,var(--surface-2,#17211d));font-weight:700}
+.cm-multi .cm-ev{justify-content:space-between}
+
+/* نهاية الموسم والعروض */
+.cm-sum-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.cm-sum-title{font-size:1.2rem;font-weight:800;text-align:center;margin:0 0 4px}
+.cm-note{padding:10px 12px;border-radius:12px;text-align:center;font-size:.86rem;margin:8px 0;background:var(--surface-2,#17211d)}
+.cm-note.up{color:#24e982}.cm-note.down{color:#ff8a6b}
+.cm-offer{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.cm-offer .info{flex:1;min-width:0}
+.cm-offer .info b{display:block}
+.cm-offer .info small{color:var(--muted,#8aa397)}
+.cm-fee{color:var(--unl-gold,#f6c445);font-weight:800;margin-top:2px;display:block}
+.cm-offer .cm-btn{width:auto;padding:9px 16px;font-size:.85rem}
+@media (max-width:420px){.cm-stats{gap:5px}.cm-table{font-size:.74rem}.cm-table td.club{max-width:104px}}
+@media (prefers-reduced-motion:reduce){.cm-sheet{animation:none}.cm-bar i{transition:none}}

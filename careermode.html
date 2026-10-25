@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="auth-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>كارير مود | Kora Challenge</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="careermode.css">
+  <link rel="stylesheet" href="unlocks.css">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <script>
+    try {
+      if ((localStorage.getItem('koraChallengeTheme') || 'dark') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch (e) {}
+  </script>
+  <style>html.auth-pending body{visibility:hidden}</style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+  /* حارس تسجيل الدخول */
+  (function () {
+    var CFG = {
+      apiKey: "AIzaSyDEDLvC4wKI9_HX7WUG6th4zuUOwxxB54k",
+      authDomain: "kora-e220c.firebaseapp.com",
+      databaseURL: "https://kora-e220c-default-rtdb.firebaseio.com",
+      projectId: "kora-e220c",
+      storageBucket: "kora-e220c.firebasestorage.app",
+      messagingSenderId: "535044321885",
+      appId: "1:535044321885:web:b89615d5eb01a93e1613b4"
+    };
+    window.KoraAuth = { user: null };
+    function toLogin() { location.replace('login.html?next=' + encodeURIComponent('careermode.html')); }
+    try { if (!firebase.apps.length) firebase.initializeApp(CFG); } catch (e) { toLogin(); return; }
+    var timer = setTimeout(toLogin, 10000);
+    firebase.auth().onAuthStateChanged(function (u) {
+      clearTimeout(timer);
+      if (!u) { toLogin(); return; }
+      window.KoraAuth.user = u;
+      document.documentElement.classList.remove('auth-pending');
+    });
+  })();
+  </script>
+  <script src="icons.js"></script>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <symbol id="icon-ball" viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="4"/><path d="m32 18 11 8-4 13H25l-4-13Z" fill="currentColor"/><path d="m32 18-1-12M43 26l13-4M39 39l7 12M25 39l-7 12M21 26 8 22" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand"><svg class="svg-icon brand-ball" aria-hidden="true"><use href="#icon-ball"></use></svg>KORA <span>CHALLENGE</span></div>
+  <div class="header-actions">
+    <a class="back home-icon" href="index.html" aria-label="الصفحة الرئيسية" title="الصفحة الرئيسية">
+      <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"></path><path d="M5 9v12h14V9"></path><path d="M9 21v-7h6v7"></path></svg>
+    </a>
+  </div>
+</header>
+
+<main class="cm-page">
+  <div class="cm-heading">
+    <span class="cm-kicker">CAREER MODE</span>
+    <h1>كارير مود</h1>
+  </div>
+
+  <!-- إنشاء اللاعب -->
+  <section id="cmCreate" class="cm-screen" hidden>
+    <p class="cm-lead">اصنع لاعبك وابدأ مسيرتك من الدرجات الدنيا. هتبدأ بطاقة 60 وهدفك توصل 99.</p>
+    <form id="cmForm" class="cm-card cm-form" autocomplete="off">
+      <div class="cm-avatar-preview" id="cmPrev"></div>
+
+      <label class="cm-field"><span>اسم اللاعب</span>
+        <input id="cmName" type="text" maxlength="22" placeholder="اكتب اسم لاعبك" required>
+      </label>
+
+      <label class="cm-field"><span>الجنسية</span>
+        <select id="cmNat"></select>
+      </label>
+
+      <div class="cm-field"><span>المركز</span>
+        <div class="cm-chips" id="cmPos" role="radiogroup"></div>
+      </div>
+
+      <div class="cm-field"><span>لون القميص</span>
+        <div class="cm-swatches" id="cmColors" role="radiogroup"></div>
+      </div>
+
+      <div class="cm-field"><span>بداية المسيرة</span>
+        <div class="cm-chips cm-chips-col" id="cmStart" role="radiogroup"></div>
+      </div>
+
+      <button class="cm-btn" type="submit">ابدأ المسيرة</button>
+    </form>
+  </section>
+
+  <!-- اللعب -->
+  <section id="cmGame" class="cm-screen" hidden>
+    <div class="cm-card cm-player" id="cmPlayer"></div>
+
+    <div class="cm-tabs" id="cmTabs" role="tablist">
+      <button class="cm-tab active" data-tab="home" type="button">الرئيسية</button>
+      <button class="cm-tab" data-tab="table" type="button">الترتيب</button>
+      <button class="cm-tab" data-tab="fixtures" type="button">المباريات</button>
+      <button class="cm-tab" data-tab="trophies" type="button">بطولاتي</button>
+      <button class="cm-tab" data-tab="clubtrophies" type="button">بطولات النادي</button>
+    </div>
+
+    <div id="cmPane"></div>
+
+    <div class="cm-foot"><button class="cm-link" id="cmReset" type="button">مسيرة جديدة</button></div>
+  </section>
+
+  <!-- نهاية الموسم والعروض -->
+  <section id="cmSeason" class="cm-screen" hidden></section>
+
+  <!-- الاعتزال -->
+  <section id="cmRetire" class="cm-screen" hidden></section>
+</main>
+
+<div class="cm-modal" id="cmModal" hidden>
+  <div class="cm-sheet" id="cmSheet" role="dialog" aria-modal="true"></div>
+</div>
+
+<script src="streak.js"></script>
+<script src="dialog.js"></script>
+<script src="unlocks.js"></script>
+<script src="points-sync.js"></script>
+<script src="careermode-data.js"></script>
+<script src="careermode-engine.js"></script>
+<script src="careermode.js"></script>
+</body>
+</html>
