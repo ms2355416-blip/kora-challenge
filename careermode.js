@@ -189,7 +189,7 @@
 
     const last = S.log[S.log.length - 1];
     if (last) {
-      const c = el('div', 'cm-card');
+      const c = el('div', 'cm-card cm-fx click'); c.tabIndex = 0; c.addEventListener('click', () => openModal(reportNode(last), 'تمام'));
       c.appendChild(el('h3', '', 'آخر مباراة'));
       c.lastChild.style.cssText = 'margin:0 0 8px;font-size:.84rem;color:var(--muted)';
       const row = el('div', 'cm-last');
@@ -269,6 +269,12 @@
         if (f.log && f.log.rating != null) row.appendChild(el('span', 'rt ' + ratingClass(f.log.rating), f.log.rating.toFixed(1)));
         else row.appendChild(el('span', 'rt', f.log ? (f.log.role === 'bench' ? 'دكة' : 'خارج') : '—'));
       } else row.appendChild(el('span', 'sc', isNext ? 'الجاية' : ''));
+      if (f.log) {
+        row.classList.add('click'); row.tabIndex = 0; row.setAttribute('role', 'button');
+        const open = () => openModal(reportNode(f.log), 'تمام');
+        row.addEventListener('click', open);
+        row.addEventListener('keydown', ev => { if (ev.key === 'Enter') open(); });
+      }
       card.appendChild(row);
     });
     pane.appendChild(card);
@@ -328,7 +334,7 @@
       wrap.appendChild(rr);
     }
     const evs = el('div', 'cm-events');
-    pm.events.forEach(e => {
+    (pm.events || []).forEach(e => {
       const t = evText(e); if (!t[0]) return;
       const r = el('div', 'cm-ev ' + t[1]);
       r.append(el('span', 'min', e.m + '’'), el('span', '', t[0]));
