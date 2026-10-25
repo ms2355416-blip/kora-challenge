@@ -30,3 +30,14 @@ body.chat-lock{overflow:hidden;position:fixed;width:100%}
 .chat-send{flex:none;min-width:76px;height:46px;border:0;border-radius:12px;background:var(--green,#24e982);color:#06140b;font:inherit;font-weight:800;cursor:pointer}
 .chat-send:disabled{opacity:.5;cursor:not-allowed}
 @media (max-width:580px){.chat-btn{width:39px;height:39px}.chat-panel{width:100vw}}
+
+/* تضييق الهيدر على الشاشات الصغيرة عشان الأزرار كلها تتسع من غير ما الصفحة تتسحب */
+@media (max-width:480px){
+  .header-actions{gap:4px !important;margin-left:44px !important}
+  .header-actions .chat-btn{width:36px;height:36px;border-radius:10px}
+  .header-actions .chat-btn svg{width:20px;height:20px}
+}
+@media (max-width:370px){
+  .header-actions{margin-left:40px !important}
+  .header-actions>*{transform-origin:center}
+}
