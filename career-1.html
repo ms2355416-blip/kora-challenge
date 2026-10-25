@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="auth-pending">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080a09">
+  <title>Kora Challenge | خمن اللاعب بالمسيرة</title>
+  <link rel="stylesheet" href="guess-player.css">
+  <link rel="stylesheet" href="career.css">
+  <link rel="stylesheet" href="unlocks.css">
+  <link rel="stylesheet" href="buttons.css">
+<script>
+try { if ((localStorage.getItem('koraChallengeTheme') || 'dark') === 'light') document.documentElement.setAttribute('data-theme', 'light'); } catch (e) {}
+</script>
+<style>html.auth-pending body{visibility:hidden}</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+/* حارس تسجيل الدخول: لو مفيش مستخدم مسجّل يرجّعك لصفحة login.html */
+(function () {
+  var CFG = {
+    apiKey: "AIzaSyDEDLvC4wKI9_HX7WUG6th4zuUOwxxB54k",
+    authDomain: "kora-e220c.firebaseapp.com",
+    databaseURL: "https://kora-e220c-default-rtdb.firebaseio.com",
+    projectId: "kora-e220c",
+    storageBucket: "kora-e220c.firebasestorage.app",
+    messagingSenderId: "535044321885",
+    appId: "1:535044321885:web:b89615d5eb01a93e1613b4"
+  };
+  window.KoraAuth = { user: null };
+
+  function toLogin() {
+    var p = location.pathname.split('/').pop();
+    location.replace('login.html' + (p && p !== 'index.html' ? '?next=' + encodeURIComponent(p) : ''));
+  }
+  function ready(fn) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(CFG);
+  } catch (e) { toLogin(); return; }
+
+  var timer = setTimeout(toLogin, 10000);
+  firebase.auth().onAuthStateChanged(function (u) {
+    clearTimeout(timer);
+    if (!u) { toLogin(); return; }
+    window.KoraAuth.user = u;
+    document.documentElement.classList.remove('auth-pending');
+    ready(function () {
+      var name = u.displayName || (u.email ? u.email.split('@')[0] : '') || 'لاعب';
+      document.querySelectorAll('[data-user-name]').forEach(function (el) { el.textContent = name; });
+      document.querySelectorAll('[data-logout]').forEach(function (b) {
+        b.addEventListener('click', function () { firebase.auth().signOut(); });
+      });
+    });
+  });
+})();
+</script>
+
+  <script src="icons.js"></script>
+</head>
+<body data-mode="career">
+  <main class="wrap">
+    <header class="top">
+      <div class="brand"><svg class="kico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7.2l4 2.9-1.5 4.7h-5L8 10.1z"/><path d="M12 7.2V3"/><path d="M16 10.1l4-1.3"/><path d="M14.5 14.8l2.4 3.6"/><path d="M9.5 14.8l-2.4 3.6"/><path d="M8 10.1L4 8.8"/></svg> KORA <span>CHALLENGE</span></div>
+
+      <div class="header-actions">
+
+        <a class="icon-button home-button"
+          href="index.html" aria-label="الصفحة الرئيسية"
+          title="الصفحة الرئيسية">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m3 10 9-7 9 7"/>
+            <path d="M5 9v12h14V9"/>
+            <path d="M9 21v-7h6v7"/>
+          </svg>
+        </a>
+      </div>
+    </header>
+    <section id="levelScreen" class="screen active">
+      <div class="heading">
+        <div class="eyebrow">CAREER PATH</div>
+        <h1>خمن اللاعب بالمسيرة</h1>
+        <p>هنعرضلك الأندية اللي لعب فيها بالترتيب… عرف مين هو!</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><span>أفضل نتيجة</span><b id="bestScore">0</b></div>
+        <div class="stat"><span>إجمالي النقاط</span><b id="totalPoints">0</b></div>
+        <div class="stat"><span>جولات لعبتها</span><b id="roundsPlayed">0</b></div>
+      </div>
+      <div class="panel">
+        <h3>اختار مستوى الصعوبة</h3>
+        <div class="levels">
+          <button class="level active" data-level="easy">سهل<small>نجوم معروفين</small></button>
+          <button class="level" data-level="medium">متوسط<small>مسيرات أطول</small></button>
+          <button class="level" data-level="hard" disabled>صعب<small>قريبًا</small></button>
+          <button class="level" data-level="impossible" disabled>مستحيل<small>قريبًا</small></button>
+        </div>
+        <p class="small-note">10 لاعبين في الجولة بترتيب عشوائي ومن غير تكرار. كل تلميح بيقلل نقاط السؤال.</p>
+        <button class="primary" id="startBtn" type="button">ابدأ التحدي</button>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <div class="game-top">
+        <div>
+          <div class="eyebrow" id="levelName">المستوى السهل</div>
+          <h2>مين اللاعب ده؟</h2>
+        </div>
+        <button class="icon-button quit-button" id="quitBtn" type="button" aria-label="رجوع" title="رجوع">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+        </button>
+      </div>
+
+      <div class="panel">
+        <div class="progress-row"><span id="questionCount"></span><span id="scoreNow"></span></div>
+        <div class="progress"><div id="progressBar"></div></div>
+
+        <div class="question">ده مشوار لاعب. إيه هو؟</div>
+        <div class="cr-path" id="careerPath"></div>
+
+        <div class="facts">
+          <div class="fact"><span>الجنسية</span><b id="nationality">؟؟؟</b></div>
+          <div class="fact"><span>المركز</span><b id="position">؟؟؟</b></div>
+          <div class="fact"><span>العمر</span><b id="age">؟؟؟</b></div>
+          <div class="fact"><span>الحالة</span><b id="status">؟؟؟</b></div>
+        </div>
+
+        <div class="hints-title"><b>التلميحات</b><small id="hintsCount">استخدمت 0 من 4</small></div>
+        <div class="hint-list" id="hintList"></div>
+        <button class="hint-btn" id="hintBtn" type="button">أظهر التلميح التالي</button>
+
+        <div class="answer-area">
+          <label for="answerInput">اكتب اسم اللاعب</label>
+          <input id="answerInput" autocomplete="off" placeholder="اكتب أول حرفين من اسمه...">
+          <div id="suggestions" class="suggestions" hidden></div>
+        </div>
+        <div class="submit-row">
+          <button class="primary" id="submitBtn" type="button">تأكيد الإجابة</button>
+          <button class="ghost" id="giveUpBtn" type="button">استسلام وكشف اللاعب</button>
+        </div>
+        <div class="message" id="message" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="screen">
+      <div class="heading"><div class="eyebrow">CHALLENGE RESULT</div><h1 id="resultTitle">خلصت الجولة!</h1></div>
+      <div class="panel center">
+        <div>نتيجتك</div>
+        <div class="big-score" id="finalScore">0</div>
+        <div class="comment" id="resultComment"></div>
+        <p id="resultDetails" class="small-note"></p>
+        <div id="unlockedList" class="hint-list"></div>
+        <button class="primary" id="againBtn" type="button">العب تاني بنفس المستوى</button>
+        <button class="ghost full-width" id="levelsBtn" type="button">اختيار مستوى تاني</button>
+      </div>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="streak.js"></script>
+<script src="dialog.js"></script>
+<script src="unlocks.js"></script>
+<script src="points-sync.js" defer></script>
+<script src="grid-data.js"></script>
+<script src="career-data.js"></script>
+<script src="career.js"></script>
+</body>
+</html>

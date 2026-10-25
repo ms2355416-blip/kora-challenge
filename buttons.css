@@ -1,0 +1,36 @@
+/* Kora Challenge — توحيد شكل الأزرار في كل الصفحات (حمّله آخر ستايل) */
+:where(button,.btn,.game-btn,.primary,.ghost,.hint-btn,.cm-btn,.unl-btn,.club-confirm,.account-logout){
+  font-family:inherit;line-height:1.4;-webkit-tap-highlight-color:transparent;
+  transition:transform .15s,background-color .2s,border-color .2s,color .2s,box-shadow .2s,opacity .2s;
+}
+:where(.btn,.primary,.ghost,.hint-btn,.cm-btn,.club-confirm){
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:46px;padding:10px 20px;border-radius:12px;font-weight:800;font-size:14px;text-align:center;
+}
+:where(.primary,.ghost,.hint-btn,.cm-btn){max-width:100%}
+.btn:active,.primary:active,.ghost:active,.hint-btn:active,.cm-btn:active,.game-btn:active,.club-confirm:active{transform:translateY(1px) scale(.985)}
+.btn-primary,.primary,.cm-btn:not(.ghost){box-shadow:0 6px 16px rgba(36,233,130,.18)}
+.btn-primary:hover,.primary:hover,.cm-btn:not(.ghost):hover{box-shadow:0 8px 20px rgba(36,233,130,.28)}
+:root[data-theme="light"] .btn-primary,:root[data-theme="light"] .primary{box-shadow:0 6px 16px rgba(17,157,85,.2)}
+button:disabled,.btn:disabled,.primary:disabled,.ghost:disabled,.hint-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;transform:none}
+button:focus-visible,a.btn:focus-visible,.game-btn:focus-visible,.mode-card:focus-visible{outline:2px solid var(--green,#24e982);outline-offset:2px}
+
+/* صفوف الأزرار: تتجمع وتتمدد بدل ما تطلع بره الشاشة */
+.actions,.submit-row,.offer-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.submit-row>*{flex:1 1 140px}
+.actions>.btn{flex:1 1 140px}
+.offer-actions>.btn{flex:1 1 120px}
+.full-width{width:100%}
+
+/* الأزرار الدايرية (رجوع / الصفحة الرئيسية / الإعدادات) نفس الحجم والمحاذاة */
+:where(.icon-button,.home-button,.quit-button){
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:42px;height:42px;padding:0;border-radius:12px;
+}
+:where(.icon-button,.home-button,.quit-button) svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+@media (max-width:520px){
+  :where(.btn,.primary,.ghost,.hint-btn,.cm-btn){min-height:48px;font-size:15px}
+  .actions>.btn,.offer-actions>.btn{flex:1 1 100%}
+}
+@media (prefers-reduced-motion:reduce){.btn,.primary,.ghost,.hint-btn,.cm-btn,.game-btn{transition:none}}

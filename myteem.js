@@ -326,11 +326,35 @@ function eventLine(ev, me) {
   return '';
 }
 
+// ---------- نقاط الفوز (أونلاين بس — ضد الكمبيوتر مفيش نقاط) ----------
+const WIN_PTS = 55, PAID_KEY = 'koraTeamPaid', STATS_KEY = 'koraChallengeStats';
+const awarded = {};
+const matchSeed = r => code + '|' + picksOf(r, 'A').join(',') + '|' + picksOf(r, 'B').join(',');
+function awardWin(r) {
+  if (solo || !role || awarded[code]) return;
+  const sim = simulateMatch(picksOf(r, 'A'), picksOf(r, 'B'), matchSeed(r));
+  if (sim.winner !== role) return;
+  try {
+    const paid = JSON.parse(localStorage.getItem(PAID_KEY) || '[]');
+    if (paid.indexOf(code) > -1) { awarded[code] = true; return; }   // اتحسبت قبل كده
+    paid.push(code); localStorage.setItem(PAID_KEY, JSON.stringify(paid.slice(-60)));
+    const st = JSON.parse(localStorage.getItem(STATS_KEY) || '{}');
+    st.gamesPlayed = (Number(st.gamesPlayed) || 0) + 1;
+    st.bestScore = Math.max(Number(st.bestScore) || 0, WIN_PTS);
+    st.totalPoints = (Number(st.totalPoints) || 0) + WIN_PTS;
+    localStorage.setItem(STATS_KEY, JSON.stringify(st));
+    window.dispatchEvent(new StorageEvent('storage', { key: STATS_KEY }));
+    if (window.KoraStreak) window.KoraStreak.touch();
+    awarded[code] = true;
+  } catch (e) { /* ignore */ }
+}
+
 function showMatchIntro(r, mine, theirs) {
+  awardWin(r);
   const res = $('result');
   res.innerHTML = `<h2>انتهى <span>الاختيار</span> ⚽</h2>
     <p>قوة تشكيلتك ${total(mine)} مقابل ${total(theirs)} للخصم</p>
-    <p>المباراة هتتلعب بالمحاكاة بين الفريقين من غير تدخل من أي لاعب، والنتيجة نفسها للطرفين.</p><br>
+    <p>المباراة هتتلعب بالمحاكاة بين الفريقين من غير تدخل من أي لاعب، والنتيجة نفسها للطرفين.</p>${solo ? '' : '<p>الفايز بياخد <b>' + WIN_PTS + ' نقطة</b>.</p>'}<br>
     <button class="btn btn-primary" id="simBtn">🎮 ابدأ المباراة</button>`;
   $('simBtn').onclick = () => playMatch(r);
 }
@@ -338,7 +362,7 @@ function showMatchIntro(r, mine, theirs) {
 function playMatch(r) {
   stopSim();
   const me = role, op = other(me), res = $('result');
-  const sim = simulateMatch(picksOf(r, 'A'), picksOf(r, 'B'), code + '|' + picksOf(r, 'A').join(',') + '|' + picksOf(r, 'B').join(','));
+  const sim = simulateMatch(picksOf(r, 'A'), picksOf(r, 'B'), matchSeed(r));
   const timeline = sim.events.concat(sim.pens ? [{ type: 'pkstart' }].concat(sim.pens.events) : []);
 
   res.innerHTML = `<div class="mt-board">
@@ -361,7 +385,7 @@ function playMatch(r) {
     $('mtMin').textContent = "90'";
     setScore(sim.goals);
     $('mtActions').innerHTML = `<h2>${win ? '🏆 <span>كسبت المباراة!</span>' : 'الخصم كسب المباراة 😅'}</h2>
-      <p>النتيجة ${sim.goals[me]} - ${sim.goals[op]}</p>${pens}
+      <p>النتيجة ${sim.goals[me]} - ${sim.goals[op]}</p>${pens}${win && awarded[code] ? '<p><b style="color:var(--green)">+' + WIN_PTS + ' نقطة اتضافت لرصيدك</b></p>' : ''}
       <p>الاستحواذ ${me === 'A' ? sim.possession : 100 - sim.possession}% • التسديدات ${sim.shots[me]} مقابل ${sim.shots[op]}</p><br>
       <a class="btn btn-primary" href="myteem.html">لعبة جديدة</a>
       <button class="btn btn-outline" id="mtReplay">شوف المباراة تاني</button>`;
@@ -527,7 +551,14 @@ $('roomChip').style.cursor = 'pointer';
 function leave(fromPop) {
   if (!ref && !solo) return;
   const inGame = prev && prev.status === 'playing';
-  if (inGame && !confirm('اللعبة شغالة — تخرج من الغرفة؟')) { if (fromPop) history.pushState({ kc: 1 }, ''); return; }
+  if (inGame) {
+    window.KoraDialog.confirm({ title: 'تخرج من الغرفة؟', message: 'اللعبة شغالة. لو خرجت دلوقتي هتسيب الخصم ومش هتكمل التحدي.', okText: 'اخرج', cancelText: 'كمّل اللعب' })
+      .then(ok => { if (ok) doLeave(fromPop); else if (fromPop) history.pushState({ kc: 1 }, ''); });
+    return;
+  }
+  doLeave(fromPop);
+}
+function doLeave(fromPop) {
   stopSim(); $('result').dataset.sim = ''; $('result').classList.add('hidden');
   stopBot(); solo = local = null;
   if (ref) {
