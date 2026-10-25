@@ -262,7 +262,7 @@
   function recordMatch(state, pm) {
     var s = state.stats;
     state.log.push({ round: pm.round, home: pm.home, away: pm.away, hg: pm.hg, ag: pm.ag, role: pm.role, minutes: pm.minutes,
-      goals: pm.goals, assists: pm.assists, rating: pm.rating, y: pm.yellow, r: pm.red, pw: pm.pw, pc: pm.pc, pm: pm.pm });
+      goals: pm.goals, assists: pm.assists, rating: pm.rating, y: pm.yellow, r: pm.red, pw: pm.pw, pc: pm.pc, pm: pm.pm, a: pm.a, b: pm.b, events: pm.events });
     if (pm.role === 'start' || pm.role === 'sub') {
       s.apps++; if (pm.role === 'start') s.starts++;
       s.goals += pm.goals; s.assists += pm.assists; s.minutes += pm.minutes;
