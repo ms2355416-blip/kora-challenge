@@ -506,7 +506,7 @@ document.querySelectorAll('[data-game]').forEach(button => {
     if (game === 'player') {
       window.location.href = 'player-modes.html';
     } else if (game === 'country') {
-      showToast('تحدي خمن المنتخب هيكون متاح قريبًا 🌍');
+      window.location.href = 'country.html';
     } else if (game === 'team') {
       showToast('لعبة تكوين الفريق هنعملها في الخطوات الجاية ⚽');
     } else if (game === 'favorite-club') {
