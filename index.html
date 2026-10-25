@@ -398,6 +398,12 @@
       </span>
     </div>
 
+    <a class="daily-banner" href="daily.html" data-game="daily" id="dailyBanner">
+      <span class="db-ico"><svg class="svg-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg></span>
+      <span class="db-info"><b>تحدي اليوم</b><small>3 أسئلة معلومات عامة كل يوم، وكل يوم بتزود سلسلتك.</small></span>
+      <span class="db-tag" id="dailyTag">ابدأ</span>
+    </a>
+
     <div class="games-grid">
 
       <!-- 02 - كوّن فريقك -->
@@ -609,34 +615,6 @@
         </div>
       </article>
 
-      <!-- تحدي اليوم -->
-      <article class="game-card">
-        <div class="game-art daily-art">
-          <span class="art-emoji">
-            <svg class="art-svg" aria-hidden="true"><use href="#icon-calendar"></use></svg>
-          </span>
-          <span class="art-number">08</span>
-        </div>
-
-        <div class="game-info">
-          <span class="game-category">تحدي يومي</span>
-          <h3>تحدي اليوم</h3>
-          <p>
-            3 أسئلة معلومات عامة عن الكورة كل يوم: قوانين، بطولات،
-            أندية وملاعب. نفس الأسئلة لكل الناس، وكل يوم بتزود سلسلتك.
-          </p>
-
-          <div class="game-meta">
-            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-question"></use></svg> 3 أسئلة</span>
-            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-bolt"></use></svg> مكافأة السلسلة</span>
-          </div>
-
-          <button class="game-btn" data-game="daily">
-            ابدأ تحدي اليوم
-            <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
-          </button>
-        </div>
-      </article>
 
     </div>
   </section>
@@ -686,5 +664,10 @@
 <script src="unlocks.js"></script>
 <script src="account.js" defer></script>
 <script src="points-sync.js" defer></script>
+<script>
+(function(){try{var d=JSON.parse(localStorage.getItem('koraDaily')||'null'),t=document.getElementById('dailyTag');
+var k=window.KoraStreak?window.KoraStreak.dateKey():null;
+if(d&&k&&d.date===k&&d.status!=='play'){t.textContent='اتحل';t.classList.add('done');}}catch(e){}})();
+</script>
 </body>
 </html>
