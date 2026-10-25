@@ -97,11 +97,7 @@ try { if ((localStorage.getItem('koraChallengeTheme') || 'dark') === 'light') do
         <span class="mode-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>
         <span class="mode-info"><b>خمن اللاعب بالمعلومات</b><small>تلميحات عن الجنسية والمركز والعمر وصورة مخفية.</small></span>
       </a>
-      <a class="mode-card" href="daily.html">
-        <span class="mode-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg></span>
-        <span class="mode-info"><b>تحدي اليوم</b><small>3 أسئلة معلومات عامة عن الكورة كل يوم، وسلسلة أيام متتالية.</small></span>
-        <span class="mode-tag" id="dailyTag">النهارده</span>
-      </a>
+
     </div>
   </main>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -112,13 +108,6 @@ try { if ((localStorage.getItem('koraChallengeTheme') || 'dark') === 'light') do
 (function () {
   var s = window.KoraStreak ? window.KoraStreak.get().days : 0;
   document.getElementById('streakLine').textContent = s ? '🔥 سلسلتك ' + s + ' يوم' : 'العب النهارده وابدأ سلسلتك';
-  try {
-    var d = JSON.parse(localStorage.getItem('koraDaily') || 'null');
-    var k = window.KoraStreak.dateKey();
-    if (d && d.date === k && d.status !== 'play') {
-      var t = document.getElementById('dailyTag'); t.textContent = 'اتحل'; t.classList.add('done');
-    }
-  } catch (e) {}
 })();
 </script>
 </body>
