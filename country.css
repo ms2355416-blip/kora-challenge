@@ -1,0 +1,14 @@
+/* Kora Challenge — خمن المنتخب (بيتحمّل بعد guess-player.css) */
+.cn-pitch{display:flex;flex-direction:column;justify-content:space-around;gap:10px;min-height:340px;padding:16px 8px;margin:10px 0 14px;border-radius:14px;border:1px solid var(--border);background:
+  linear-gradient(transparent 49.5%,rgba(255,255,255,.12) 49.5% 50.5%,transparent 50.5%),
+  repeating-linear-gradient(180deg,#14401f 0 44px,#175024 44px 88px)}
+.cn-row{display:flex;justify-content:space-evenly;align-items:center}
+.cn-crest{width:46px;height:46px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.92);padding:6px;box-shadow:0 3px 8px rgba(0,0,0,.4)}
+.cn-crest img{width:100%;height:100%;object-fit:contain}
+.cn-crest.fb{background:#1b2a22;color:#e8f3ee;font-weight:800;font-size:18px;border:2px solid var(--green)}
+.cn-flag{width:30px;height:20px;object-fit:cover;border-radius:3px;margin-inline-end:8px;vertical-align:middle}
+.message.ok{color:var(--green)}
+.message.bad{color:var(--red,#ff6b6b)}
+.cn-link{display:block;text-align:center;text-decoration:none;margin-top:10px}
+#nextBtn{margin-top:12px;width:100%}
+@media (max-width:380px){.cn-crest{width:40px;height:40px}}
