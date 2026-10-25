@@ -99,3 +99,14 @@ body.unl-lock{overflow:hidden}
 
 .career-art{background:radial-gradient(circle at 50% 45%,#1f5a3a,#12281d 65%,#0e1711)}
 .career-art .art-svg{width:62px;height:62px}
+
+/* ---------- بانر تحدي اليوم ---------- */
+.daily-banner{display:flex;align-items:center;gap:14px;margin:0 0 18px;padding:14px 16px;border-radius:16px;text-decoration:none;color:var(--text,#e8f3ee);background:linear-gradient(120deg,rgba(246,196,69,.16),var(--surface,#101714) 60%);border:1px solid rgba(246,196,69,.35);transition:transform .2s,border-color .2s}
+.daily-banner:hover{transform:translateY(-2px);border-color:var(--unl-gold)}
+.db-ico{flex:none;width:46px;height:46px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;color:var(--unl-gold);background:var(--surface-2,#17211d)}
+.db-ico svg{width:26px;height:26px}
+.db-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.db-info b{font-size:1.02rem}
+.db-info small{font-size:.8rem;color:var(--muted,#8aa397);line-height:1.5}
+.db-tag{flex:none;font-size:.8rem;font-weight:800;color:#04110a;background:var(--unl-gold);border-radius:999px;padding:6px 14px}
+.db-tag.done{background:transparent;color:var(--muted,#8aa397);border:1px solid var(--border,#1f2b26)}
