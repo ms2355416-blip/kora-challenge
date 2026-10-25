@@ -1,0 +1,32 @@
+/* Kora Challenge — الشات العالمي */
+.chat-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;width:43px;height:43px;padding:0;cursor:pointer;color:var(--green,#24e982);background:var(--surface,#101814);border:1px solid var(--border,#25352b);border-radius:12px;transition:transform .2s,border-color .2s}
+.chat-btn:hover{transform:translateY(-2px);border-color:var(--green,#24e982)}
+.chat-btn svg{width:22px;height:22px}
+.chat-badge{position:absolute;top:-6px;inset-inline-end:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#ff5a5f;color:#fff;font-size:11px;font-weight:800;line-height:19px;text-align:center;border:2px solid var(--bg,#080d0b)}
+body.chat-lock{overflow:hidden}
+.chat-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.6);opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s}
+.chat-overlay.open{opacity:1;visibility:visible}
+.chat-panel{position:fixed;z-index:301;inset-inline-start:0;top:0;bottom:0;width:min(400px,100vw);display:flex;flex-direction:column;background:var(--surface,#101814);color:var(--text,#f2f7f3);border-inline-end:1px solid var(--border,#25352b);box-shadow:0 0 40px rgba(0,0,0,.5);transform:translateX(105%);visibility:hidden;transition:transform .25s,visibility .25s}
+:root[dir="rtl"] .chat-panel{transform:translateX(-105%)}
+.chat-panel.open,:root[dir="rtl"] .chat-panel.open{transform:none;visibility:visible}
+.chat-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border,#25352b)}
+.chat-title{display:flex;flex-direction:column;line-height:1.5}
+.chat-title b{font-size:17px}
+.chat-title small{color:var(--muted,#94a49a);font-size:11px}
+.chat-close{width:38px;height:38px;border-radius:10px;border:1px solid var(--border,#25352b);background:transparent;color:inherit;font-size:24px;line-height:1;cursor:pointer}
+.chat-list{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:8px}
+.chat-empty{margin:auto;color:var(--muted,#94a49a);font-size:13px;text-align:center}
+.chat-msg{display:flex}
+.chat-msg.mine{justify-content:flex-start}
+.chat-bubble{max-width:82%;display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:14px;background:var(--surface-2,#151f19);border:1px solid var(--border,#25352b);overflow-wrap:anywhere}
+.chat-msg.mine .chat-bubble{background:var(--green,#24e982);color:#06140b;border-color:transparent}
+.chat-name{font-size:11.5px;color:var(--green,#24e982)}
+.chat-text{font-size:14px;line-height:1.7;white-space:pre-wrap}
+.chat-time{align-self:flex-end;font-size:10px;opacity:.6}
+.chat-note{margin:0 12px 6px;padding:7px 12px;border-radius:10px;font-size:12px;background:rgba(255,90,95,.12);color:#ff7a7f;border:1px solid rgba(255,90,95,.35)}
+.chat-form{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--border,#25352b)}
+.chat-input{flex:1;min-width:0;height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--border,#25352b);background:var(--bg,#080d0b);color:inherit;font:inherit;font-size:14px;outline:none}
+.chat-input:focus{border-color:var(--green,#24e982)}
+.chat-send{flex:none;min-width:76px;height:46px;border:0;border-radius:12px;background:var(--green,#24e982);color:#06140b;font:inherit;font-weight:800;cursor:pointer}
+.chat-send:disabled{opacity:.5;cursor:not-allowed}
+@media (max-width:580px){.chat-btn{width:39px;height:39px}.chat-panel{width:100vw}}
