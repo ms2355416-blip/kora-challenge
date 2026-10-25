@@ -134,3 +134,6 @@
 .cm-offer .cm-btn{width:auto;padding:9px 16px;font-size:.85rem}
 @media (max-width:420px){.cm-stats{gap:5px}.cm-table{font-size:.74rem}.cm-table td.club{max-width:104px}}
 @media (prefers-reduced-motion:reduce){.cm-sheet{animation:none}.cm-bar i{transition:none}}
+
+.cm-fx.click{cursor:pointer}
+.cm-fx.click:hover{background:var(--surface-2,#17211d)}
