@@ -34,7 +34,7 @@
 
   /* ====== الحالة ====== */
   let queue = [], qi = 0, cur = null, hints = 0, wrong = 0, correct = 0, points = 0, level = 'easy';
-  let picked = null, sug = [], over = false;
+  let picked = null, sug = [], over = false, inRound = false, nextTimer = null;
 
   const screens = { level: $('levelScreen'), game: $('gameScreen'), result: $('resultScreen') };
   function show(n) { Object.keys(screens).forEach(k => screens[k] && screens[k].classList.toggle('active', k === n)); }
@@ -93,7 +93,7 @@
     'ساوثهامبتون': 340, 'فيردر بريمن': 12, 'ريال سوسيداد': 92
   };
 
-  function clubChip(name, num) {
+  function clubChip(name, num, year) {
     const chip = el('span', 'cr-club');
     if (num) chip.appendChild(el('small', '', String(num)));
     const logo = el('span', 'cr-logo');
@@ -104,7 +104,10 @@
       img.addEventListener('error', () => { img.remove(); logo.textContent = Array.from(name)[0]; logo.classList.add('fb'); });
       logo.appendChild(img);
     } else { logo.textContent = Array.from(name)[0]; logo.classList.add('fb'); }
-    chip.append(logo, el('span', 'cr-name', name));
+    const txt = el('span', 'cr-txt');
+    txt.appendChild(el('span', 'cr-name', name));
+    if (year) txt.appendChild(el('span', 'cr-year', String(year)));
+    chip.append(logo, txt);
     return chip;
   }
 
@@ -113,7 +116,7 @@
     box.textContent = '';
     p.clubs.forEach((c, i) => {
       if (i) box.appendChild(el('span', 'cr-arrow', '←'));
-      box.appendChild(clubChip(c, i + 1));
+      box.appendChild(clubChip(c, i + 1, p.years && p.years[i]));
     });
   }
 
@@ -212,13 +215,13 @@
     points += gain; correct++;
     msg('صح! ' + cur.ar + ' (+' + gain + ')', 'success');
     updateTop();
-    setTimeout(next, 1400);
+    nextTimer = setTimeout(next, 1400);
   }
 
   function lose(why) {
     lockQuestion();
     msg((why ? why + '. ' : '') + 'الإجابة: ' + cur.ar, 'error');
-    setTimeout(next, 2200);
+    nextTimer = setTimeout(next, 2200);
   }
 
   function next() {
@@ -228,6 +231,7 @@
 
   /* ====== نهاية وضع المسيرة ====== */
   function finishCareer() {
+    inRound = false;
     const pct = correct / queue.length * 100;
     const before = window.KoraUnlocks ? window.KoraUnlocks.getLifetime() : 0;
     saveStats(points);
@@ -254,7 +258,7 @@
   function startCareer() {
     const list = CD.PLAYERS.filter(p => p.level === level);
     queue = shuffle(list).slice(0, LEVELS[level].rounds);
-    qi = 0; correct = 0; points = 0;
+    qi = 0; correct = 0; points = 0; inRound = true;
     $('levelName').textContent = LEVELS[level].label;
     show('game');
     renderQuestion();
@@ -264,9 +268,15 @@
   $('hintBtn').addEventListener('click', showHint);
   $('submitBtn').addEventListener('click', submit);
   $('giveUpBtn').addEventListener('click', () => { if (!over) lose('استسلمت'); });
+  const exitOpts = {
+    title: 'تنسحب من الجولة؟',
+    message: 'لو خرجت دلوقتي النقاط اللي جمعتها في الجولة دي مش هتتسجل.',
+    okText: 'اخرج', cancelText: 'كمّل اللعب'
+  };
   $('quitBtn').addEventListener('click', () => {
-    if (confirm('تنسحب من الجولة؟ النقاط اللي جمعتها مش هتتحسب.')) { show('level'); renderLevelStats(); }
+    window.KoraDialog.confirm(exitOpts).then(ok => { if (ok) { inRound = false; clearTimeout(nextTimer); show('level'); renderLevelStats(); } });
   });
+  window.KoraDialog.guardLinks(() => inRound, exitOpts);
 
   document.querySelectorAll('.level[data-level]').forEach(b => {
     if (b.disabled) return;
