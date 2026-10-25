@@ -34,7 +34,7 @@ function loadStats() {
   const totalPoints = document.getElementById('totalPoints');
 
   if (gamesPlayed) gamesPlayed.textContent = stats.gamesPlayed || 0;
-  if (bestScore) bestScore.textContent = (stats.bestScore || 0) + '%';
+  if (bestScore) bestScore.textContent = (stats.bestScore || 0);
   if (totalPoints) totalPoints.textContent = stats.totalPoints || 0;
 }
 
@@ -43,18 +43,12 @@ function loadStats() {
 // =====================================
 
 function getStreakData() {
-  try {
-    const data = JSON.parse(
-      localStorage.getItem('koraChallengeStreak') || '{}'
-    );
-
-    return {
-      days: Number(data.days) || 0,
-      lastDate: data.lastDate || ''
-    };
-  } catch (error) {
-    return { days: 0, lastDate: '' };
+  // الحساب الفعلي في streak.js (بيصفّر السلسلة لو فات يوم من غير لعب)
+  if (window.KoraStreak) {
+    const st = window.KoraStreak.get();
+    return { days: st.days, lastDate: st.lastDate };
   }
+  return { days: 0, lastDate: '' };
 }
 
 const headerActions = document.querySelector('.header-actions');
@@ -82,6 +76,8 @@ function updateStreakButton() {
   );
 }
 
+window.addEventListener('kora-streak-change', updateStreakButton);
+
 updateStreakButton();
 
 streakButton?.addEventListener('click', () => {
@@ -90,7 +86,7 @@ streakButton?.addEventListener('click', () => {
   showToast(
     streak.days
       ? '🔥 سلسلتك الحالية ' + streak.days + ' يوم!'
-      : 'ابدأ تحدي خمن اللاعب علشان تبدأ سلسلتك! ⚽'
+      : 'العب أي تحدي النهارده علشان تبدأ سلسلتك! ⚽'
   );
 });
 
@@ -508,7 +504,7 @@ document.querySelectorAll('[data-game]').forEach(button => {
     const game = button.dataset.game;
 
     if (game === 'player') {
-      window.location.href = 'guess-player.html';
+      window.location.href = 'player-modes.html';
     } else if (game === 'country') {
       showToast('تحدي خمن المنتخب هيكون متاح قريبًا 🌍');
     } else if (game === 'team') {
