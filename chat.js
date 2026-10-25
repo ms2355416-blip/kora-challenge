@@ -38,7 +38,7 @@
 
     /* ---- الحالة ---- */
     let open = false, loaded = false, unread = 0, lastSend = 0;
-    const seen = new Set();
+    const seen = new Set(), rows = {};
     const me = () => (window.KoraAuth && window.KoraAuth.user) || (firebase.auth && firebase.auth().currentUser) || null;
     const myName = () => { const u = me(); return u ? (u.displayName || (u.email ? u.email.split('@')[0] : '') || 'لاعب') : 'لاعب'; };
     const lastSeen = () => { try { return Number(localStorage.getItem(SEEN_KEY)) || 0; } catch (e) { return 0; } };
@@ -60,7 +60,7 @@
       if (!mine) bub.appendChild(el('b', 'chat-name', String(m.name || 'لاعب').slice(0, 30)));
       bub.appendChild(el('span', 'chat-text', m.text.slice(0, MAX_LEN)));
       bub.appendChild(el('small', 'chat-time', m.t ? hhmm(m.t) : ''));
-      row.appendChild(bub);
+      row.appendChild(bub); rows[key] = row;
       const stick = nearBottom() || mine;
       list.appendChild(row);
       while (list.children.length > KEEP + 20) list.firstChild.remove();
@@ -69,7 +69,18 @@
       else if (loaded && !mine && m.t > lastSeen()) { unread++; setBadge(); }
     }
 
+    function fit() {
+      const v = window.visualViewport;
+      if (!v) return;
+      panel.style.height = v.height + 'px'; panel.style.top = v.offsetTop + 'px'; panel.style.bottom = 'auto';
+      if (open && nearBottomLock) toBottom();
+    }
+    let nearBottomLock = true;
+    if (window.visualViewport) { window.visualViewport.addEventListener('resize', fit); window.visualViewport.addEventListener('scroll', fit); }
+    input.addEventListener('focus', () => { setTimeout(() => { fit(); toBottom(); window.scrollTo(0, 0); }, 250); });
+
     function openPanel() {
+      fit();
       open = true; document.body.classList.add('chat-lock');
       overlay.classList.add('open'); panel.classList.add('open');
       unread = 0; setBadge(); markSeen(newest || Date.now());
@@ -105,6 +116,7 @@
 
     /* ---- الاستماع للرسايل ---- */
     const q = ref.limitToLast(KEEP);
+    q.on('child_removed', s => { const r = rows[s.key]; if (r) { r.remove(); delete rows[s.key]; seen.delete(s.key); } });
     q.on('child_added', s => addMessage(s.key, s.val()), () => { empty.textContent = 'الشات مش متاح دلوقتي (راجع قواعد Firebase).'; });
     q.once('value').then(() => { loaded = true; }).catch(() => { loaded = true; });
   }
