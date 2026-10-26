@@ -65,7 +65,7 @@
   const posName = id => (D.POSITIONS.find(p => p.id === id) || {}).ar || id;
 
   function show(id) {
-    ['cmCreate', 'cmGame', 'cmSeason', 'cmRetire'].forEach(k => { $(k).hidden = k !== id; });
+    ['cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire'].forEach(k => { $(k).hidden = k !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -162,7 +162,8 @@
     const myRounds = E.rounds(S.league);
     const card = el('div', 'cm-card cm-next');
 
-    if (S.seasonOver || S.round >= myRounds) {
+    const due = E.euroDue(S);
+    if ((S.seasonOver || S.round >= myRounds) && !due) {
       card.appendChild(el('h3', '', 'الموسم خلص!'));
       const p = E.myPosition(S);
       card.appendChild(el('p', 'cm-sub', 'خلصت في المركز ' + p + ' في ' + LG[S.league].ar));
@@ -171,13 +172,21 @@
       card.appendChild(b);
       pane.appendChild(card);
     } else {
-      const fx = E.myFixtures(S).find(f => f.round === S.round + 1);
-      card.appendChild(el('h3', '', 'الجولة ' + (S.round + 1) + ' من ' + myRounds + ' • ' + LG[S.league].ar));
+      let fx;
+      if (due) {
+        const nx = S.euro.next;
+        fx = { home: nx.home ? S.clubId : nx.opp, away: nx.home ? nx.opp : S.clubId };
+        card.classList.add('cm-next-euro');
+        card.appendChild(el('h3', '', 'دوري أبطال أوروبا • ' + E.STAGE_AR[nx.stage] + (nx.md ? ' (' + nx.md + ' من 8)' : '')));
+      } else {
+        fx = E.myFixtures(S).find(f => f.round === S.round + 1);
+        card.appendChild(el('h3', '', 'الجولة ' + (S.round + 1) + ' من ' + myRounds + ' • ' + LG[S.league].ar));
+      }
       const vs = el('div', 'cm-vs');
       vs.append(teamBlock(fx.home, 'أرض'), el('span', 'cm-vs-mid', 'ضد'), teamBlock(fx.away, 'ضيف'));
       card.appendChild(vs);
       const row = el('div', 'cm-row');
-      const b1 = el('button', 'cm-btn', 'العب الجولة'); b1.type = 'button'; b1.addEventListener('click', () => playRounds(1));
+      const b1 = el('button', 'cm-btn', due ? 'العب المباراة' : 'العب الجولة'); b1.type = 'button'; b1.addEventListener('click', () => playRounds(1));
       const b5 = el('button', 'cm-btn ghost', 'العب 5 جولات'); b5.type = 'button'; b5.addEventListener('click', () => playRounds(5));
       row.append(b1, b5);
       card.appendChild(row);
@@ -187,6 +196,7 @@
       pane.appendChild(card);
     }
 
+    if (S.euro) pane.appendChild(euroCard());
     const last = S.log[S.log.length - 1];
     if (last) {
       const c = el('div', 'cm-card cm-fx click'); c.tabIndex = 0; c.addEventListener('click', () => openModal(reportNode(last), 'تمام'));
@@ -203,6 +213,20 @@
     }
   }
 
+  function euroCard() {
+    const e = S.euro, c = el('div', 'cm-card cm-euro');
+    const h = el('div', 'cm-euro-h'); h.append(el('b', '', 'دوري أبطال أوروبا'), el('small', '', e.kind === 'qual' ? 'من التصفيات' : 'متأهل مباشرة'));
+    c.appendChild(h);
+    let t;
+    if (e.status === 'champ') t = e.result;
+    else if (e.status === 'out') t = e.result;
+    else if (e.phase === 'league') t = 'مرحلة الدوري: ' + e.lp.played + ' من 8 • ' + e.lp.pts + ' نقطة';
+    else t = 'الدور الجاي: ' + E.STAGE_AR[e.phase];
+    c.appendChild(el('div', 'cm-euro-t ' + (e.status === 'champ' ? 'win' : e.status === 'out' ? 'out' : ''), t));
+    if (e.rank) c.appendChild(el('small', 'cm-sub', 'ترتيبك في مرحلة الدوري: ' + e.rank + ' من 36'));
+    return c;
+  }
+
   function roleText(r) {
     return r.role === 'start' ? 'أساسي • ' + r.minutes + ' دقيقة' : r.role === 'sub' ? 'نزلت بديل • ' + r.minutes + ' دقيقة' : r.role === 'bench' ? 'على الدكة' : 'خارج القايمة';
   }
@@ -210,14 +234,17 @@
   function paneTable() {
     const pane = $('cmPane'); pane.textContent = '';
     const keys = Object.keys(S.world.leagues);
-    if (!tabLeague || keys.indexOf(tabLeague) < 0) tabLeague = S.league;
+    if (!tabLeague || (keys.indexOf(tabLeague) < 0 && tabLeague !== 'cl')) tabLeague = S.league;
+    if (tabLeague === 'cl' && !(S.euro && S.euro.lpTable)) tabLeague = S.league;
     const chips = el('div', 'cm-leagues');
-    keys.forEach(k => {
-      const b = el('button', 'cm-tab' + (k === tabLeague ? ' active' : ''), LG[k].ar); b.type = 'button';
+    const tabKeys = keys.concat(S.euro && S.euro.lpTable ? ['cl'] : []);
+    tabKeys.forEach(k => {
+      const b = el('button', 'cm-tab' + (k === tabLeague ? ' active' : ''), k === 'cl' ? 'دوري الأبطال' : LG[k].ar); b.type = 'button';
       b.addEventListener('click', () => { tabLeague = k; paneTable(); });
       chips.appendChild(b);
     });
     pane.appendChild(chips);
+    if (tabLeague === 'cl') { paneEuroTable(pane); return; }
     const t = E.table(S, tabLeague), n = t.length;
     const card = el('div', 'cm-card'); card.style.padding = '8px 6px';
     const tb = document.createElement('table'); tb.className = 'cm-table';
@@ -240,16 +267,50 @@
     pane.appendChild(card);
   }
 
+  function paneEuroTable(pane) {
+    const card = el('div', 'cm-card'); card.style.padding = '8px 6px';
+    const tb = document.createElement('table'); tb.className = 'cm-table';
+    const head = tb.createTHead().insertRow();
+    ['#', 'النادي', 'فارق', 'نقاط'].forEach((h, i) => { const th = document.createElement('th'); th.textContent = h; if (i === 1) th.style.textAlign = 'start'; head.appendChild(th); });
+    const body = tb.createTBody();
+    S.euro.lpTable.forEach((r, i) => {
+      const tr = body.insertRow();
+      if (r.me) tr.classList.add('me');
+      if (i < 8) tr.classList.add('up'); else if (i < 24) tr.classList.add('po'); else tr.classList.add('down');
+      [i + 1, club(r.id).ar, (r.gd > 0 ? '+' : '') + r.gd, r.pts].forEach((v, j) => { const td = tr.insertCell(); td.textContent = v; if (j === 1) td.className = 'club'; if (j === 3) td.className = 'pts'; });
+    });
+    card.appendChild(tb); pane.appendChild(card);
+    pane.appendChild(el('div', 'cm-note', 'أول 8 على طول لدور الـ16 • من 9 لـ24 ملحق • من 25 خرجوا'));
+  }
+
   function paneFixtures() {
     const pane = $('cmPane'); pane.textContent = '';
     const chips = el('div', 'cm-leagues');
-    [['all', 'الكل'], ['played', 'اللي اتلعبت'], ['next', 'اللي جاية']].forEach(f => {
+    [['all', 'الكل'], ['played', 'اللي اتلعبت'], ['next', 'اللي جاية']].concat(S.log.some(x => x.comp) ? [['cl', 'دوري الأبطال']] : []).forEach(f => {
       const b = el('button', 'cm-tab' + (fxFilter === f[0] ? ' active' : ''), f[1]); b.type = 'button';
       b.addEventListener('click', () => { fxFilter = f[0]; paneFixtures(); });
       chips.appendChild(b);
     });
     pane.appendChild(chips);
     const card = el('div', 'cm-card');
+    if (fxFilter === 'cl') {
+      const items = S.log.filter(x => x.comp);
+      if (!items.length) card.appendChild(el('div', 'cm-soon', 'لسه ماتلعبتش مباريات أوروبية.'));
+      items.forEach(x => {
+        const row = el('div', 'cm-fx click'); row.tabIndex = 0;
+        row.appendChild(el('span', 'rd', 'أوروبا'));
+        const mt = el('div', 'mt'), homeMe = x.home === S.clubId, opp = club(homeMe ? x.away : x.home);
+        mt.appendChild(document.createTextNode((homeMe ? 'ضد ' : 'عند ') + opp.ar));
+        mt.appendChild(el('small', '', E.STAGE_AR[x.stage] + (x.pens ? ' • ترجيح ' + (homeMe ? x.pens[0] + '-' + x.pens[1] : x.pens[1] + '-' + x.pens[0]) : '')));
+        row.appendChild(mt);
+        row.appendChild(el('span', 'sc', x.hg + ' - ' + x.ag));
+        row.appendChild(el('span', 'rt ' + (x.rating != null ? ratingClass(x.rating) : ''), x.rating != null ? x.rating.toFixed(1) : (x.role === 'bench' ? 'دكة' : 'خارج')));
+        row.addEventListener('click', () => openModal(reportNode(x), 'تمام'));
+        card.appendChild(row);
+      });
+      pane.appendChild(card);
+      return;
+    }
     let list = E.myFixtures(S);
     if (fxFilter === 'played') list = list.filter(f => f.res);
     if (fxFilter === 'next') list = list.filter(f => !f.res);
@@ -280,6 +341,15 @@
     pane.appendChild(card);
   }
 
+  function paneHonors() {
+    const pane = $('cmPane'); pane.textContent = '';
+    const hs = S.honors || [];
+    if (!hs.length) { const c = el('div', 'cm-card cm-soon'); c.append(el('b', '', 'بطولاتي'), el('div', '', 'لسه مكسبتش حاجة. العب كويس وهتلاقي بطولاتك وجوايزك هنا.')); pane.appendChild(c); return; }
+    const c = el('div', 'cm-card');
+    hs.slice().reverse().forEach(h => { const r = el('div', 'cm-fx'); r.append(el('span', 'rd', String(h.year)), el('div', 'mt', h.text)); c.appendChild(r); });
+    pane.appendChild(c);
+  }
+
   function paneSoon(title) {
     const pane = $('cmPane'); pane.textContent = '';
     const c = el('div', 'cm-card cm-soon');
@@ -293,7 +363,7 @@
     if (tab === 'home') paneHome();
     else if (tab === 'table') paneTable();
     else if (tab === 'fixtures') paneFixtures();
-    else if (tab === 'trophies') paneSoon('بطولاتي');
+    else if (tab === 'trophies') paneHonors();
     else paneSoon('بطولات النادي');
   }
 
@@ -321,7 +391,9 @@
     const sc = el('div', 'cm-score');
     sc.append(el('span', '', club(pm.home).ar), el('span', 'num', pm.hg + ' - ' + pm.ag), el('span', '', club(pm.away).ar));
     wrap.appendChild(sc);
-    wrap.appendChild(el('div', 'cm-sub', 'الجولة ' + pm.round + ' • ' + (myHome ? 'على ملعبك' : 'خارج الأرض')));
+    const cmp = pm.comp ? 'دوري الأبطال • ' + E.STAGE_AR[pm.stage] : 'الجولة ' + pm.round;
+    wrap.appendChild(el('div', 'cm-sub', cmp + ' • ' + (myHome ? 'على ملعبك' : 'خارج الأرض')));
+    if (pm.pens) wrap.appendChild(el('div', 'cm-sub', 'اتحسمت بركلات الترجيح ' + (myHome ? pm.pens[0] + ' - ' + pm.pens[1] : pm.pens[1] + ' - ' + pm.pens[0]) + ' لصالح ' + (pm.pens[0] > pm.pens[1] ? club(S.clubId).ar : 'الخصم')));
     let role;
     if (pm.role === 'start') role = 'المدرب أشركك أساسي' + (pm.b < 90 ? ' واتبدلت في الدقيقة ' + pm.b : '') + ' • ' + pm.minutes + ' دقيقة';
     else if (pm.role === 'sub') role = 'المدرب نزّلك بديل في الدقيقة ' + pm.a + ' • ' + pm.minutes + ' دقيقة';
@@ -342,7 +414,31 @@
     });
     if (!evs.children.length) evs.appendChild(el('div', 'cm-ev', 'مباراة هادية من غير أهداف.'));
     wrap.appendChild(evs);
+    try { wrap.appendChild(lineupsNode(E.matchLineups(S, pm))); } catch (e) { /* ignore */ }
     return wrap;
+  }
+
+  function lineupSide(sd) {
+    const box = el('div', 'cm-lu');
+    const hd = el('div', 'cm-lu-h'); hd.append(badge(club(sd.id)), el('b', '', club(sd.id).ar), el('span', 'cm-lu-fm', sd.fm));
+    box.appendChild(hd);
+    const pitch = el('div', 'cm-lu-pitch');
+    sd.rows.slice().reverse().forEach(r => {
+      const row = el('div', 'cm-lu-row');
+      r.forEach(p => { const x = el('div', 'cm-lu-p' + (p.me ? ' me' : '')); x.append(el('i'), el('span', '', p.n)); row.appendChild(x); });
+      pitch.appendChild(row);
+    });
+    const g = el('div', 'cm-lu-row'), gp = el('div', 'cm-lu-p' + (sd.gk.me ? ' me' : '')); gp.append(el('i'), el('span', '', sd.gk.n)); g.appendChild(gp);
+    pitch.appendChild(g);
+    box.appendChild(pitch);
+    if (sd.note) box.appendChild(el('div', 'cm-lu-note', sd.note));
+    return box;
+  }
+  function lineupsNode(lu) {
+    const w = el('div', 'cm-lus');
+    w.appendChild(el('div', 'cm-sum-title', 'التشكيلة'));
+    w.append(lineupSide(lu.home), lineupSide(lu.away));
+    return w;
   }
 
   function openModal(node, btnText, onClose) {
@@ -358,7 +454,7 @@
   function playRounds(n) {
     const reports = [];
     const myRounds = E.rounds(S.league);
-    for (let i = 0; i < n && S.round < myRounds; i++) {
+    for (let i = 0; i < n && (S.round < myRounds || E.euroDue(S)); i++) {
       const rep = E.playRound(S, Math.random);
       if (rep.my) reports.push(rep.my);
     }
@@ -372,13 +468,13 @@
     const evs = el('div', 'cm-events');
     reports.forEach(pm => {
       const r = el('div', 'cm-ev');
-      const left = el('span', '', 'ج' + pm.round + ' • ' + club(pm.home).ar + ' ' + pm.hg + '-' + pm.ag + ' ' + club(pm.away).ar);
+      const left = el('span', '', (pm.comp ? 'أوروبا' : 'ج' + pm.round) + ' • ' + club(pm.home).ar + ' ' + pm.hg + '-' + pm.ag + ' ' + club(pm.away).ar);
       const right = el('span', '', pm.rating != null ? pm.rating.toFixed(1) + (pm.goals ? ' • ' + pm.goals + ' هدف' : '') + (pm.assists ? ' • ' + pm.assists + ' أسيست' : '') : (pm.role === 'bench' ? 'دكة' : 'خارج'));
       r.append(left, right); evs.appendChild(r);
     });
     wrap.appendChild(evs);
     const last = reports[reports.length - 1];
-    openModal(wrap, S.seasonOver || S.round >= myRounds ? 'كمّل' : 'تمام');
+    openModal(wrap, (S.seasonOver || S.round >= myRounds) && !E.euroDue(S) ? 'كمّل' : 'تمام');
     void last;
   }
 
@@ -387,6 +483,38 @@
     E.finishSeason(S, Math.random);
     if (!S.pointsGiven) { saveStats(S.summary.points); S.pointsGiven = true; }
     save(); render();
+  }
+
+  const AW_ICONS = {
+    ballon: '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" stroke-width="4"/><path d="m32 19 11 8-4 13H25l-4-13Z" fill="currentColor"/><path d="m32 19-1-11M43 27l12-4M39 40l7 11M25 40l-7 11M21 27 9 23" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>',
+    boot: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 40c0-6 3-9 8-9l6-12h9l2 12 14 4c5 1.4 8 4 8 9v4H8z" fill="currentColor"/><path d="M14 52h4M24 52h4M34 52h4M44 52h4" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>',
+    glove: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 58V40L10 28l5-5 7 8V12a4 4 0 0 1 8 0v14h2V8a4 4 0 0 1 8 0v18h2V12a4 4 0 0 1 8 0v26c0 12-6 20-16 20z" fill="currentColor"/></svg>'
+  };
+  function renderAwards() {
+    const box = $('cmAwards'); box.textContent = '';
+    const sm = S.summary, aw = S.awards, head = el('div', 'cm-card');
+    head.appendChild(el('div', 'cm-sub', 'موسم ' + sm.year + '/' + String(sm.year + 1).slice(2)));
+    head.appendChild(el('h2', 'cm-sum-title', 'جوائز الموسم'));
+    box.appendChild(head);
+    const lg = LG[sm.league].ar;
+    [['ballon', 'الكرة الذهبية', 'أحسن لاعب في العالم'], ['boot', 'الحذاء الذهبي', 'هداف ' + lg], ['glove', 'القفاز الذهبي', 'أحسن حارس في ' + lg]].forEach(a => {
+      const w = aw[a[0]], card = el('div', 'cm-card cm-award' + (w.mine ? ' mine' : ''));
+      const ic = el('div', 'cm-award-ic'); ic.innerHTML = AW_ICONS[a[0]];
+      const info = el('div', 'cm-award-info');
+      info.append(el('small', '', a[2]), el('b', 'cm-award-t', a[1]));
+      const who = el('div', 'cm-award-who');
+      who.append(badge(club(w.clubId)), el('span', 'cm-award-name', w.name));
+      if (w.mine) who.appendChild(el('span', 'cm-award-me', 'إنت!'));
+      info.appendChild(who);
+      info.append(el('small', 'cm-award-club', club(w.clubId).ar + ' • ' + w.stat));
+      card.append(ic, info);
+      box.appendChild(card);
+    });
+    const won = ['ballon', 'boot', 'glove'].filter(k => aw[k].mine).length;
+    box.appendChild(el('div', 'cm-note', won ? 'مبروك! كسبت ' + won + (won === 1 ? ' جايزة' : ' جوايز') + ' وفيه نقاط زيادة اتضافت لرصيدك.' : 'ماكسبتش جوايز الموسم ده. كمّل وحسّن مستواك وهتقرّب منهم.'));
+    const b = el('button', 'cm-btn', 'كمّل'); b.type = 'button';
+    b.addEventListener('click', () => { E.continueAfterAwards(S); save(); render(); });
+    box.appendChild(b);
   }
 
   function renderSeason() {
@@ -403,6 +531,9 @@
     card.appendChild(g);
     const d = Math.round((sm.ovrAfter - sm.ovrBefore) * 10) / 10;
     card.appendChild(el('div', 'cm-note', 'طاقتك: ' + Math.floor(sm.ovrBefore) + ' ← ' + Math.floor(sm.ovrAfter) + (d >= 0 ? ' (+' + d + ')' : ' (' + d + ')') + ' • عمرك ' + sm.age));
+    if (sm.euro && sm.euro.text) card.appendChild(el('div', 'cm-note' + (sm.euro.status === 'champ' ? ' up' : ''), 'دوري الأبطال: ' + sm.euro.text));
+    const qk = S.euroQual && S.euroQual[S.clubId];
+    if (qk) card.appendChild(el('div', 'cm-note up', qk === 'cl' ? 'ناديك اتأهل لدوري أبطال أوروبا الموسم الجاي!' : 'ناديك هيلعب تصفيات دوري الأبطال الموسم الجاي.'));
     if (sm.moved === 'up') card.appendChild(el('div', 'cm-note up', 'ناديك طلع للدرجة الأعلى في الموسم الجاي!'));
     if (sm.moved === 'down') card.appendChild(el('div', 'cm-note down', 'ناديك هبط للدرجة الأقل في الموسم الجاي.'));
     card.appendChild(el('div', 'cm-note', '+' + sm.points + ' نقطة اتضافت لرصيدك في الموقع'));
@@ -464,6 +595,7 @@
   function render() {
     if (!S) { show('cmCreate'); return; }
     if (S.phase === 'retired') { renderRetire(); show('cmRetire'); return; }
+    if (S.phase === 'awards') { renderAwards(); show('cmAwards'); return; }
     if (S.phase === 'offers') { renderSeason(); show('cmSeason'); return; }
     renderPlayer(); renderPane(); show('cmGame');
   }
