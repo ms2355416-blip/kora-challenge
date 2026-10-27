@@ -374,14 +374,14 @@ clubModal.innerHTML = `
         aria-label="إغلاق">×</button>
     </div>
 
-    <p>اختار ناديًا واحدًا. هنضيف أسئلة كل نادي في المرحلة القادمة.</p>
+    <p>اختار ناديك وابدأ اختبار من 20 سؤال عنه.</p>
 
     <div class="club-grid" id="clubGrid"></div>
 
     <button type="button"
       class="club-confirm"
       id="clubConfirm"
-      disabled>تأكيد اختيار النادي</button>
+      disabled>ابدأ الاختبار</button>
   </section>
 `;
 
@@ -487,7 +487,7 @@ clubConfirm.addEventListener('click', () => {
   }
 
   closeClubModal();
-  showToast('تم اختيار ' + selectedClub + ' ❤️ الأسئلة هنضيفها قريبًا');
+  window.location.href = 'club-quiz.html';
 });
 
 // =====================================
