@@ -175,3 +175,19 @@
 .cm-award-name{font-weight:800;font-size:.98rem}
 .cm-award-me{font-size:.7rem;font-weight:800;color:#04110a;background:var(--unl-gold,#f6c445);border-radius:999px;padding:2px 9px}
 #cmAwards .cm-btn{margin-top:14px;width:100%}
+
+/* صورة اللاعب */
+.cm-photo{display:block;width:100%;height:100%;object-fit:cover}
+.cm-photo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cm-file{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;width:auto;padding:10px 18px}
+.cm-photo-err{color:#ff6b6b;font-size:.76rem;min-height:1em}
+/* الانتقالات */
+.cm-mk{padding:10px 4px;border-top:1px solid var(--border,#1f2b26)}
+.cm-mk:first-child{border-top:0}
+.cm-mk.mine{background:color-mix(in srgb,var(--green,#24e982) 10%,transparent);border-radius:10px;padding-inline:8px}
+.cm-mk-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.cm-mk-fee{font-size:.78rem;font-weight:800;color:var(--green,#24e982);white-space:nowrap}
+.cm-mk-ret{font-size:.72rem;font-weight:800;color:#ff9f6b;border:1px solid #ff9f6b;border-radius:999px;padding:1px 9px}
+.cm-mk-mv{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:.82rem;color:var(--muted,#8aa397)}
+.cm-mk-ar{font-style:normal;color:var(--muted,#8aa397)}
+.cm-mk-mv .cm-badge{width:22px;height:22px;font-size:.7rem}
