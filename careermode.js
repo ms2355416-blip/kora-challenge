@@ -14,7 +14,7 @@
   let tab = 'home';
   let tabLeague = null;
   let fxFilter = 'all';
-  const sel = { color: COLORS[0], pos: 'ST', start: 'eng3' };
+  const sel = { color: COLORS[0], pos: 'ST', start: 'eng3', photo: null };
 
   /* ====== التخزين ====== */
   function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); return s && s.v === 1 && s.player && s.world ? s : null; } catch (e) { return null; } }
@@ -37,6 +37,31 @@
     return '<svg class="cm-avatar" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="21" r="11" fill="#d6dcd8"/>' +
       '<path d="M8 64c0-15 10-26 24-26s24 11 24 26z" fill="' + color + '"/>' +
       '<path d="M25 39l7 8 7-8" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+
+  function avatarHTML(p) {
+    if (p && p.photo) return '<img class="cm-photo" alt="" src="' + p.photo + '">';
+    return avatarSVG(p ? p.color : COLORS[0]);
+  }
+  /* تصغير الصورة المرفوعة لمربع 192px عشان تتخزن خفيفة */
+  function readPhoto(file) {
+    return new Promise((res, rej) => {
+      if (!file || !/^image\//.test(file.type)) { rej(new Error('type')); return; }
+      const fr = new FileReader();
+      fr.onerror = () => rej(new Error('read'));
+      fr.onload = () => {
+        const im = new Image();
+        im.onerror = () => rej(new Error('img'));
+        im.onload = () => {
+          const N = 192, c = document.createElement('canvas'); c.width = c.height = N;
+          const x = c.getContext('2d'), m = Math.min(im.width, im.height);
+          x.drawImage(im, (im.width - m) / 2, (im.height - m) / 2, m, m, 0, 0, N, N);
+          res(c.toDataURL('image/jpeg', 0.85));
+        };
+        im.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
   }
 
   function hashColor(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return 'hsl(' + (h % 360) + ',45%,38%)'; }
@@ -86,7 +111,7 @@
     COLORS.forEach(c => {
       const b = el('button', 'cm-sw' + (c === sel.color ? ' on' : ''));
       b.type = 'button'; b.style.background = c; b.setAttribute('aria-label', 'لون ' + c);
-      b.addEventListener('click', () => { sel.color = c; cols.querySelectorAll('.cm-sw').forEach(x => x.classList.toggle('on', x === b)); $('cmPrev').innerHTML = avatarSVG(c); });
+      b.addEventListener('click', () => { sel.color = c; cols.querySelectorAll('.cm-sw').forEach(x => x.classList.toggle('on', x === b)); $('cmPrev').innerHTML = avatarHTML({ photo: sel.photo, color: c }); });
       cols.appendChild(b);
     });
 
@@ -98,14 +123,22 @@
       b.addEventListener('click', () => { sel.start = s.id; st.querySelectorAll('.cm-chip').forEach(x => x.classList.toggle('on', x === b)); });
       st.appendChild(b);
     });
-    $('cmPrev').innerHTML = avatarSVG(sel.color);
+    $('cmPrev').innerHTML = avatarHTML(sel);
+    const pf = $('cmPhoto'), pr = $('cmPhotoClear'), pe = $('cmPhotoErr');
+    pf.addEventListener('change', () => {
+      pe.textContent = '';
+      const f = pf.files && pf.files[0]; if (!f) return;
+      readPhoto(f).then(d => { sel.photo = d; $('cmPrev').innerHTML = avatarHTML(sel); pr.hidden = false; })
+        .catch(() => { pe.textContent = 'مقدرتش أفتح الصورة دي. جرب صورة JPG أو PNG تانية.'; pf.value = ''; });
+    });
+    pr.addEventListener('click', () => { sel.photo = null; pf.value = ''; pe.textContent = ''; pr.hidden = true; $('cmPrev').innerHTML = avatarHTML(sel); });
 
     $('cmForm').addEventListener('submit', e => {
       e.preventDefault();
       const name = $('cmName').value.trim();
       if (!name) return;
       const opt = natSel.options[natSel.selectedIndex];
-      S = E.newCareer({ name, nat: opt.textContent, natCode: opt.value, pos: sel.pos, color: sel.color, start: sel.start }, Math.random);
+      S = E.newCareer({ name, nat: opt.textContent, natCode: opt.value, pos: sel.pos, color: sel.color, start: sel.start, photo: sel.photo }, Math.random);
       S.pointsGiven = false;
       tab = 'home'; tabLeague = S.league;
       save(); render();
@@ -118,7 +151,7 @@
     box.textContent = '';
 
     const ph = el('div', 'cm-ph');
-    const av = el('div', 'cm-avatar-sm'); av.innerHTML = avatarSVG(p.color);
+    const av = el('div', 'cm-avatar-sm'); av.innerHTML = avatarHTML(p);
     const pi = el('div', 'cm-pi');
     pi.appendChild(el('b', '', p.name));
     const sm = el('small');
@@ -350,6 +383,30 @@
     pane.appendChild(c);
   }
 
+  function paneMarket() {
+    const pane = $('cmPane'); pane.textContent = '';
+    const m = S.market;
+    if (!m || !m.items || !m.items.length) { const c = el('div', 'cm-card cm-soon'); c.append(el('b', '', 'سوق الانتقالات'), el('div', '', 'مفيش أخبار لسه.')); pane.appendChild(c); return; }
+    pane.appendChild(el('div', 'cm-note', 'أخبار صيف ' + m.year + ': اللاعبين بيتنقلوا ويعتزلوا في الأندية كلها حتى لو إنت مش طرف فيها، وده بيأثر على قوة الفرق.'));
+    const card = el('div', 'cm-card');
+    m.items.forEach(it => {
+      const row = el('div', 'cm-mk' + (it.mine ? ' mine' : ''));
+      if (it.t === 'tr') {
+        const f = club(it.from), t = club(it.to);
+        const top = el('div', 'cm-mk-top'); top.append(el('b', '', it.n), el('span', 'cm-mk-fee', fmt(it.fee) + ' مليون ' + it.cur));
+        const mv = el('div', 'cm-mk-mv'); mv.append(badge(f), el('span', '', f.ar), el('i', 'cm-mk-ar', '←'), badge(t), el('span', '', t.ar));
+        row.append(top, mv);
+      } else {
+        const c = club(it.club);
+        const top = el('div', 'cm-mk-top'); top.append(el('b', '', it.n), el('span', 'cm-mk-ret', 'اعتزل'));
+        const mv = el('div', 'cm-mk-mv'); mv.append(badge(c), el('span', '', c.ar + ' • ' + it.age + ' سنة'));
+        row.append(top, mv);
+      }
+      card.appendChild(row);
+    });
+    pane.appendChild(card);
+  }
+
   function paneSoon(title) {
     const pane = $('cmPane'); pane.textContent = '';
     const c = el('div', 'cm-card cm-soon');
@@ -364,6 +421,7 @@
     else if (tab === 'table') paneTable();
     else if (tab === 'fixtures') paneFixtures();
     else if (tab === 'trophies') paneHonors();
+    else if (tab === 'market') paneMarket();
     else paneSoon('بطولات النادي');
   }
 
@@ -488,6 +546,8 @@
   const AW_ICONS = {
     ballon: '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" stroke-width="4"/><path d="m32 19 11 8-4 13H25l-4-13Z" fill="currentColor"/><path d="m32 19-1-11M43 27l12-4M39 40l7 11M25 40l-7 11M21 27 9 23" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>',
     boot: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 40c0-6 3-9 8-9l6-12h9l2 12 14 4c5 1.4 8 4 8 9v4H8z" fill="currentColor"/><path d="M14 52h4M24 52h4M34 52h4M44 52h4" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>',
+    kopa: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v14c0 9-6 15-14 15s-14-6-14-15z" fill="currentColor"/><path d="M18 12H8c0 9 4 14 11 15M46 12h10c0 9-4 14-11 15" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><path d="M32 37v10M22 56h20M25 47h14v9H25z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    club: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 10 14v16c0 15 9 24 22 28 13-4 22-13 22-28V14z" fill="currentColor"/><path d="m32 20 4 8 9 1-6.5 6 1.7 9L32 40l-8.2 4 1.7-9-6.5-6 9-1z" fill="#04110a"/></svg>',
     glove: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 58V40L10 28l5-5 7 8V12a4 4 0 0 1 8 0v14h2V8a4 4 0 0 1 8 0v18h2V12a4 4 0 0 1 8 0v26c0 12-6 20-16 20z" fill="currentColor"/></svg>'
   };
   function renderAwards() {
@@ -497,20 +557,20 @@
     head.appendChild(el('h2', 'cm-sum-title', 'جوائز الموسم'));
     box.appendChild(head);
     const lg = LG[sm.league].ar;
-    [['ballon', 'الكرة الذهبية', 'أحسن لاعب في العالم'], ['boot', 'الحذاء الذهبي', 'هداف ' + lg], ['glove', 'القفاز الذهبي', 'أحسن حارس في ' + lg]].forEach(a => {
+    [['ballon', 'الكرة الذهبية', 'أحسن لاعب في العالم'], ['boot', 'الحذاء الذهبي', 'هداف ' + lg], ['glove', 'القفاز الذهبي', 'أحسن حارس في ' + lg], ['kopa', 'جايزة كوبا', 'أحسن لاعب تحت 21 سنة'], ['club', 'أفضل نادي في العام', 'نادي العام في العالم']].forEach(a => {
       const w = aw[a[0]], card = el('div', 'cm-card cm-award' + (w.mine ? ' mine' : ''));
       const ic = el('div', 'cm-award-ic'); ic.innerHTML = AW_ICONS[a[0]];
       const info = el('div', 'cm-award-info');
       info.append(el('small', '', a[2]), el('b', 'cm-award-t', a[1]));
       const who = el('div', 'cm-award-who');
       who.append(badge(club(w.clubId)), el('span', 'cm-award-name', w.name));
-      if (w.mine) who.appendChild(el('span', 'cm-award-me', 'إنت!'));
+      if (w.mine) who.appendChild(el('span', 'cm-award-me', a[0] === 'club' ? 'ناديك!' : 'إنت!'));
       info.appendChild(who);
-      info.append(el('small', 'cm-award-club', club(w.clubId).ar + ' • ' + w.stat));
+      info.append(el('small', 'cm-award-club', (a[0] === 'club' ? '' : club(w.clubId).ar + ' • ') + w.stat));
       card.append(ic, info);
       box.appendChild(card);
     });
-    const won = ['ballon', 'boot', 'glove'].filter(k => aw[k].mine).length;
+    const won = ['ballon', 'boot', 'glove', 'kopa', 'club'].filter(k => aw[k].mine).length;
     box.appendChild(el('div', 'cm-note', won ? 'مبروك! كسبت ' + won + (won === 1 ? ' جايزة' : ' جوايز') + ' وفيه نقاط زيادة اتضافت لرصيدك.' : 'ماكسبتش جوايز الموسم ده. كمّل وحسّن مستواك وهتقرّب منهم.'));
     const b = el('button', 'cm-btn', 'كمّل'); b.type = 'button';
     b.addEventListener('click', () => { E.continueAfterAwards(S); save(); render(); });
