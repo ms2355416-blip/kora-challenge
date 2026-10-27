@@ -72,6 +72,14 @@
     <form id="cmForm" class="cm-card cm-form" autocomplete="off">
       <div class="cm-avatar-preview" id="cmPrev"></div>
 
+      <div class="cm-field cm-photo-field"><span>صورة اللاعب (اختياري)</span>
+        <div class="cm-photo-row">
+          <label class="cm-btn ghost cm-file">اختار صورة<input id="cmPhoto" type="file" accept="image/*" hidden></label>
+          <button class="cm-link" id="cmPhotoClear" type="button" hidden>شيل الصورة</button>
+        </div>
+        <small class="cm-photo-err" id="cmPhotoErr" role="alert"></small>
+      </div>
+
       <label class="cm-field"><span>اسم اللاعب</span>
         <input id="cmName" type="text" maxlength="22" placeholder="اكتب اسم لاعبك" required>
       </label>
@@ -105,6 +113,7 @@
       <button class="cm-tab" data-tab="table" type="button">الترتيب</button>
       <button class="cm-tab" data-tab="fixtures" type="button">المباريات</button>
       <button class="cm-tab" data-tab="trophies" type="button">بطولاتي</button>
+      <button class="cm-tab" data-tab="market" type="button">الانتقالات</button>
       <button class="cm-tab" data-tab="clubtrophies" type="button">بطولات النادي</button>
     </div>
 
