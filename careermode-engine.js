@@ -282,10 +282,21 @@
   var LAST_EU = ['مارتينيز', 'سميث', 'جونز', 'بيريز', 'روسي', 'مولر', 'فيرنانديز', 'كلارك', 'هاريس', 'ديفيز', 'جارسيا', 'لوبيز', 'بيكر', 'كوستا', 'ريد', 'سانشيز', 'وايت', 'أوليفر', 'براون', 'دياز', 'فيشر', 'هيرنانديز', 'نوفاك', 'بيترسن', 'ستون', 'رودريجيز', 'موريس', 'كارتر', 'ويلسون', 'باتيستا'];
   var FIRST_EG = ['محمد', 'أحمد', 'محمود', 'مصطفى', 'عمر', 'كريم', 'إبراهيم', 'حسام', 'طارق', 'ياسر', 'وليد', 'عمرو', 'رامي', 'هاني', 'شريف', 'ماجد', 'سعيد', 'زياد', 'مروان', 'علي'];
   var LAST_EG = ['السيد', 'حسن', 'عبدالله', 'فتحي', 'جمال', 'سلامة', 'رمضان', 'عثمان', 'منصور', 'عاشور', 'سعد', 'خليل', 'نبيل', 'فاروق', 'صلاح', 'حجازي', 'بدر', 'الشرقاوي', 'عطية', 'مختار'];
-  function isEgy(state, clubId) { var c = state.clubs[clubId]; return !!c && (c.league === 'egy1' || c.league === 'egy_pool'); }
+  var FIRST_IT = ['ماركو', 'لورينزو', 'ألساندرو', 'فيديريكو', 'ماتيا', 'نيكولو', 'جيوفاني', 'فرانشيسكو', 'ستيفانو', 'دافيدي', 'سيمون', 'أندريا', 'روبرتو', 'جاكومو'];
+  var LAST_IT = ['روسي', 'روميرو', 'بيانكي', 'كونتي', 'فيراري', 'ماريني', 'كوستا', 'جالو', 'ريتشي', 'بروني', 'موريلي', 'ديلوكا', 'فونتانا', 'سانتوروا', 'ليوني'];
+  var FIRST_SA = ['عبدالله', 'سالم', 'فهد', 'ناصر', 'تركي', 'خالد', 'سلطان', 'محمد', 'عبدالعزيز', 'ياسر', 'سعود', 'ماجد', 'بدر', 'فيصل'];
+  var LAST_SA = ['الدوسري', 'الشهراني', 'القحطاني', 'العتيبي', 'الغامدي', 'الزهراني', 'المالكي', 'الحربي', 'الشمراني', 'العنزي', 'السبيعي', 'البكري', 'الجهني', 'العمري'];
+  function styleOf(state, clubId) {
+    var c = state.clubs[clubId], lg = c ? String(c.league) : '';
+    if (lg.indexOf('egy') === 0) return 'eg';
+    if (lg.indexOf('ita') === 0) return 'it';
+    if (lg.indexOf('sau') === 0) return 'sa';
+    return 'eu';
+  }
   function nameFor(state, clubId, seed) {
-    var r = mulberry(hash(clubId + '|' + seed)), eg = isEgy(state, clubId);
-    var f = eg ? FIRST_EG : FIRST_EU, l = eg ? LAST_EG : LAST_EU;
+    var r = mulberry(hash(clubId + '|' + seed)), st = styleOf(state, clubId);
+    var f = st === 'eg' ? FIRST_EG : st === 'it' ? FIRST_IT : st === 'sa' ? FIRST_SA : FIRST_EU;
+    var l = st === 'eg' ? LAST_EG : st === 'it' ? LAST_IT : st === 'sa' ? LAST_SA : LAST_EU;
     return f[Math.floor(r() * f.length)] + ' ' + l[Math.floor(r() * l.length)];
   }
   var FORMATIONS = ['4-3-3', '4-2-3-1', '4-4-2', '3-5-2', '4-1-4-1', '3-4-3', '5-3-2'];
@@ -336,7 +347,7 @@
   function euroOthers(state, rng) {
     var cand = Object.keys(state.clubs).filter(function (id) {
       var c = state.clubs[id];
-      return id !== state.clubId && (c.league === 'euro' || ((c.league === 'eng1' || c.league === 'esp1') && c.str >= 74));
+      return id !== state.clubId && (c.league === 'euro' || ((c.league === 'eng1' || c.league === 'esp1' || c.league === 'ita1') && c.str >= 74));
     }).sort(function (a, b) { return state.clubs[b].str - state.clubs[a].str; });
     return cand.slice(0, 35);
   }
@@ -483,12 +494,12 @@
     var p = state.player, s = state.stats, lk = state.league, lgd = LG[lk], tab = ctx.tab, year = state.year;
     var out = {};
     // الكرة الذهبية
-    var stars = Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return c.league === 'eng1' || c.league === 'esp1' || c.league === 'euro'; })
+    var stars = Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return c.league === 'eng1' || c.league === 'esp1' || c.league === 'ita1' || c.league === 'euro'; })
       .map(function (id) { return { id: id, score: state.clubs[id].str + 2.5 + gauss(rng) * 2.8 }; })
       .sort(function (a, b) { return b.score - a.score; })[0];
     var euroB = 0, ee = state.euro;
     if (ee) euroB = ee.status === 'champ' ? 4 : (ee.phase === 'final' || (ee.result || '').indexOf('نهائي') > -1) ? 3 : ee.phase === 'sf' ? 2 : ee.phase === 'qf' ? 1.5 : ee.phase === 'r16' ? 0.8 : 0;
-    var myScore = s.apps >= 15 ? ctx.before + (ctx.avg - 3.4) * 5 + Math.min(s.goals + s.assists * 0.7, 45) * 0.1 + (ctx.champion ? 2 : 0) + euroB - (2 - lgd.diff) * 4.5 : -99;
+    var myScore = s.apps >= 15 ? ctx.before + (ctx.avg - 3.4) * 5 + Math.min(s.goals + s.assists * 0.7, 45) * 0.1 + (ctx.champion ? 2 : 0) + euroB - (2 - lgd.diff) * 2.5 : -99;
     var sc = state.clubs[stars.id];
     if (myScore > stars.score) out.ballon = { name: p.name, clubId: state.clubId, mine: true, stat: s.goals + ' هدف • ' + s.assists + ' أسيست • تقييم ' + round1(ctx.avg) };
     else out.ballon = { name: nameFor(state, stars.id, year + '|star'), clubId: stars.id, mine: false,
@@ -515,7 +526,62 @@
     state.log.forEach(function (x) { if (x.comp) return; if ((x.role === 'start' || x.role === 'sub') && x.minutes >= 60) { var conc = x.home === state.clubId ? x.ag : x.hg; if (conc === 0) myCs++; } });
     if (p.pos === 'GK' && s.apps >= rounds(lk) * 0.5 && myCs >= bg.v) out.glove = { name: p.name, clubId: state.clubId, mine: true, stat: myCs + ' مباراة بدون أهداف' };
     else out.glove = { name: nameFor(state, bg.id, year + '|glove'), clubId: bg.id, mine: false, stat: bg.v + ' مباراة بدون أهداف' };
+
+    // جايزة كوبا (أحسن لاعب تحت 21 سنة)
+    var starClubs = Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return c.league === 'eng1' || c.league === 'esp1' || c.league === 'ita1' || c.league === 'euro'; });
+    var kc = starClubs.map(function (id) { return { id: id, score: state.clubs[id].str - 21 + gauss(rng) * 2.6 }; }).sort(function (a, b) { return b.score - a.score; })[0];
+    var seasonAge = p.age - 1;
+    var kMine = seasonAge <= 20 && s.apps >= 12 ? ctx.before + (ctx.avg - 3.4) * 5 + Math.min(s.goals + s.assists * 0.7, 40) * 0.1 + (ctx.champion ? 1.5 : 0) + euroB - (2 - lgd.diff) * 2.5 : -99;
+    var kcl = state.clubs[kc.id];
+    if (kMine > kc.score) out.kopa = { name: p.name, clubId: state.clubId, mine: true, stat: s.goals + ' هدف • ' + s.assists + ' أسيست • تقييم ' + round1(ctx.avg) };
+    else out.kopa = { name: nameFor(state, kc.id, year + '|kopa'), clubId: kc.id, mine: false,
+      stat: clamp(Math.round((kcl.str - 66) * 0.6 + 5 + rng() * 6), 5, 28) + ' هدف • ' + clamp(Math.round(3 + (kcl.str - 70) * 0.3 + rng() * 6), 2, 16) + ' أسيست' };
+
+    // أفضل نادي في العام
+    var cands = starClubs.map(function (id) { var c = state.clubs[id]; return { id: id, score: c.str + gauss(rng) * 3.2 + (ee && ee.champ === id ? 5 : 0) }; })
+      .sort(function (a, b) { return b.score - a.score; })[0];
+    var my = state.clubs[state.clubId];
+    var myClubScore = (LG[lk].tier === 1 ? my.str : my.str - 8) + (champion0(ctx) ? 3.5 : 0) + euroB * 1.8 + (ee && ee.status === 'champ' ? 5 : 0) + gauss(rng) * 2.6 - (2 - lgd.diff) * 3;
+    if (myClubScore > cands.score) out.club = { name: my.ar, clubId: state.clubId, mine: true, stat: ee && ee.status === 'champ' ? 'بطل دوري أبطال أوروبا' : ctx.champion ? 'بطل ' + lgd.ar : 'موسم استثنائي' };
+    else out.club = { name: state.clubs[cands.id].ar, clubId: cands.id, mine: false, stat: ee && ee.champ === cands.id ? 'بطل دوري أبطال أوروبا' : 'أحسن نادي في العالم' };
     return out;
+  }
+  function champion0(ctx) { return !!ctx.champion; }
+
+  /* ====== سوق الانتقالات (بيحصل في الخلفية من غير تدخل اللاعب) ====== */
+  function simMarket(state, rng) {
+    var year = state.year, items = [], used = {};
+    var bigLeagues = ['eng1', 'esp1', 'ita1', 'sau1', 'euro'];
+    var all = Object.keys(state.clubs).filter(function (id) { var l = state.clubs[id].league; return bigLeagues.indexOf(l) > -1 || l === 'egy1' || l === 'eng2' || l === 'esp2' || l === 'ita2'; });
+    function cur(id) { var l = LG[state.clubs[id].league]; return l ? D.COUNTRIES[l.country].cur : '€'; }
+    function weighted(arr, wf) {
+      var w = arr.map(wf), t = 0; w.forEach(function (x) { t += x; });
+      var x = rng() * t, k = 0; while (k < arr.length - 1 && x > w[k]) { x -= w[k]; k++; } return arr[k];
+    }
+    var nTr = 10 + Math.floor(rng() * 5), i;
+    for (i = 0; i < nTr; i++) {
+      var buyer = weighted(all, function (id) { return Math.pow(Math.max(1, state.clubs[id].str - 55), 1.6); });
+      var bs = state.clubs[buyer].str;
+      var sellers = all.filter(function (id) { var c = state.clubs[id]; return id !== buyer && c.str <= bs + 3 && c.str >= bs - 15; });
+      if (!sellers.length) continue;
+      var seller = pick(sellers, rng);
+      var key = buyer + '>' + seller; if (used[key]) continue; used[key] = 1;
+      var A = state.clubs[seller], B = state.clubs[buyer];
+      var q = clamp(A.str + 2 + gauss(rng) * 3, 55, 95), age = 20 + Math.floor(rng() * 12);
+      var d = clamp((q - 66) / 10 * 0.7 + rng() * 0.5, 0.2, 2.2);
+      A.str = clamp(round1(A.str - d * 0.8), 40, 95); B.str = clamp(round1(B.str + d * 0.8), 40, 95);
+      var fee = feeM(q, age) * (0.85 + rng() * 0.4); fee = fee >= 20 ? Math.round(fee) : round1(fee);
+      items.push({ t: 'tr', n: nameFor(state, seller, year + '|mk' + i), from: seller, to: buyer, fee: fee, cur: cur(buyer), q: Math.round(q), mine: seller === state.clubId || buyer === state.clubId });
+    }
+    var nRet = 3 + Math.floor(rng() * 4);
+    for (i = 0; i < nRet; i++) {
+      var cid = weighted(all, function (id) { return Math.max(1, state.clubs[id].str - 60); });
+      var C = state.clubs[cid], dd = clamp(0.2 + rng() * 0.9, 0.2, 1.2);
+      C.str = clamp(round1(C.str - dd), 40, 95);
+      items.push({ t: 'ret', n: nameFor(state, cid, year + '|rt' + i), club: cid, age: 35 + Math.floor(rng() * 6), mine: cid === state.clubId });
+    }
+    state.market = { year: year, items: items };
+    return items;
   }
 
   /* ====== نهاية الموسم ====== */
@@ -539,7 +605,7 @@
     var elig = Object.keys(state.clubs).filter(function (id) {
       var c = state.clubs[id];
       if (id === state.clubId) return false;
-      if (['eng1', 'eng2', 'esp1', 'esp2', 'egy1'].indexOf(c.league) < 0) return false;
+      if (['eng1', 'eng2', 'esp1', 'esp2', 'egy1', 'ita1', 'ita2', 'sau1', 'sau2'].indexOf(c.league) < 0) return false;
       return c.str <= p.ovr + 3 && c.str >= p.ovr - 14 && c.str >= curStr - 6;
     });
     // فرص أكبر للأندية الأقوى شوية من مستواه
@@ -555,7 +621,7 @@
     var offers = picked.map(function (id) {
       var c = state.clubs[id], country = LG[c.league].country;
       var mult = 0.85 + rng() * 0.35;
-      var fee = base * mult * (country === 'esp' ? 1.15 : country === 'egy' ? 0.5 : 1);
+      var fee = base * mult * (country === 'esp' ? 1.15 : country === 'ita' ? 1.05 : country === 'sau' ? (c.league === 'sau1' ? 1.35 : 0.5) : country === 'egy' ? 0.5 : 1);
       fee = fee >= 20 ? Math.round(fee) : Math.round(fee * 10) / 10;
       return { clubId: id, league: c.league, fee: fee, cur: D.COUNTRIES[country].cur };
     }).sort(function (x, y) { return state.clubs[y.clubId].str - state.clubs[x.clubId].str; });
@@ -610,9 +676,9 @@
     if (state.euro && state.euro.status === 'active') eliminate(state, 'الموسم خلص قبل ما تكمل');
     var awards = computeAwards(state, rng, { tab: tab, before: before, avg: avg, champion: champion });
     var qmap = {};
-    if (LG[lk].tier === 1 && (LG[lk].country === 'eng' || LG[lk].country === 'esp')) tab.slice(0, 4).forEach(function (r, i) { qmap[r.id] = i < 3 ? 'cl' : 'qual'; });
+    if (LG[lk].tier === 1 && (LG[lk].country === 'eng' || LG[lk].country === 'esp' || LG[lk].country === 'ita')) tab.slice(0, 4).forEach(function (r, i) { qmap[r.id] = i < 3 ? 'cl' : 'qual'; });
     state.euroQual = qmap;
-    var pts = Math.round(s.goals * 2 + s.assists + Math.max(0, avg - 3) * 10) + (awards.ballon.mine ? 60 : 0) + (awards.boot.mine ? 30 : 0) + (awards.glove.mine ? 30 : 0);
+    var pts = Math.round(s.goals * 2 + s.assists + Math.max(0, avg - 3) * 10) + (awards.ballon.mine ? 60 : 0) + (awards.boot.mine ? 30 : 0) + (awards.glove.mine ? 30 : 0) + (awards.kopa.mine ? 40 : 0) + (awards.club.mine ? 20 : 0);
     var summary = {
       year: state.year, league: lk, clubId: state.clubId, pos: pos, teams: tab.length,
       apps: s.apps, starts: s.starts, goals: s.goals, assists: s.assists, yellow: s.yellow, red: s.red,
@@ -632,6 +698,8 @@
     if (champion) state.honors.push({ year: state.year, type: 'league', text: 'بطل ' + LG[lk].ar });
     if (state.euro && state.euro.status === 'champ') state.honors.push({ year: state.year, type: 'cl', text: 'بطل دوري أبطال أوروبا' });
     if (awards.ballon.mine) state.honors.push({ year: state.year, type: 'ballon', text: 'الكرة الذهبية' });
+    if (awards.kopa.mine) state.honors.push({ year: state.year, type: 'kopa', text: 'جايزة كوبا (أحسن لاعب شاب)' });
+    if (awards.club.mine) state.honors.push({ year: state.year, type: 'club', text: 'ناديك أفضل نادي في العام (' + state.clubs[state.clubId].ar + ')' });
     if (awards.boot.mine) state.honors.push({ year: state.year, type: 'boot', text: 'الحذاء الذهبي (' + LG[lk].ar + ')' });
     if (awards.glove.mine) state.honors.push({ year: state.year, type: 'glove', text: 'القفاز الذهبي (' + LG[lk].ar + ')' });
     state.awards = awards;
@@ -653,6 +721,7 @@
     buildWorld(state, country, rng);
     state.phase = 'play'; state.offers = null; state.summary = null; state.awards = null; state.euro = null;
     initClubs(state);
+    simMarket(state, rng);
     var q = state.euroQual && state.euroQual[state.clubId];
     if (q && LG[state.league].tier === 1) startEuro(state, q, rng);
     state.euroQual = null;
@@ -681,6 +750,7 @@
   function newCareer(opts, rng) {
     var st = { v: 1, year: 2026, phase: 'play', history: [], totals: { apps: 0, goals: 0, assists: 0 }, form: [] };
     st.player = { name: opts.name, nat: opts.nat, natCode: opts.natCode, pos: opts.pos, color: opts.color, age: 18, ovr: 60 };
+    if (opts.photo) st.player.photo = opts.photo;
     initClubs(st);
     st.league = opts.start;
     var country = LG[st.league].country;
@@ -688,6 +758,7 @@
       .sort(function (a, b) { return st.clubs[a].str - st.clubs[b].str; });
     st.clubId = pick(cand.slice(0, Math.ceil(cand.length * 0.7)), rng);
     buildWorld(st, country, rng);
+    simMarket(st, rng);
     return st;
   }
 
@@ -713,7 +784,7 @@
   }
 
   var API = { mulberry: mulberry, newCareer: newCareer, playRound: playRound, finishSeason: finishSeason, chooseOffer: chooseOffer,
-    table: table, rounds: rounds, myPosition: myPosition, myFixtures: myFixtures, continueAfterAwards: continueAfterAwards, matchLineups: matchLineups, euroDue: euroDue, startEuro: startEuro, STAGE_AR: STAGE_AR, feeM: feeM, ageBase: ageBase, finishOthers: finishOthers };
+    table: table, rounds: rounds, myPosition: myPosition, myFixtures: myFixtures, continueAfterAwards: continueAfterAwards, matchLineups: matchLineups, euroDue: euroDue, startEuro: startEuro, STAGE_AR: STAGE_AR, feeM: feeM, ageBase: ageBase, finishOthers: finishOthers, simMarket: simMarket };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.KoraCMEngine = API;
 })(typeof window !== 'undefined' ? window : globalThis);
