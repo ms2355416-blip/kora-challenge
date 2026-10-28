@@ -44,6 +44,7 @@
 
   var NEED = { G: 3, D: 8, M: 8, F: 6 };
   var START = { G: 1, D: 4, M: 3, F: 3 };
+  var FORMS = { '4-3-3': { G: 1, D: 4, M: 3, F: 3 }, '4-4-2': { G: 1, D: 4, M: 4, F: 2 }, '4-2-3-1': { G: 1, D: 4, M: 5, F: 1 }, '3-5-2': { G: 1, D: 3, M: 5, F: 2 }, '3-4-3': { G: 1, D: 3, M: 4, F: 3 }, '5-3-2': { G: 1, D: 5, M: 3, F: 2 } };
 
   function buildSquad(state, club, rng) {
     var list = [], real = SQ[club.id];
@@ -78,8 +79,14 @@
   /* ====== التشكيلة وقوة الفريق ====== */
   function lineup(state, id) {
     var sq = state.squads[id], xi = [], used = {};
+    if (state.me && id === state.me.clubId && state.xi && state.xi.length === 11) {
+      var byId = {}, ok = true; sq.forEach(function (p) { byId[p.i] = p; });
+      var man = state.xi.map(function (k) { if (!byId[k]) ok = false; return byId[k]; });
+      if (ok) return man;
+    }
+    var ST = (state.me && id === state.me.clubId && state.formation && FORMS[state.formation]) || START;
     ['G', 'D', 'M', 'F'].forEach(function (pos) {
-      var c = sq.filter(function (p) { return p.p === pos; }).sort(function (a, b) { return eff(b) - eff(a); }).slice(0, START[pos]);
+      var c = sq.filter(function (p) { return p.p === pos; }).sort(function (a, b) { return eff(b) - eff(a); }).slice(0, ST[pos]);
       c.forEach(function (p) { xi.push(p); used[p.i] = 1; });
     });
     if (xi.length < 11) sq.slice().sort(function (a, b) { return eff(b) - eff(a); }).forEach(function (p) { if (xi.length < 11 && !used[p.i]) { xi.push(p); used[p.i] = 1; } });
@@ -88,7 +95,7 @@
   function teamStr(state, id, xi) {
     xi = xi || lineup(state, id);
     var s = 0; xi.forEach(function (p) { s += eff(p); });
-    return s / xi.length;
+    return s / xi.length + (state.me && id === state.me.clubId ? [0, 0.6, 1.2][state.pressure || 0] : 0);
   }
   function squadOvr(state, id) { return round1(teamStr(state, id)); }
 
@@ -172,7 +179,7 @@
       var xi = played[id], inx = {};
       if (xi) xi.forEach(function (p) { inx[p.i] = 1; });
       state.squads[id].forEach(function (p) {
-        if (xi) p.e = clamp(p.e + (inx[p.i] ? -(9 + rng() * 5) : 7), 22, 100);
+        if (xi) p.e = clamp(p.e + (inx[p.i] ? -(9 + rng() * 5) * (state.me && id === state.me.clubId ? [1, 1.25, 1.55][state.pressure || 0] : 1) : 7), 22, 100);
         else p.e = clamp(p.e + 9, 22, 100);
         p.e = Math.round(p.e);
       });
@@ -677,7 +684,7 @@
   var API = { mulberry: mulberry, startCareer: startCareer, selectClub: selectClub, playNext: playNext, nextMine: nextMine, finishSeason: finishSeason, startNextSeason: startNextSeason,
     table: table, lineup: lineup, teamStr: teamStr, squadOvr: squadOvr, valueOf: valueOf, priceOf: priceOf, footOf: footOf, heightOf: heightOf, eff: eff,
     topScorers: topScorers, searchPlayers: searchPlayers, buy: buy, sellOffer: sellOffer, sell: sell, marketOpen: marketOpen, findP: findP, cupOf: cupOf,
-    acceptNational: acceptNational, resignNational: resignNational, reputation: reputation, leagueRounds: leagueRounds, POS_AR: POS_AR, POS_ORDER: POS_ORDER, initWorldClubs: initWorldClubs, D: D };
+    acceptNational: acceptNational, resignNational: resignNational, reputation: reputation, leagueRounds: leagueRounds, POS_AR: POS_AR, POS_ORDER: POS_ORDER, initWorldClubs: initWorldClubs, FORMS: FORMS, D: D };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.KoraCoachEngine = API;
 })(typeof window !== 'undefined' ? window : globalThis);
