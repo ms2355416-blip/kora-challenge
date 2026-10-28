@@ -147,15 +147,14 @@
     drawBar();
   }
   function clubCard() {
-    const me = club(S.me.clubId), nx = E.nextMine(S), card = el('div', 'cm-card');
+    const me = club(S.me.clubId), nx = E.nextMine(S), card = el('div', 'cm-card ch-cc');
     const top = el('div', 'ch-club'); top.appendChild(badge(me));
-    top.appendChild(el('div', 'meta', '<b>' + esc(me.ar) + '</b><small>' + esc(lg(me.league).ar) + ' · موسم ' + S.year + '/' + String(S.year + 1).slice(2) + '</small><small>المدرب: ' + esc(S.career.name) + '</small>'));
-    card.appendChild(top);
-    const k = el('div', 'ch-kpis');
-    [['قوة الفريق', E.squadOvr(S, me.id)], ['الميزانية', money(S.budget)], ['ثقة الإدارة', S.boardConf + '%']].forEach(x => k.appendChild(el('div', 'cm-stat', '<b>' + x[1] + '</b><span>' + x[0] + '</span>')));
-    card.appendChild(k);
+    top.appendChild(el('div', 'meta', '<b>' + esc(me.ar) + '</b><small>' + esc(lg(me.league).ar) + ' · ' + S.year + '/' + String(S.year + 1).slice(2) + ' · ' + esc(S.career.name) + '</small>'));
+    const k = el('div', 'ch-mini');
+    [['القوة', E.squadOvr(S, me.id)], ['الميزانية', money(S.budget)], ['الثقة', S.boardConf + '%']].forEach(x => k.appendChild(el('span', '', '<small>' + x[0] + '</small><b>' + x[1] + '</b>')));
+    top.appendChild(k); card.appendChild(top);
     if (nx) {
-      const n = el('div', 'ch-next', '<div class="t">' + esc(nx.comp) + ' · ' + esc(nx.stage) + '</div>');
+      const n = el('div', 'ch-next'); n.appendChild(el('div', 't', esc(nx.comp) + ' · ' + esc(nx.stage)));
       const vs = el('div', 'vs'); const a = el('span'), b = el('span');
       a.appendChild(badge(club(nx.home))); a.appendChild(document.createTextNode(club(nx.home).ar));
       b.appendChild(document.createTextNode(club(nx.away).ar)); b.appendChild(badge(club(nx.away)));
@@ -179,7 +178,7 @@
     let html = '<div class="cm-sheet-h"><b>' + esc(rep.comp) + '</b><small>' + esc(rep.stage) + '</small></div>';
     html += '<div class="ch-next"><div class="vs"><span id="rpH"></span><b style="font-size:1.5rem">' + rep.hg + ' - ' + rep.ag + '</b><span id="rpA"></span></div>' + (rep.pens ? '<div class="t" style="text-align:center;margin-top:6px">ركلات الترجيح ' + rep.pens[0] + ' - ' + rep.pens[1] + '</div>' : '') + '</div>';
     html += '<div style="margin-top:10px">' + (rep.ev || []).map(e => '<div class="ch-ev"><span class="min">' + e.m + '\'</span><span>⚽ ' + esc(e.s) + (e.a ? ' <small style="color:var(--muted)">(صناعة ' + esc(e.a) + ')</small>' : '') + ' <small style="color:var(--muted)">— ' + esc(e.tm === 'h' ? h.ar : a.ar) + '</small></span></div>').join('') + '</div>';
-    html += '<div class="ch-lu"><div><h5>' + esc(h.ar) + '</h5><ol>' + (rep.hx || []).map(p => '<li>' + esc(p.n) + ' <small>' + p.o + '</small></li>').join('') + '</ol></div><div><h5>' + esc(a.ar) + '</h5><ol>' + (rep.ax || []).map(p => '<li>' + esc(p.n) + ' <small>' + p.o + '</small></li>').join('') + '</ol></div></div>';
+    html += '<div class="ch-lu"><div><h5>' + esc(h.ar) + '</h5><ol>' + (rep.hx || []).map(n => '<li>' + esc(n) + '</li>').join('') + '</ol></div><div><h5>' + esc(a.ar) + '</h5><ol>' + (rep.ax || []).map(n => '<li>' + esc(n) + '</li>').join('') + '</ol></div></div>';
     html += '<button class="cm-btn" id="rpOk" type="button" style="margin-top:14px;width:100%">تمام</button>';
     const sh = modal(html);
     const sp1 = sh.querySelector('#rpH'), sp2 = sh.querySelector('#rpA');
@@ -189,12 +188,41 @@
   }
 
   /* ====== قايمة اللاعبين ====== */
+
+  /* ====== صور اللاعيبة (من ويكيبيديا العربية، وبتتخزن) ====== */
+  const PH_KEY = 'koraCoachPh';
+  let phCache = {}; try { phCache = JSON.parse(localStorage.getItem(PH_KEY) || '{}'); } catch (e) { phCache = {}; }
+  let phQueue = [], phBusy = 0, phDirty = 0;
+  function phSave() { if (phDirty++ % 8 === 0) try { localStorage.setItem(PH_KEY, JSON.stringify(phCache)); } catch (e) { phCache = {}; } }
+  function phNext() {
+    while (phBusy < 4 && phQueue.length) {
+      const job = phQueue.shift(); phBusy++;
+      fetch('https://ar.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(job.name.replace(/ /g, '_')), { headers: { Accept: 'application/json' } })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => {
+          const ok = j && j.type === 'standard' && j.thumbnail && /كرة القدم|كرة قدم|لاعب/.test(j.description || '');
+          phCache[job.name] = ok ? j.thumbnail.source : 0; phSave(); job.cb(phCache[job.name]);
+        })
+        .catch(() => job.cb(0))
+        .then(() => { phBusy--; phNext(); });
+    }
+  }
+  function loadPhoto(name, cb) {
+    if (phCache[name] !== undefined) return cb(phCache[name]);
+    phQueue.push({ name: name, cb: cb }); phNext();
+  }
+  const SIL = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="23" r="11" fill="currentColor" opacity=".55"/><path d="M10 60c0-13 10-22 22-22s22 9 22 22Z" fill="currentColor" opacity=".55"/></svg>';
+  function avatar(p) {
+    const ph = el('span', 'ch-ph', SIL);
+    loadPhoto(p.n, url => { if (!url) return; const i = document.createElement('img'); i.className = 'ch-face'; i.alt = ''; i.src = url; i.addEventListener('load', () => { ph.innerHTML = ''; ph.appendChild(i); const fc = flagOf(p.t); if (fc) ph.appendChild(flagImg(fc, '')); }); });
+    const fc = flagOf(p.t); if (fc) ph.appendChild(flagImg(fc, ''));
+    return ph;
+  }
+
   const POS = ['G', 'D', 'M', 'F'];
   function playerRow(p, extra) {
     const r = el('button', 'ch-pl'); r.type = 'button';
-    const ph = el('span', 'ch-ph', esc(Array.from(p.n.replace(/^(\S+\s)+?(?=\S+$)/, ''))[0] || '؟'));
-    const fc = flagOf(p.t); if (fc) ph.appendChild(flagImg(fc, ''));
-    r.appendChild(ph);
+    r.appendChild(avatar(p));
     const pn = el('span', 'ch-pn', '<b>' + esc(p.n) + '</b>');
     const tags = el('span', 'ch-tags', '<span class="ch-tag pos">' + E.POS_AR[p.p] + '</span><span class="ch-tag">' + footTag(E.footOf(p)) + '</span>' + (p.f ? '<span class="ch-tag sale">للبيع</span>' : ''));
     pn.appendChild(tags);
@@ -224,13 +252,14 @@
   }
   function playerModal(p, mine, club0) {
     const price = E.priceOf(p), v = E.valueOf(p);
-    let html = '<div class="cm-sheet-h"><b>' + esc(p.n) + '</b><small>' + E.POS_AR[p.p] + ' · ' + p.a + ' سنة</small></div><div class="ch-kpis">';
+    let html = '<div id="pmAv" style="display:flex;justify-content:center;margin-bottom:10px"></div><div class="cm-sheet-h"><b>' + esc(p.n) + '</b><small>' + E.POS_AR[p.p] + ' · ' + p.a + ' سنة</small></div><div class="ch-kpis">';
     [['القوة', p.o], ['الطاقة', Math.round(p.e) + '%'], ['القيمة', money(v)], ['الطول', E.heightOf(p) + ' سم'], ['القدم', footAr(E.footOf(p))], ['الجنسية', (NATS[p.t] || [])[0] || '—']].forEach(x => { html += '<div class="cm-stat"><b>' + x[1] + '</b><span>' + x[0] + '</span></div>'; });
     html += '</div>';
     if (club0) html += '<p class="cm-note">النادي: ' + esc(club(club0).ar) + '</p>';
     html += '<div class="ch-fab" id="pmAct"></div><button class="cm-btn ghost" id="pmX" type="button" style="width:100%;margin-top:8px">قفل</button>';
     const sh = modal(html), act = sh.querySelector('#pmAct');
     sh.querySelector('#pmX').addEventListener('click', closeModal);
+    { const av = avatar(p); av.classList.add('big'); sh.querySelector('#pmAv').appendChild(av); }
     if (mine) { const b = el('button', 'cm-btn', 'اعرض للبيع'); b.type = 'button'; b.style.flex = '1'; b.addEventListener('click', () => sellFlow(p)); act.appendChild(b); }
     else { const b = el('button', 'cm-btn', 'تعاقد بـ ' + money(price)); b.type = 'button'; b.style.flex = '1'; b.addEventListener('click', () => buyFlow(p)); act.appendChild(b); }
   }
