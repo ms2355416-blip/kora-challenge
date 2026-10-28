@@ -167,3 +167,22 @@
 .cm-sheet-h{margin-bottom:12px}.cm-sheet-h b{display:block;font-size:1.1rem}.cm-sheet-h small{color:var(--muted,#8aa397)}
 .ch-conf i.lo,.ch-conf i.mid,.ch-conf i.hi{}
 .ch-bar[hidden]{display:none}
+/* مضغوط */
+.ch-cc{padding:10px 12px}
+.ch-cc .ch-club{gap:10px;flex-wrap:wrap}
+.ch-cc .ch-club .cm-badge{width:44px;height:44px;font-size:1.1rem}
+.ch-cc .meta b{font-size:1rem}
+.ch-cc .meta small{font-size:.72rem}
+.ch-mini{display:flex;gap:6px;width:100%;margin-top:2px}
+.ch-mini span{flex:1;display:flex;flex-direction:column;align-items:center;padding:4px 2px;border-radius:9px;background:var(--surface-2,#17211d)}
+.ch-mini small{font-size:.62rem;color:var(--muted,#8aa397)}
+.ch-mini b{font-size:.82rem;font-variant-numeric:tabular-nums}
+.ch-cc .ch-next{margin-top:8px;padding:6px 10px}
+.ch-cc .ch-next .t{font-size:.68rem;margin-bottom:3px}
+.ch-cc .ch-next .vs{font-size:.8rem}
+.ch-cc .ch-next .vs .cm-badge{width:24px;height:24px;font-size:.7rem}
+.ch-ph{overflow:visible;color:var(--muted,#8aa397)}
+.ch-ph>svg{width:70%;height:70%;border-radius:50%}
+.ch-face{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.ch-ph.big{width:96px;height:96px}
+.ch-ph.big img:not(.ch-face){width:30px;height:21px}
