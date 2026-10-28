@@ -191,3 +191,12 @@
 .cm-mk-mv{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:.82rem;color:var(--muted,#8aa397)}
 .cm-mk-ar{font-style:normal;color:var(--muted,#8aa397)}
 .cm-mk-mv .cm-badge{width:22px;height:22px;font-size:.7rem}
+
+/* اختيار المهنة */
+.cm-modes{display:grid;gap:12px}
+.cm-mode{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:22px 16px;border-radius:18px;background:var(--surface,#101714);border:2px solid var(--border,#1f2b26);color:var(--text,#e8f3ee);text-decoration:none;transition:border-color .2s,transform .2s}
+.cm-mode:hover{border-color:var(--green,#24e982);transform:translateY(-2px)}
+.cm-mode svg{width:46px;height:46px;color:var(--green,#24e982)}
+.cm-mode b{font-size:1.2rem}
+.cm-mode small{color:var(--muted,#8aa397);line-height:1.6}
+.cm-mode em{font-style:normal;font-size:.78rem;font-weight:800;color:var(--green,#24e982);min-height:1em}
