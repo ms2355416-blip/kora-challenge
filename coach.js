@@ -7,7 +7,7 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const NATS = D.NATS || {};
   let S = null, rng = E.mulberry((Date.now() ^ 0x5bd1e995) >>> 0);
-  let view = 'squad', sortBy = 'pos', compSel = null, compTab = 'table', mkt = { f: { pos: 'F', foot: 'both' }, res: null }, careerClub = null;
+  let squadMode = 'xi', view = 'squad', sortBy = 'pos', compSel = null, compTab = 'table', mkt = { f: { pos: 'F', foot: 'both' }, res: null }, careerClub = null;
   let pick = { country: 'eng', name: '', preview: null, seed: 0, q: '' };
 
   /* ====== حفظ ====== */
@@ -52,8 +52,8 @@
   const footAr = f => f === 'R' ? 'يمين' : f === 'L' ? 'شمال' : 'الاتنين';
   const footTag = f => f === 'R' ? 'ي' : f === 'L' ? 'ش' : 'ي/ش';
   function show(id) {
-    ['chSelect', 'chGame', 'chSummary', 'chCareer'].forEach(k => { $(k).hidden = k !== id; });
-    $('chBar').hidden = id !== 'chGame';
+    ['chSelect', 'chGame', 'chPre', 'chSummary', 'chCareer'].forEach(k => { $(k).hidden = k !== id; });
+    $('chBar').hidden = id !== 'chGame' && id !== 'chPre';
     window.scrollTo(0, 0);
   }
   function modal(html, wide) {
@@ -74,6 +74,27 @@
     chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
     trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/><path d="M12 14v4M8 21h8M9 18h6"/></svg>'
   };
+
+
+  /* ====== الرجوع خطوة ====== */
+  let depth = 0, curSnap = null;
+  function navPush(snap) { curSnap = snap; try { history.pushState(snap, ''); depth++; } catch (e) { /* ignore */ } }
+  function overlayOpen() { return !$('cmModal').hidden || !$('chDrawer').hidden; }
+  function goBack() {
+    if (overlayOpen()) { closeModal(); closeDrawer(); return; }
+    if (depth > 0) history.back(); else location.href = 'careermode.html';
+  }
+  window.addEventListener('popstate', e => {
+    if (overlayOpen()) { closeModal(); closeDrawer(); try { history.pushState(curSnap, ''); } catch (x) { /* ignore */ } return; }
+    depth = Math.max(0, depth - 1);
+    const st = e.state || null; curSnap = st;
+    if (!S) { startSelect(false); return; }
+    if (st && st.scr === 'career') return renderCareer();
+    if (st && st.scr === 'pre') return renderPre();
+    if (st && st.scr === 'select') { startSelect(false); return; }
+    view = st && st.view || 'squad'; if (S.phase === 'summary') renderSummary(); else renderGame();
+  });
+  $('chBack').addEventListener('click', e => { e.preventDefault(); goBack(); });
 
   /* ====== اختيار النادي ====== */
   function startSelect(forced) {
@@ -120,7 +141,7 @@
     }
     q.addEventListener('input', () => { pick.q = q.value; draw(); });
     draw();
-    if (S && pick.mode === 'resign') { const b = el('button', 'cm-btn ghost', 'رجوع للعبة'); b.type = 'button'; b.style.marginTop = '12px'; b.addEventListener('click', () => { renderGame(); }); root.appendChild(b); }
+    if (S && pick.mode === 'resign') { const b = el('button', 'cm-btn ghost', 'رجوع للعبة'); b.type = 'button'; b.style.marginTop = '12px'; b.addEventListener('click', goBack); root.appendChild(b); }
   }
   async function chooseClub(id) {
     const c = pick.preview.clubs[id];
@@ -138,7 +159,7 @@
     const tabs = $('chTabs'); tabs.innerHTML = '';
     [['squad', 'الفريق', ico.squad], ['market', 'السوق', ico.market], ['comp', 'البطولات', ico.cup], ['fin', 'المالية', ico.money]].forEach(t => {
       const b = el('button', 'ch-tab' + (view === t[0] ? ' on' : ''), t[2] + '<span>' + t[1] + '</span>'); b.type = 'button';
-      b.addEventListener('click', () => { view = t[0]; renderGame(); }); tabs.appendChild(b);
+      b.addEventListener('click', () => { view = t[0]; navPush({ scr: 'game', view }); renderGame(); }); tabs.appendChild(b);
     });
     const mb = el('button', 'ch-tab', ico.menu + '<span>القائمة</span>'); mb.type = 'button'; mb.addEventListener('click', openDrawer); tabs.appendChild(mb);
     const pane = $('chPane'); pane.innerHTML = '';
@@ -165,8 +186,8 @@
   function drawBar() {
     const bar = $('chBar'); bar.innerHTML = '';
     const nx = E.nextMine(S);
-    const b = el('button', 'cm-btn', nx ? 'العب المباراة' : 'إنهاء الموسم'); b.type = 'button';
-    b.addEventListener('click', nx ? playMatch : endSeason); bar.appendChild(b);
+    const b = el('button', 'cm-btn', nx ? 'ابدأ' : 'إنهاء الموسم'); b.type = 'button';
+    b.addEventListener('click', nx ? () => { navPush({ scr: 'pre' }); renderPre(); } : endSeason); bar.appendChild(b);
   }
   function playMatch() {
     const rep = E.playNext(S, rng);
@@ -190,18 +211,25 @@
   /* ====== قايمة اللاعبين ====== */
 
   /* ====== صور اللاعيبة (من ويكيبيديا العربية، وبتتخزن) ====== */
-  const PH_KEY = 'koraCoachPh';
+  const PH_KEY = 'koraCoachPh2';
   let phCache = {}; try { phCache = JSON.parse(localStorage.getItem(PH_KEY) || '{}'); } catch (e) { phCache = {}; }
   let phQueue = [], phBusy = 0, phDirty = 0;
   function phSave() { if (phDirty++ % 8 === 0) try { localStorage.setItem(PH_KEY, JSON.stringify(phCache)); } catch (e) { phCache = {}; } }
   function phNext() {
     while (phBusy < 4 && phQueue.length) {
       const job = phQueue.shift(); phBusy++;
-      fetch('https://ar.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(job.name.replace(/ /g, '_')), { headers: { Accept: 'application/json' } })
+      fetch('https://www.wikidata.org/w/api.php?action=wbgetentities&sites=arwiki&titles=' + encodeURIComponent(job.name) + '&props=claims&format=json&origin=*')
         .then(r => r.ok ? r.json() : null)
         .then(j => {
-          const ok = j && j.type === 'standard' && j.thumbnail && /كرة القدم|كرة قدم|لاعب/.test(j.description || '');
-          phCache[job.name] = ok ? j.thumbnail.source : 0; phSave(); job.cb(phCache[job.name]);
+          let url = 0;
+          const ents = j && j.entities ? Object.keys(j.entities).map(k => j.entities[k]) : [];
+          const en = ents.filter(x => x && x.claims)[0];
+          if (en) {
+            const jobs = (en.claims.P106 || []).map(c => c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value && c.mainsnak.datavalue.value.id);
+            const img = (en.claims.P18 || [])[0], f = img && img.mainsnak && img.mainsnak.datavalue && img.mainsnak.datavalue.value;
+            if (f && jobs.indexOf('Q937857') > -1) url = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(f) + '?width=160';
+          }
+          phCache[job.name] = url; phSave(); job.cb(url);
         })
         .catch(() => job.cb(0))
         .then(() => { phBusy--; phNext(); });
@@ -232,7 +260,107 @@
     r.appendChild(el('span', 'ch-ovr ' + ovrCls(p.o), String(p.o)));
     return r;
   }
+
+
+  function buildPitch(onTap, selId, elig) {
+    const f = S.formation || '4-3-3', xi = E.lineup(S, S.me.clubId), by = { G: [], D: [], M: [], F: [] };
+    xi.forEach(p => by[p.p].push(p));
+    const cap = S.captain && xi.some(p => p.i === S.captain) ? S.captain : xi.slice().sort((a, b) => b.o - a.o)[0].i;
+    const rows = f === '4-2-3-1' ? [by.F, by.M.slice(0, 3), by.M.slice(3)] : [by.F, by.M];
+    rows.push(by.D, by.G);
+    const pitch = el('div', 'ch-pitch');
+    rows.forEach(r => {
+      const row = el('div', 'ch-prow');
+      r.forEach(p => {
+        const n = el('button', 'ch-pn2' + (selId === p.i ? ' sel' : '') + (elig && elig(p) ? ' elig' : '')); n.type = 'button';
+        const av = avatar(p); av.classList.add('sm'); n.appendChild(av);
+        n.appendChild(el('span', 'ch-pov ' + ovrCls(p.o), String(p.o)));
+        n.appendChild(el('span', 'ch-ppos', E.POS_AR[p.p]));
+        if (p.i === cap) n.appendChild(el('span', 'ch-cap', 'C'));
+        n.appendChild(el('span', 'ch-pnm', esc(p.n.split(' ').slice(-1)[0])));
+        n.appendChild(el('span', 'ch-pen ' + enCls(p.e), '<i style="width:' + Math.max(6, Math.round(p.e)) + '%"></i>'));
+        n.addEventListener('click', () => onTap(p)); row.appendChild(n);
+      });
+      pitch.appendChild(row);
+    });
+    return pitch;
+  }
+
+  /* ====== شاشة ما قبل المباراة ====== */
+  let preSel = null;
+  const PRESS = ['خفيف', 'متوسط', 'عالي'];
+  function renderPre() {
+    show('chPre');
+    const root = $('chPre'), me = S.me.clubId; root.innerHTML = '';
+    const xi = E.lineup(S, me), nx = E.nextMine(S);
+    if (!nx) { renderGame(); return; }
+    S.xi = xi.map(p => p.i);
+    const cap = S.captain && xi.some(p => p.i === S.captain) ? S.captain : xi.slice().sort((a, b) => b.o - a.o)[0].i;
+    S.captain = cap;
+    const tac = el('div', 'ch-tac');
+    const c1 = el('button', 'ch-tc', '<small>الخطة التكتيكية</small><b>' + (S.formation || '4-3-3') + '</b>'); c1.type = 'button';
+    c1.addEventListener('click', () => { const ks = Object.keys(E.FORMS), i = ks.indexOf(S.formation || '4-3-3'); S.formation = ks[(i + 1) % ks.length]; S.xi = null; preSel = null; save(); renderPre(); });
+    const c2 = el('button', 'ch-tc', '<small>الضغط</small><b>' + PRESS[S.pressure || 0] + '</b>'); c2.type = 'button';
+    c2.addEventListener('click', () => { S.pressure = ((S.pressure || 0) + 1) % 3; save(); renderPre(); });
+    const cp = xi.filter(p => p.i === cap)[0];
+    const c3 = el('button', 'ch-tc', '<small>القائد</small><b>' + esc(cp ? cp.n : '—') + '</b>'); c3.type = 'button';
+    c3.addEventListener('click', () => {
+      const sh = modal('<div class="cm-sheet-h"><b>اختار القائد</b></div><div id="capL"></div>'), L = sh.querySelector('#capL');
+      xi.slice().sort((a, b) => b.o - a.o).forEach(p => { const r = playerRow(p); r.addEventListener('click', () => { S.captain = p.i; save(); closeModal(); renderPre(); }); L.appendChild(r); });
+    });
+    tac.appendChild(c1); tac.appendChild(c2); tac.appendChild(c3); root.appendChild(tac);
+    root.appendChild(el('p', 'cm-note ch-hint', 'الضغط العالي بيزوّد قوة الفريق شوية بس بيستهلك الطاقة أسرع. دوس على لاعب ثم على بديل من نفس المركز عشان تبدّلهم.'));
+    const selP = preSel ? S.squads[me].filter(p => p.i === preSel.id)[0] : null;
+    const onPitch = {}; xi.forEach(p => { onPitch[p.i] = 1; });
+    function swap(outId, inId) {
+      const i = S.xi.indexOf(outId); if (i < 0) return; S.xi[i] = inId; preSel = null; save(); renderPre();
+    }
+    root.appendChild(buildPitch(p => {
+      if (preSel && preSel.t === 'bench') { const bp = selP; if (bp && bp.p === p.p) return swap(p.i, bp.i); }
+      preSel = preSel && preSel.id === p.i ? null : { t: 'pitch', id: p.i }; renderPre();
+    }, preSel && preSel.t === 'pitch' ? preSel.id : null, p => preSel && preSel.t === 'bench' && selP && selP.p === p.p));
+    root.appendChild(el('div', 'ch-bench-h', 'البدلاء'));
+    const grid = el('div', 'ch-bench');
+    S.squads[me].filter(p => !onPitch[p.i]).sort((a, b) => POS.indexOf(a.p) - POS.indexOf(b.p) || b.o - a.o).forEach(p => {
+      const ok = preSel && preSel.t === 'pitch' && selP && selP.p === p.p;
+      const n = el('button', 'ch-bn' + (ok ? ' elig' : '') + (preSel && preSel.t === 'bench' && preSel.id === p.i ? ' sel' : '')); n.type = 'button';
+      const av = avatar(p); av.classList.add('sm'); n.appendChild(av);
+      n.appendChild(el('span', 'ch-pov ' + ovrCls(p.o), String(p.o)));
+      n.appendChild(el('span', 'ch-ppos', E.POS_AR[p.p]));
+      n.appendChild(el('span', 'ch-pnm', esc(p.n.split(' ').slice(-1)[0])));
+      n.appendChild(el('span', 'ch-pen ' + enCls(p.e), '<i style="width:' + Math.max(6, Math.round(p.e)) + '%"></i>'));
+      n.addEventListener('click', () => {
+        if (preSel && preSel.t === 'pitch' && selP && selP.p === p.p) return swap(selP.i, p.i);
+        preSel = preSel && preSel.id === p.i ? null : { t: 'bench', id: p.i }; renderPre();
+      });
+      grid.appendChild(n);
+    });
+    root.appendChild(grid);
+    root.style.paddingBottom = '90px';
+    const bar = $('chBar'); bar.innerHTML = '';
+    const info = el('div', 'ch-binfo'); info.appendChild(badge(club(nx.home))); info.appendChild(el('span', 'ch-bvs', esc(nx.stage).replace('الجولة', 'ج')));
+    info.appendChild(badge(club(nx.away)));
+    const go = el('button', 'cm-btn', 'خوض المباراة'); go.type = 'button'; go.addEventListener('click', () => { preSel = null; playMatch(); });
+    bar.appendChild(info); bar.appendChild(go);
+  }
+
+  function drawPitch(pane) {
+    const f = S.formation || '4-3-3'; S.formation = f;
+    const fs = el('div', 'ch-scroll');
+    Object.keys(E.FORMS).forEach(k => { const b = el('button', 'ch-fchip' + (k === f ? ' on' : ''), k); b.type = 'button'; b.addEventListener('click', () => { S.formation = k; S.xi = null; save(); renderGame(); }); fs.appendChild(b); });
+    pane.appendChild(fs);
+    pane.appendChild(buildPitch(p => playerModal(p, true)));
+    const xi = E.lineup(S, S.me.clubId);
+    const used = {}; xi.forEach(p => { used[p.i] = 1; });
+    const card = el('div', 'cm-card'); card.appendChild(el('div', 'ch-rdh', 'الاحتياطي'));
+    S.squads[S.me.clubId].filter(p => !used[p.i]).sort((a, b) => b.o - a.o).forEach(p => { const r = playerRow(p); r.addEventListener('click', () => playerModal(p, true)); card.appendChild(r); });
+    pane.appendChild(card);
+  }
   function drawSquad(pane) {
+    const tg = el('div', 'ch-sub');
+    [['xi', 'التشكيلة'], ['list', 'كل اللاعيبة']].forEach(t => { const b = el('button', 'cm-tab' + (squadMode === t[0] ? ' active' : ''), t[1]); b.type = 'button'; b.addEventListener('click', () => { squadMode = t[0]; renderGame(); }); tg.appendChild(b); });
+    pane.appendChild(tg);
+    if (squadMode === 'xi') return drawPitch(pane);
     const sq = S.squads[S.me.clubId].slice();
     const card = el('div', 'cm-card');
     const hd = el('div', 'ch-sorth', '<span>ترتيب:</span>');
@@ -253,7 +381,7 @@
   function playerModal(p, mine, club0) {
     const price = E.priceOf(p), v = E.valueOf(p);
     let html = '<div id="pmAv" style="display:flex;justify-content:center;margin-bottom:10px"></div><div class="cm-sheet-h"><b>' + esc(p.n) + '</b><small>' + E.POS_AR[p.p] + ' · ' + p.a + ' سنة</small></div><div class="ch-kpis">';
-    [['القوة', p.o], ['الطاقة', Math.round(p.e) + '%'], ['القيمة', money(v)], ['الطول', E.heightOf(p) + ' سم'], ['القدم', footAr(E.footOf(p))], ['الجنسية', (NATS[p.t] || [])[0] || '—']].forEach(x => { html += '<div class="cm-stat"><b>' + x[1] + '</b><span>' + x[0] + '</span></div>'; });
+    [['القوة', p.o], ['الطاقة', Math.round(p.e) + '%'], ['القيمة', money(v)], ['الطول', E.heightOf(p) + ' سم'], ['القدم', footAr(E.footOf(p))], ['الجنسية', (NATS[p.t] || [])[0] || '—']].forEach(x => { html += '<div class="cm-stat"><small>' + x[0] + '</small><b>' + x[1] + '</b></div>'; });
     html += '</div>';
     if (club0) html += '<p class="cm-note">النادي: ' + esc(club(club0).ar) + '</p>';
     html += '<div class="ch-fab" id="pmAct"></div><button class="cm-btn ghost" id="pmX" type="button" style="width:100%;margin-top:8px">قفل</button>';
@@ -393,7 +521,7 @@
     const card = el('div', 'cm-card'), cf = S.boardConf;
     card.innerHTML = '<h3>ثقة الإدارة</h3><div class="ch-conf"><i class="' + (cf < 35 ? 'lo' : cf < 65 ? 'mid' : 'hi') + '" style="width:' + cf + '%;background:' + (cf < 35 ? '#ff7a59' : cf < 65 ? '#f6c445' : '#24e982') + '"></i></div><p class="cm-note">' + cf + '% · الإدارة متوقعة مركز ' + (S.exp || '—') + ' في الدوري. لو الثقة نزلت تحت 22% آخر الموسم هتتفصل.</p>';
     pane.appendChild(card);
-    const k = el('div', 'cm-card'); k.innerHTML = '<h3>الميزانية</h3><div class="ch-kpis"><div class="cm-stat"><b>' + esc(money(S.budget)) + '</b><span>متاح للتعاقدات</span></div></div>';
+    const k = el('div', 'cm-card'); k.innerHTML = '<h3>الميزانية</h3><div class="ch-kpis"><div class="cm-stat"><small>متاح للتعاقدات</small><b>' + esc(money(S.budget)) + '</b></div></div>';
     pane.appendChild(k);
     const tr = (S.news || []).filter(n => n.mine).slice(-12).reverse();
     const t = el('div', 'cm-card'); t.innerHTML = '<h3>آخر صفقاتي</h3>';
@@ -411,7 +539,7 @@
     const rs = el('button', 'ch-resign', 'استقالة'); rs.type = 'button'; rs.addEventListener('click', resign); p.appendChild(rs);
     [['squad', 'الفريق', ico.squad], ['career', 'المسيرة المهنية', ico.career]].forEach(m => {
       const b = el('button', 'ch-mi' + (m[0] === 'squad' && view === 'squad' ? ' on' : ''), m[2] + '<span>' + m[1] + '</span>'); b.type = 'button';
-      b.addEventListener('click', () => { closeDrawer(); if (m[0] === 'career') renderCareer(); else { view = 'squad'; renderGame(); } }); p.appendChild(b);
+      b.addEventListener('click', () => { closeDrawer(); if (m[0] === 'career') { navPush({ scr: 'career' }); renderCareer(); } else { view = 'squad'; navPush({ scr: 'game', view }); renderGame(); } }); p.appendChild(b);
     });
     const nw = el('button', 'ch-mi', ico.out + '<span>مسيرة جديدة</span>'); nw.type = 'button'; nw.addEventListener('click', newCareer); p.appendChild(nw);
     $('chDrawer').hidden = false;
@@ -422,7 +550,7 @@
     closeDrawer();
     const ok = await KoraDialog.confirm({ title: 'استقالة', message: 'هتسيب ' + club(S.me.clubId).ar + ' وتختار نادي جديد. متأكد؟', okText: 'استقالة', cancelText: 'لأ', danger: true });
     if (!ok) return;
-    pick.mode = 'resign'; pick.fresh = false; startSelect(false);
+    pick.mode = 'resign'; pick.fresh = false; navPush({ scr: 'select' }); startSelect(false);
   }
   async function newCareer() {
     closeDrawer();
@@ -437,7 +565,7 @@
     show('chCareer');
     const root = $('chCareer'), c = S.career; root.innerHTML = '';
     root.appendChild(el('div', 'ch-career-h', '<span class="cm-kicker">COACH</span><br><b>' + esc(c.name) + '</b>'));
-    const back = el('button', 'cm-btn ghost', 'رجوع للعبة'); back.type = 'button'; back.style.marginBottom = '12px'; back.addEventListener('click', renderGame); root.appendChild(back);
+    const back = el('button', 'cm-btn ghost', 'رجوع للعبة'); back.type = 'button'; back.style.marginBottom = '12px'; back.addEventListener('click', goBack); root.appendChild(back);
     const card = el('div', 'cm-card'); card.innerHTML = '<h3>الفرق اللي دربتها</h3>';
     const tot = { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 };
     let h = '<div style="overflow-x:auto"><table class="ch-ct"><thead><tr><th class="cl">الفريق</th><th>ل</th><th>ف</th><th>ت</th><th>خ</th><th>له</th><th>عليه</th><th>ن%</th></tr></thead><tbody>';
@@ -479,7 +607,7 @@
     const o = S.summary, root = $('chSummary'), c = S.clubs[o.clubId]; root.innerHTML = '';
     const card = el('div', 'cm-card'); const top = el('div', 'ch-club'); top.appendChild(badge(c));
     top.appendChild(el('div', 'meta', '<b>نهاية موسم ' + o.year + '/' + String(o.year + 1).slice(2) + '</b><small>' + esc(c.ar) + ' · ' + esc(lg(o.league).ar) + '</small>')); card.appendChild(top);
-    const k = el('div', 'ch-kpis'); [['المركز', o.pos + ' من ' + o.teams], ['النقاط', o.row.pts], ['الفرق', o.row.gd]].forEach(x => k.appendChild(el('div', 'cm-stat', '<b>' + x[1] + '</b><span>' + x[0] + '</span>')));
+    const k = el('div', 'ch-kpis'); [['المركز', o.pos + ' من ' + o.teams], ['النقاط', o.row.pts], ['الفرق', o.row.gd]].forEach(x => k.appendChild(el('div', 'cm-stat', '<small>' + x[0] + '</small><b>' + x[1] + '</b>')));
     card.appendChild(k); root.appendChild(card);
     const info = el('div', 'cm-card');
     let html = '';
@@ -502,7 +630,7 @@
     }
     const b = el('button', 'cm-btn', 'ابدأ الموسم الجديد'); b.type = 'button';
     b.addEventListener('click', () => { E.startNextSeason(S, rng); save(); view = 'squad'; mkt.res = null; compSel = null; renderGame(); }); act.appendChild(b);
-    const cb = el('button', 'cm-btn ghost', 'المسيرة المهنية'); cb.type = 'button'; cb.style.marginTop = '8px'; cb.addEventListener('click', renderCareer); act.appendChild(cb);
+    const cb = el('button', 'cm-btn ghost', 'المسيرة المهنية'); cb.type = 'button'; cb.style.marginTop = '8px'; cb.addEventListener('click', () => { navPush({ scr: 'career' }); renderCareer(); }); act.appendChild(cb);
   }
 
   /* ====== تشغيل ====== */
