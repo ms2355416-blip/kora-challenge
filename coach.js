@@ -52,7 +52,7 @@
   const footAr = f => f === 'R' ? 'يمين' : f === 'L' ? 'شمال' : 'الاتنين';
   const footTag = f => f === 'R' ? 'ي' : f === 'L' ? 'ش' : 'ي/ش';
   function show(id) {
-    ['chSelect', 'chGame', 'chPre', 'chSummary', 'chCareer'].forEach(k => { $(k).hidden = k !== id; });
+    ['chSelect', 'chGame', 'chPre', 'chLive', 'chSummary', 'chCareer'].forEach(k => { $(k).hidden = k !== id; });
     $('chBar').hidden = id !== 'chGame' && id !== 'chPre';
     window.scrollTo(0, 0);
   }
@@ -81,10 +81,12 @@
   function navPush(snap) { curSnap = snap; try { history.pushState(snap, ''); depth++; } catch (e) { /* ignore */ } }
   function overlayOpen() { return !$('cmModal').hidden || !$('chDrawer').hidden; }
   function goBack() {
+    if (LV && !LV.done) return;
     if (overlayOpen()) { closeModal(); closeDrawer(); return; }
     if (depth > 0) history.back(); else location.href = 'careermode.html';
   }
   window.addEventListener('popstate', e => {
+    if (LV && !LV.done) { try { history.pushState(curSnap, ''); } catch (x) { /* ignore */ } return; }
     if (overlayOpen()) { closeModal(); closeDrawer(); try { history.pushState(curSnap, ''); } catch (x) { /* ignore */ } return; }
     depth = Math.max(0, depth - 1);
     const st = e.state || null; curSnap = st;
@@ -98,10 +100,14 @@
 
   /* ====== اختيار النادي ====== */
   function startSelect(forced) {
-    pick.seed = (Date.now() >>> 0) || 1;
-    const tmp = {}; E.initWorldClubs(tmp, E.mulberry(pick.seed));
-    Object.keys(tmp.clubs).forEach(id => { tmp.clubs[id].t = Math.round(E.squadOvr(tmp, id)); });
-    pick.preview = tmp; pick.forced = !!forced; renderSelect();
+    if (S) { pick.preview = S; pick.seed = 0; }
+    else {
+      pick.seed = (Date.now() >>> 0) || 1;
+      const tmp = {}; E.initWorldClubs(tmp, E.mulberry(pick.seed));
+      Object.keys(tmp.clubs).forEach(id => { tmp.clubs[id].t = Math.round(E.squadOvr(tmp, id)); });
+      pick.preview = tmp;
+    }
+    pick.forced = !!forced; renderSelect();
     show('chSelect');
   }
   function renderSelect() {
@@ -109,9 +115,13 @@
     const hero = el('div', 'ch-hero', '<span class="cm-kicker">COACH MODE</span><h1>مهنة مدرب</h1><p>' + (pick.mode === 'fired' ? 'اتفصلت من نادي. اختار نادي جديد تكمل بيه مسيرتك.' : 'اختار أي نادي في 18 دوري وابدأ مسيرتك. الرقم الأخضر هو ميزانية النادي للتعاقدات.') + '</p>');
     root.appendChild(hero);
     if (!S) {
+      const row = el('div', 'ch-namerow');
       const nm = el('label', 'ch-name', '<span>اسم المدرب</span><input id="chNameIn" maxlength="22" placeholder="اكتب اسمك" value="' + esc(pick.name) + '">');
-      root.appendChild(nm);
+      const nt = el('label', 'ch-name', '<span>جنسية المدرب</span><select id="chNatIn">' + D.NATIONAL.slice().sort((a, b) => a[0].localeCompare(b[0], 'ar')).map(n => '<option value="' + n[1] + '"' + (pick.nat === n[1] ? ' selected' : '') + '>' + esc(n[0]) + '</option>').join('') + '</select>');
+      row.appendChild(nm); row.appendChild(nt); root.appendChild(row);
       nm.querySelector('input').addEventListener('input', e => { pick.name = e.target.value; });
+      nt.querySelector('select').addEventListener('change', e => { pick.nat = e.target.value; });
+      if (!pick.nat) { pick.nat = 'eg'; nt.querySelector('select').value = 'eg'; }
     }
     const chips = el('div', 'ch-scroll');
     D.COUNTRY_ORDER.forEach(ck => {
@@ -128,12 +138,14 @@
       const qq = pick.q.trim();
       D.COUNTRIES[pick.country].leagues.forEach(lk => {
         const h = el('h3', 'ch-rdh', esc(lg(lk).ar)); let n = 0; const wrap = el('div');
-        Object.keys(tmp.clubs).map(id => tmp.clubs[id]).filter(c => c.league === lk && (!qq || c.ar.indexOf(qq) > -1)).sort((a, b) => b.t - a.t).forEach(c => {
+        Object.keys(tmp.clubs).map(id => tmp.clubs[id]).filter(c => c.league === lk && (!S || c.id !== S.me.clubId) && (!qq || c.ar.indexOf(qq) > -1)).sort((a, b) => b.t - a.t).forEach(c => {
           n++;
-          const r = el('button', 'ch-clubrow'); r.type = 'button';
+          const bn = S && S.banned && S.banned[c.id];
+          const r = el('button', 'ch-clubrow' + (bn ? ' locked' : '')); r.type = 'button';
           r.appendChild(badge(c));
           r.appendChild(el('span', 'nm', '<b>' + esc(c.ar) + '</b><small>قوة الفريق ' + c.t + '</small>'));
           r.appendChild(el('span', 'ch-bud', '<small>الميزانية</small><b>' + esc(money(D.budgetFor(c.t, c.league))) + '</b>'));
+          if (bn) r.appendChild(el('span', 'ch-lock', 'مفصول منه'));
           r.addEventListener('click', () => chooseClub(c.id)); wrap.appendChild(r);
         });
         if (n) { list.appendChild(h); list.appendChild(wrap); }
@@ -145,10 +157,16 @@
   }
   async function chooseClub(id) {
     const c = pick.preview.clubs[id];
+    if (S && S.banned && S.banned[id]) {
+      const ask = await KoraDialog.confirm({ title: 'اتفصلت من ' + c.ar, message: 'مينفعش ترجع تدرّبه غير لو رئيس النادي وافق. تطلب منه يرجّعك؟', okText: 'اطلب الرجوع', cancelText: 'لأ' });
+      if (!ask) return;
+      const r = E.askReturn(S, id, rng); save();
+      if (!r.ok) { await KoraDialog.confirm({ title: 'الرد', message: r.msg, okText: 'تمام', cancelText: 'قفل' }); return; }
+    }
     const ok = await KoraDialog.confirm({ title: 'تدرّب ' + c.ar + '؟', message: 'الميزانية: ' + money(D.budgetFor(c.t, c.league)), okText: 'ابدأ', cancelText: 'لأ' });
     if (!ok) return;
-    if (S) { E.selectClub(S, id, rng); if (S.phase === 'summary' && S.summary) { S.summary.newClub = true; S.summary.sacked = false; } }
-    else { S = E.startCareer({ name: (pick.name || '').trim() || 'المدرب', clubId: id }, E.mulberry(pick.seed)); }
+    if (S) { E.selectClub(S, id, rng); S.xi = null; S.captain = null; if (S.world && E.nextMine(S) == null) { /* لسه */ } if (S.phase === 'summary' && S.summary) { S.summary.newClub = true; S.summary.sacked = false; } }
+    else { const nn = D.NATIONAL.filter(n => n[1] === (pick.nat || 'eg'))[0]; S = E.startCareer({ name: (pick.name || '').trim() || 'المدرب', clubId: id, nat: nn ? { ar: nn[0], code: nn[1] } : null }, E.mulberry(pick.seed)); }
     pick.mode = null; save(); view = 'squad'; if (S.phase === 'summary') renderSummary(); else renderGame();
   }
 
@@ -159,7 +177,7 @@
     const tabs = $('chTabs'); tabs.innerHTML = '';
     [['squad', 'الفريق', ico.squad], ['market', 'السوق', ico.market], ['comp', 'البطولات', ico.cup], ['fin', 'المالية', ico.money]].forEach(t => {
       const b = el('button', 'ch-tab' + (view === t[0] ? ' on' : ''), t[2] + '<span>' + t[1] + '</span>'); b.type = 'button';
-      b.addEventListener('click', () => { view = t[0]; navPush({ scr: 'game', view }); renderGame(); }); tabs.appendChild(b);
+      b.addEventListener('click', () => { view = t[0]; if (view === 'comp') { compSel = null; compTab = 'table'; } navPush({ scr: 'game', view }); renderGame(); }); tabs.appendChild(b);
     });
     const mb = el('button', 'ch-tab', ico.menu + '<span>القائمة</span>'); mb.type = 'button'; mb.addEventListener('click', openDrawer); tabs.appendChild(mb);
     const pane = $('chPane'); pane.innerHTML = '';
@@ -194,7 +212,7 @@
     if (!rep) { if (!S.seasonOver) { S.seasonOver = true; } save(); renderGame(); return; }
     save(); showReport(rep);
   }
-  function showReport(rep) {
+  function showReport(rep, fromLive) {
     const h = club(rep.home), a = club(rep.away), me = S.me.clubId;
     let html = '<div class="cm-sheet-h"><b>' + esc(rep.comp) + '</b><small>' + esc(rep.stage) + '</small></div>';
     html += '<div class="ch-next"><div class="vs"><span id="rpH"></span><b style="font-size:1.5rem">' + rep.hg + ' - ' + rep.ag + '</b><span id="rpA"></span></div>' + (rep.pens ? '<div class="t" style="text-align:center;margin-top:6px">ركلات الترجيح ' + rep.pens[0] + ' - ' + rep.pens[1] + '</div>' : '') + '</div>';
@@ -204,7 +222,7 @@
     const sh = modal(html);
     const sp1 = sh.querySelector('#rpH'), sp2 = sh.querySelector('#rpA');
     sp1.appendChild(badge(h)); sp1.appendChild(document.createTextNode(h.ar)); sp2.appendChild(document.createTextNode(a.ar)); sp2.appendChild(badge(a));
-    sh.querySelector('#rpOk').addEventListener('click', () => { closeModal(); renderGame(); });
+    sh.querySelector('#rpOk').addEventListener('click', () => { closeModal(); if (LV && !LV.done) return; LV = null; renderGame(); });
     void me;
   }
 
@@ -262,28 +280,72 @@
   }
 
 
-  function buildPitch(onTap, selId, elig) {
-    const f = S.formation || '4-3-3', xi = E.lineup(S, S.me.clubId), by = { G: [], D: [], M: [], F: [] };
-    xi.forEach(p => by[p.p].push(p));
+  function buildPitch(onTap, selId, elig, dragFn) {
+    const f = S.formation || '4-3-3', xi = E.lineup(S, S.me.clubId), F0 = E.FORMS[f];
     const cap = S.captain && xi.some(p => p.i === S.captain) ? S.captain : xi.slice().sort((a, b) => b.o - a.o)[0].i;
-    const rows = f === '4-2-3-1' ? [by.F, by.M.slice(0, 3), by.M.slice(3)] : [by.F, by.M];
-    rows.push(by.D, by.G);
+    const cnt = f === '4-2-3-1' ? [F0.G, F0.D, 2, 3, 1] : [F0.G, F0.D, F0.M, F0.F];
+    const groups = []; let at = 0; cnt.forEach(n => { groups.push(xi.slice(at, at + n)); at += n; });
+    const rows = groups.slice().reverse();
     const pitch = el('div', 'ch-pitch');
     rows.forEach(r => {
       const row = el('div', 'ch-prow');
       r.forEach(p => {
-        const n = el('button', 'ch-pn2' + (selId === p.i ? ' sel' : '') + (elig && elig(p) ? ' elig' : '')); n.type = 'button';
+        const n = el('button', 'ch-pn2' + (selId === p.i ? ' sel' : '') + (elig && elig(p) ? ' elig' : '')); n.type = 'button'; n.dataset.pid = p.i;
         const av = avatar(p); av.classList.add('sm'); n.appendChild(av);
         n.appendChild(el('span', 'ch-pov ' + ovrCls(p.o), String(p.o)));
         n.appendChild(el('span', 'ch-ppos', E.POS_AR[p.p]));
         if (p.i === cap) n.appendChild(el('span', 'ch-cap', 'C'));
         n.appendChild(el('span', 'ch-pnm', esc(p.n.split(' ').slice(-1)[0])));
         n.appendChild(el('span', 'ch-pen ' + enCls(p.e), '<i style="width:' + Math.max(6, Math.round(p.e)) + '%"></i>'));
-        n.addEventListener('click', () => onTap(p)); row.appendChild(n);
+        n.addEventListener('click', () => { if (!dragBlock) onTap(p); });
+        if (dragFn) enableDrag(n, p.i, dragFn);
+        row.appendChild(n);
       });
       pitch.appendChild(row);
     });
     return pitch;
+  }
+
+  /* سحب وتبديل: اضغط على اللاعب ثانية وبعدين حرّكه فوق لاعب تاني */
+  let dragBlock = false;
+  function enableDrag(node, id, onDrop) {
+    let timer = null, ghost = null, active = false, sx = 0, sy = 0;
+    const pt = e => (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+    function start(e) {
+      const t = pt(e); sx = t.clientX; sy = t.clientY;
+      timer = setTimeout(() => {
+        active = true; ghost = node.cloneNode(true); ghost.className = 'ch-ghost'; ghost.style.left = sx + 'px'; ghost.style.top = sy + 'px';
+        document.body.appendChild(ghost); node.classList.add('dragging'); try { navigator.vibrate && navigator.vibrate(25); } catch (x) { /* ignore */ }
+      }, 700);
+    }
+    function move(e) {
+      const t = pt(e);
+      if (!active) { if (Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) clearTimeout(timer); return; }
+      e.preventDefault(); ghost.style.left = t.clientX + 'px'; ghost.style.top = t.clientY + 'px';
+      document.querySelectorAll('.drop-on').forEach(x => x.classList.remove('drop-on'));
+      const u = document.elementsFromPoint(t.clientX, t.clientY).map(x => x.closest && x.closest('[data-pid]')).filter(x => x && x !== node)[0]; if (u) u.classList.add('drop-on');
+    }
+    function end(e) {
+      clearTimeout(timer); document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', end);
+      if (!active) return; active = false;
+      const t = pt(e); ghost.remove(); node.classList.remove('dragging'); document.querySelectorAll('.drop-on').forEach(x => x.classList.remove('drop-on'));
+      const u = document.elementsFromPoint(t.clientX, t.clientY).map(x => x.closest && x.closest('[data-pid]')).filter(x => x && x !== node)[0];
+      dragBlock = true; setTimeout(() => { dragBlock = false; }, 80);
+      if (u) onDrop(id, u.dataset.pid);
+    }
+    node.addEventListener('touchstart', start, { passive: true }); node.addEventListener('touchmove', move, { passive: false });
+    node.addEventListener('touchend', end); node.addEventListener('touchcancel', end);
+    node.addEventListener('mousedown', e => { start(e); document.addEventListener('mousemove', move); document.addEventListener('mouseup', end); });
+    node.addEventListener('contextmenu', e => { if (active) e.preventDefault(); });
+  }
+  function doSwap(a, b) {
+    if (a === b) return;
+    const sq = S.squads[S.me.clubId], pa = sq.filter(p => p.i === a)[0], pb = sq.filter(p => p.i === b)[0]; if (!pa || !pb) return;
+    if ((pa.p === 'G') !== (pb.p === 'G')) { preSel = null; renderPre(); const t = el('div', 'ch-msg bad', 'الحارس بيتبدل بحارس بس.'); $('chPre').prepend(t); setTimeout(() => t.remove(), 2500); return; }
+    const ia = S.xi.indexOf(a), ib = S.xi.indexOf(b);
+    if (ia > -1 && ib > -1) { S.xi[ia] = b; S.xi[ib] = a; }
+    else if (ia > -1) S.xi[ia] = b; else if (ib > -1) S.xi[ib] = a; else return;
+    preSel = null; save(); renderPre();
   }
 
   /* ====== شاشة ما قبل المباراة ====== */
@@ -299,9 +361,15 @@
     S.captain = cap;
     const tac = el('div', 'ch-tac');
     const c1 = el('button', 'ch-tc', '<small>الخطة التكتيكية</small><b>' + (S.formation || '4-3-3') + '</b>'); c1.type = 'button';
-    c1.addEventListener('click', () => { const ks = Object.keys(E.FORMS), i = ks.indexOf(S.formation || '4-3-3'); S.formation = ks[(i + 1) % ks.length]; S.xi = null; preSel = null; save(); renderPre(); });
+    c1.addEventListener('click', () => {
+      const sh = modal('<div class="cm-sheet-h"><b>الخطة التكتيكية</b></div><div class="ch-opts" id="fmL"></div>'), L = sh.querySelector('#fmL');
+      Object.keys(E.FORMS).forEach(k => { const b = el('button', 'ch-opt' + (k === (S.formation || '4-3-3') ? ' on' : ''), k); b.type = 'button'; b.addEventListener('click', () => { S.formation = k; S.xi = null; preSel = null; save(); closeModal(); renderPre(); }); L.appendChild(b); });
+    });
     const c2 = el('button', 'ch-tc', '<small>الضغط</small><b>' + PRESS[S.pressure || 0] + '</b>'); c2.type = 'button';
-    c2.addEventListener('click', () => { S.pressure = ((S.pressure || 0) + 1) % 3; save(); renderPre(); });
+    c2.addEventListener('click', () => {
+      const sh = modal('<div class="cm-sheet-h"><b>الضغط</b><small>العالي بيزوّد القوة وبيستهلك الطاقة أسرع</small></div><div class="ch-opts" id="prL"></div>'), L = sh.querySelector('#prL');
+      PRESS.forEach((k, i) => { const b = el('button', 'ch-opt' + (i === (S.pressure || 0) ? ' on' : ''), k); b.type = 'button'; b.addEventListener('click', () => { S.pressure = i; save(); closeModal(); renderPre(); }); L.appendChild(b); });
+    });
     const cp = xi.filter(p => p.i === cap)[0];
     const c3 = el('button', 'ch-tc', '<small>القائد</small><b>' + esc(cp ? cp.n : '—') + '</b>'); c3.type = 'button';
     c3.addEventListener('click', () => {
@@ -309,30 +377,29 @@
       xi.slice().sort((a, b) => b.o - a.o).forEach(p => { const r = playerRow(p); r.addEventListener('click', () => { S.captain = p.i; save(); closeModal(); renderPre(); }); L.appendChild(r); });
     });
     tac.appendChild(c1); tac.appendChild(c2); tac.appendChild(c3); root.appendChild(tac);
-    root.appendChild(el('p', 'cm-note ch-hint', 'الضغط العالي بيزوّد قوة الفريق شوية بس بيستهلك الطاقة أسرع. دوس على لاعب ثم على بديل من نفس المركز عشان تبدّلهم.'));
+    root.appendChild(el('p', 'cm-note ch-hint', 'للتبديل: اضغط على اللاعب ثانية وحرّكه فوق لاعب تاني (في الملعب أو البدلاء). أو دوس على لاعب ثم على اللي هتبدله.'));
     const selP = preSel ? S.squads[me].filter(p => p.i === preSel.id)[0] : null;
     const onPitch = {}; xi.forEach(p => { onPitch[p.i] = 1; });
-    function swap(outId, inId) {
-      const i = S.xi.indexOf(outId); if (i < 0) return; S.xi[i] = inId; preSel = null; save(); renderPre();
-    }
+    function swap(outId, inId) { doSwap(outId, inId); }
     root.appendChild(buildPitch(p => {
-      if (preSel && preSel.t === 'bench') { const bp = selP; if (bp && bp.p === p.p) return swap(p.i, bp.i); }
+      if (preSel && preSel.id !== p.i) return swap(preSel.id, p.i);
       preSel = preSel && preSel.id === p.i ? null : { t: 'pitch', id: p.i }; renderPre();
-    }, preSel && preSel.t === 'pitch' ? preSel.id : null, p => preSel && preSel.t === 'bench' && selP && selP.p === p.p));
+    }, preSel ? preSel.id : null, null, doSwap));
     root.appendChild(el('div', 'ch-bench-h', 'البدلاء'));
     const grid = el('div', 'ch-bench');
     S.squads[me].filter(p => !onPitch[p.i]).sort((a, b) => POS.indexOf(a.p) - POS.indexOf(b.p) || b.o - a.o).forEach(p => {
-      const ok = preSel && preSel.t === 'pitch' && selP && selP.p === p.p;
-      const n = el('button', 'ch-bn' + (ok ? ' elig' : '') + (preSel && preSel.t === 'bench' && preSel.id === p.i ? ' sel' : '')); n.type = 'button';
+      const n = el('button', 'ch-bn' + (preSel && preSel.id === p.i ? ' sel' : '')); n.type = 'button'; n.dataset.pid = p.i;
       const av = avatar(p); av.classList.add('sm'); n.appendChild(av);
       n.appendChild(el('span', 'ch-pov ' + ovrCls(p.o), String(p.o)));
       n.appendChild(el('span', 'ch-ppos', E.POS_AR[p.p]));
       n.appendChild(el('span', 'ch-pnm', esc(p.n.split(' ').slice(-1)[0])));
       n.appendChild(el('span', 'ch-pen ' + enCls(p.e), '<i style="width:' + Math.max(6, Math.round(p.e)) + '%"></i>'));
       n.addEventListener('click', () => {
-        if (preSel && preSel.t === 'pitch' && selP && selP.p === p.p) return swap(selP.i, p.i);
+        if (dragBlock) return;
+        if (preSel && preSel.id !== p.i) return swap(preSel.id, p.i);
         preSel = preSel && preSel.id === p.i ? null : { t: 'bench', id: p.i }; renderPre();
       });
+      enableDrag(n, p.i, doSwap);
       grid.appendChild(n);
     });
     root.appendChild(grid);
@@ -340,7 +407,7 @@
     const bar = $('chBar'); bar.innerHTML = '';
     const info = el('div', 'ch-binfo'); info.appendChild(badge(club(nx.home))); info.appendChild(el('span', 'ch-bvs', esc(nx.stage).replace('الجولة', 'ج')));
     info.appendChild(badge(club(nx.away)));
-    const go = el('button', 'cm-btn', 'خوض المباراة'); go.type = 'button'; go.addEventListener('click', () => { preSel = null; playMatch(); });
+    const go = el('button', 'cm-btn', 'خوض المباراة'); go.type = 'button'; go.addEventListener('click', () => { preSel = null; startLive(); });
     bar.appendChild(info); bar.appendChild(go);
   }
 
@@ -357,10 +424,6 @@
     pane.appendChild(card);
   }
   function drawSquad(pane) {
-    const tg = el('div', 'ch-sub');
-    [['xi', 'التشكيلة'], ['list', 'كل اللاعيبة']].forEach(t => { const b = el('button', 'cm-tab' + (squadMode === t[0] ? ' active' : ''), t[1]); b.type = 'button'; b.addEventListener('click', () => { squadMode = t[0]; renderGame(); }); tg.appendChild(b); });
-    pane.appendChild(tg);
-    if (squadMode === 'xi') return drawPitch(pane);
     const sq = S.squads[S.me.clubId].slice();
     const card = el('div', 'cm-card');
     const hd = el('div', 'ch-sorth', '<span>ترتيب:</span>');
@@ -450,9 +513,31 @@
 
   /* ====== البطولات ====== */
   function myCountry() { return club(S.me.clubId).country; }
+
+  function natView(pane) {
+    const k = compSel.k, def = E.TOURN[k];
+    const btn = el('button', 'ch-compbtn'); btn.type = 'button'; btn.appendChild(el('span', 'sp', esc(def.ar))); btn.insertAdjacentHTML('beforeend', ico.chev); btn.addEventListener('click', compPicker); pane.appendChild(btn);
+    const card = el('div', 'cm-card'), past = (S.tourn || []).filter(t => t.key === k).reverse();
+    let ny = S.year + 1; while (E.tourneysIn(ny).indexOf(k) < 0) ny++;
+    card.appendChild(el('p', 'cm-note', 'النسخة الجاية: ' + ny + ' (بتتلعب في نهاية موسم ' + (ny - 1) + '/' + String(ny).slice(2) + ')'));
+    if (!past.length) card.appendChild(el('p', 'cm-note', 'لسه محصلتش نسخة في مسيرتك.'));
+    past.forEach(t => {
+      const r = el('div', 'ch-ld'); r.appendChild(flagImg(t.champCode, 'cm-flag'));
+      r.appendChild(el('span', 'nm', '<b>' + t.year + ' — ' + esc(t.champ) + '</b><small>الوصيف: ' + esc(t.runner) + ' · نصف النهائي: ' + esc(t.semis.join('، ')) + '</small>')); card.appendChild(r);
+    });
+    pane.appendChild(card);
+  }
+
+  function autoComp() {
+    const nx = E.nextMine(S), lk = club(S.me.clubId).league;
+    if (nx) { const cp = S.world.cups.filter(c => c.ar === nx.comp)[0]; if (cp) return { t: 'cup', k: cp.key }; }
+    return { t: 'lg', k: lk };
+  }
   function drawComp(pane) {
-    if (!compSel) compSel = { t: 'lg', k: club(S.me.clubId).league };
+    const bk = el('button', 'ch-miniback', '→ رجوع'); bk.type = 'button'; bk.addEventListener('click', goBack); pane.appendChild(bk);
+    if (!compSel) compSel = autoComp();
     if (compSel.t === 'lg' && !S.world.leagues[compSel.k]) compSel = { t: 'lg', k: club(S.me.clubId).league };
+    if (compSel.t === 'nat') return natView(pane);
     const isLg = compSel.t === 'lg', L = isLg ? lg(compSel.k) : null, cp = isLg ? null : E.cupOf(S, compSel.k);
     const ctry = D.COUNTRIES[isLg ? L.country : (cp ? cp.country : myCountry())];
     const btn = el('button', 'ch-compbtn'); btn.type = 'button';
@@ -512,6 +597,7 @@
       c.leagues.forEach(lk => { html += '<button class="cm-chip" data-t="lg" data-k="' + lk + '" type="button">' + esc(lg(lk).ar) + '</button>'; });
       S.world.cups.filter(x => x.country === ck).forEach(x => { html += '<button class="cm-chip" data-t="cup" data-k="' + x.key + '" type="button">' + esc(x.ar) + '</button>'; });
     });
+    html += '<h4>المنتخبات</h4>' + Object.keys(E.TOURN).map(k => '<button class="cm-chip" data-t="nat" data-k="' + k + '" type="button">' + esc(E.TOURN[k].ar) + '</button>').join('');
     const sh = modal(html + '</div>');
     sh.querySelectorAll('.cm-chip').forEach(b => b.addEventListener('click', () => { compSel = { t: b.dataset.t, k: b.dataset.k }; compTab = 'table'; closeModal(); renderGame(); }));
   }
@@ -536,12 +622,12 @@
   function openDrawer() {
     const me = club(S.me.clubId), p = $('chDrawerPanel'); p.innerHTML = '';
     const h = el('div', 'ch-dh'); h.appendChild(badge(me)); h.appendChild(el('div', '', '<b>' + esc(me.ar) + '</b><small>' + esc(S.career.name) + '</small>')); p.appendChild(h);
-    const rs = el('button', 'ch-resign', 'استقالة'); rs.type = 'button'; rs.addEventListener('click', resign); p.appendChild(rs);
+    const rs = el('button', 'ch-resign', 'استقالة من النادي'); rs.type = 'button'; rs.addEventListener('click', resign); p.appendChild(rs);
     [['squad', 'الفريق', ico.squad], ['career', 'المسيرة المهنية', ico.career]].forEach(m => {
       const b = el('button', 'ch-mi' + (m[0] === 'squad' && view === 'squad' ? ' on' : ''), m[2] + '<span>' + m[1] + '</span>'); b.type = 'button';
       b.addEventListener('click', () => { closeDrawer(); if (m[0] === 'career') { navPush({ scr: 'career' }); renderCareer(); } else { view = 'squad'; navPush({ scr: 'game', view }); renderGame(); } }); p.appendChild(b);
     });
-    const nw = el('button', 'ch-mi', ico.out + '<span>مسيرة جديدة</span>'); nw.type = 'button'; nw.addEventListener('click', newCareer); p.appendChild(nw);
+    const nw = el('button', 'ch-restart', 'إعادة البدء من جديد'); nw.type = 'button'; nw.addEventListener('click', newCareer); p.appendChild(nw);
     $('chDrawer').hidden = false;
   }
   function closeDrawer() { $('chDrawer').hidden = true; }
@@ -558,6 +644,106 @@
     if (!ok) return;
     try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
     S = null; pick.fresh = false; pick.mode = 'new'; startSelect(false);
+  }
+
+
+  /* ====== المباراة المباشرة ====== */
+  let LV = null, lvSel = null;
+  const goalsAt = (f, m) => { const evs = f.mine ? LV.myEv : (f.r ? f.r.ev : []); let h = 0, a = 0; evs.forEach(e => { if (e.m <= m) { if (e.tm === 'h') h++; else a++; } }); return [h, a]; };
+  function startLive() {
+    const live = E.liveBegin(S, rng);
+    if (!live) { renderGame(); return; }
+    LV = { live: live, myEv: [], minute: 0, subs: 0, done: false, timer: null, rep: null, lastGoal: null };
+    show('chLive'); $('chBar').hidden = true;
+    drawLive(); LV.timer = setTimeout(tickLive, 700);
+  }
+  function drawLive() {
+    const root = $('chLive'), L = LV.live; root.innerHTML = '';
+    const top = el('div', 'ch-lv-top');
+    top.appendChild(el('div', 'ch-lv-min', '<b id="lvMin">' + (LV.done ? 'انتهت' : LV.minute + "'") + '</b>'));
+    top.appendChild(el('div', 'ch-lv-prog', '<i id="lvProg" style="width:' + Math.min(100, LV.minute / 90 * 100) + '%"></i>'));
+    root.appendChild(top);
+    root.appendChild(el('div', 'ch-lv-comp', '<b>' + esc(L.comp) + '</b><small>' + esc(L.stage) + '</small>'));
+    const list = el('div', 'ch-lv-list', ''); list.id = 'lvList';
+    L.fixtures.forEach((f, i) => {
+      const r = el('button', 'ch-lv-row' + (f.mine ? ' mine' : '')); r.type = 'button'; r.dataset.i = i;
+      const h = el('span', 'ch-lv-t'), a = el('span', 'ch-lv-t b');
+      h.appendChild(el('span', 'nm', esc(club(f.home).ar))); h.appendChild(badge(club(f.home)));
+      a.appendChild(badge(club(f.away))); a.appendChild(el('span', 'nm', esc(club(f.away).ar)));
+      r.appendChild(h); r.appendChild(el('span', 'ch-lv-sc', '0 - 0')); r.appendChild(a);
+      if (f.mine) r.addEventListener('click', openMyPanel);
+      list.appendChild(r);
+    });
+    root.appendChild(list);
+    const bt = el('div', 'ch-lv-btns'); bt.id = 'lvBtns'; root.appendChild(bt);
+    updateLive(); drawLvBtns();
+  }
+  function drawLvBtns() {
+    const bt = $('lvBtns'); if (!bt) return; bt.innerHTML = '';
+    if (!LV.done) {
+      const t = el('button', 'cm-btn', 'تشكيلتي والتبديلات'); t.type = 'button'; t.addEventListener('click', openMyPanel); bt.appendChild(t);
+      const k = el('button', 'cm-btn ghost', 'تخطي للنهاية'); k.type = 'button'; k.addEventListener('click', () => { clearTimeout(LV.timer); while (LV.minute < 90) stepMinute(); finishLive(); }); bt.appendChild(k);
+    } else {
+      const t = el('button', 'cm-btn', 'تقرير المباراة'); t.type = 'button'; t.addEventListener('click', () => showReport(LV.rep)); bt.appendChild(t);
+    }
+  }
+  function updateLive() {
+    const rows = document.querySelectorAll('#lvList .ch-lv-row');
+    LV.live.fixtures.forEach((f, i) => {
+      const g = goalsAt(f, LV.minute), sc = rows[i] && rows[i].querySelector('.ch-lv-sc'); if (!sc) return;
+      const txt = g[0] + ' - ' + g[1];
+      if (sc.textContent !== txt) { sc.textContent = txt; sc.classList.add('flash'); setTimeout(() => sc.classList.remove('flash'), 1200); }
+    });
+    const m = $('lvMin'); if (m) m.textContent = LV.done ? 'انتهت' : (LV.half ? 'استراحة' : LV.minute + "'");
+    const pr = $('lvProg'); if (pr) pr.style.width = Math.min(100, LV.minute / 90 * 100) + '%';
+  }
+  function stepMinute() {
+    LV.minute++;
+    E.liveGoal(S, LV.live, LV.minute, rng).forEach(e => { LV.myEv.push(e); const mine = LV.live.fixtures.filter(f => f.mine)[0]; void mine; LV.lastGoal = e; });
+  }
+  function tickLive() {
+    if (LV.minute >= 90) return finishLive();
+    stepMinute(); updateLive(); refreshPanel();
+    if (LV.minute === 45 && !LV.half) { LV.half = true; updateLive(); LV.timer = setTimeout(() => { LV.half = false; updateLive(); LV.timer = setTimeout(tickLive, 333); }, 2200); return; }
+    LV.timer = setTimeout(tickLive, 333);
+  }
+  function finishLive() {
+    LV.minute = 90; LV.rep = E.liveFinish(S, LV.live, LV.myEv, rng); LV.done = true; save();
+    updateLive(); drawLvBtns();
+    const f = LV.live.fixtures.filter(x => x.mine)[0]; if (f) f.r = { ev: LV.myEv };
+    setTimeout(() => { if (LV.rep) showReport(LV.rep, true); }, 600);
+  }
+  function refreshPanel() { const e = $('lvPMin'); if (e) e.textContent = LV.minute + "'  ·  " + goalsAt(LV.live.fixtures.filter(f => f.mine)[0], LV.minute).join(' - '); }
+  function openMyPanel() {
+    const sh = modal('<div class="ch-ph-head"><div class="cm-sheet-h"><b>تشكيلتي</b><small id="lvPMin"></small></div><button class="cm-btn" id="lvPX" type="button">رجوع للمباراة</button></div><p class="cm-note" id="lvPNote"></p><div id="lvPBody"></div>');
+    sh.querySelector('#lvPX').addEventListener('click', closeModal);
+    lvSel = null; drawPanel(); refreshPanel();
+  }
+  function drawPanel() {
+    const body = $('lvPBody'); if (!body) return; body.innerHTML = '';
+    const me = S.me.clubId, xi = E.lineup(S, me), on = {}; xi.forEach(p => { on[p.i] = 1; });
+    $('lvPNote').textContent = 'التبديلات: ' + LV.subs + ' من 5. دوس على لاعب في الملعب ثم على بديل.' + (LV.done ? ' (المباراة انتهت)' : '');
+    body.appendChild(buildPitch(p => {
+      if (LV.done) return;
+      lvSel = lvSel && lvSel.id === p.i ? null : { t: 'p', id: p.i }; drawPanel();
+    }, lvSel && lvSel.t === 'p' ? lvSel.id : null, null, null));
+    const grid = el('div', 'ch-bench');
+    S.squads[me].filter(p => !on[p.i]).sort((a, b) => POS.indexOf(a.p) - POS.indexOf(b.p) || b.o - a.o).forEach(p => {
+      const n = el('button', 'ch-bn' + (lvSel && lvSel.t === 'p' ? ' elig' : '')); n.type = 'button';
+      const av = avatar(p); av.classList.add('sm'); n.appendChild(av);
+      n.appendChild(el('span', 'ch-pov ' + ovrCls(p.o), String(p.o))); n.appendChild(el('span', 'ch-ppos', E.POS_AR[p.p]));
+      n.appendChild(el('span', 'ch-pnm', esc(p.n.split(' ').slice(-1)[0])));
+      n.appendChild(el('span', 'ch-pen ' + enCls(p.e), '<i style="width:' + Math.max(6, Math.round(p.e)) + '%"></i>'));
+      n.addEventListener('click', () => {
+        if (LV.done || !lvSel) return;
+        if (LV.subs >= 5) { $('lvPNote').textContent = 'خلصت التبديلات الخمسة.'; return; }
+        const out = xi.filter(q => q.i === lvSel.id)[0]; if (!out) return;
+        if ((out.p === 'G') !== (p.p === 'G')) { $('lvPNote').textContent = 'الحارس بيتبدل بحارس بس.'; return; }
+        S.xi = xi.map(q => q.i === out.i ? p.i : q.i); LV.subs++; lvSel = null; save(); drawPanel();
+      });
+      grid.appendChild(n);
+    });
+    body.appendChild(el('div', 'ch-bench-h', 'البدلاء')); body.appendChild(grid);
   }
 
   /* ====== المسيرة المهنية ====== */
@@ -579,7 +765,12 @@
     card.querySelectorAll('tr.click').forEach(tr => tr.addEventListener('click', () => stintModal(c.stints[tr.dataset.i])));
     const nat = el('div', 'cm-card'); nat.innerHTML = '<h3>المنتخبات اللي دربتها</h3>';
     if (!c.natHist.length) nat.appendChild(el('p', 'cm-note', 'لسه ما دربتش أي منتخب. بعد ما تبني سمعة هتجيلك عروض.'));
-    c.natHist.forEach(n => { const r = el('div', 'ch-ld'); r.appendChild(flagImg(n.code, 'cm-flag')); r.appendChild(el('span', 'nm', '<b>' + esc(n.ar) + '</b><small>من ' + n.from + (c.nat === n ? ' · حاليًا' : '') + '</small>')); nat.appendChild(r); });
+    c.natHist.forEach(n => {
+      const r = el('div', 'ch-ld'); r.appendChild(flagImg(n.code, 'cm-flag'));
+      r.appendChild(el('span', 'nm', '<b>' + esc(n.ar) + '</b><small>من ' + n.from + (c.nat === n ? ' · حاليًا' : '') + '</small>')); nat.appendChild(r);
+      (n.results || []).slice(-6).forEach(x => nat.appendChild(el('div', 'ch-ev', '<span class="min">' + x.year + '</span><span>' + esc(x.name) + ': ' + esc(x.stage) + '</span>')));
+    });
+    if (c.nat) { const rb = el('button', 'cm-btn ghost', 'استقالة من المنتخب'); rb.type = 'button'; rb.style.marginTop = '10px'; rb.addEventListener('click', async () => { if (await KoraDialog.confirm({ title: 'استقالة من ' + c.nat.ar, message: 'متأكد؟', okText: 'استقالة', cancelText: 'لأ', danger: true })) { E.resignNational(S); save(); renderCareer(); } }); nat.appendChild(rb); }
     root.appendChild(nat);
     const tr = el('div', 'cm-card'); tr.innerHTML = '<h3>البطولات (' + c.trophies.length + ')</h3>';
     const g = {}; c.trophies.forEach(t => { const k = t.text + '|' + t.clubAr; (g[k] = g[k] || { t: t, n: 0, y: [] }).n++; g[k].y.push(t.year); });
@@ -607,7 +798,7 @@
     const o = S.summary, root = $('chSummary'), c = S.clubs[o.clubId]; root.innerHTML = '';
     const card = el('div', 'cm-card'); const top = el('div', 'ch-club'); top.appendChild(badge(c));
     top.appendChild(el('div', 'meta', '<b>نهاية موسم ' + o.year + '/' + String(o.year + 1).slice(2) + '</b><small>' + esc(c.ar) + ' · ' + esc(lg(o.league).ar) + '</small>')); card.appendChild(top);
-    const k = el('div', 'ch-kpis'); [['المركز', o.pos + ' من ' + o.teams], ['النقاط', o.row.pts], ['الفرق', o.row.gd]].forEach(x => k.appendChild(el('div', 'cm-stat', '<small>' + x[0] + '</small><b>' + x[1] + '</b>')));
+    const k = el('div', 'ch-kpis'); [['المركز', o.pos + ' من ' + o.teams], ['النقاط', o.row.pts], ['فارق الأهداف', o.row.gd]].forEach(x => k.appendChild(el('div', 'cm-stat', '<small>' + x[0] + '</small><b>' + x[1] + '</b>')));
     card.appendChild(k); root.appendChild(card);
     const info = el('div', 'cm-card');
     let html = '';
@@ -616,10 +807,13 @@
     if (o.moved) html += '<div class="ch-msg' + (o.moved === 'down' ? ' bad' : '') + '">' + (o.moved === 'up' ? 'فريقك صعد للدرجة الأعلى!' : 'فريقك هبط للدرجة الأدنى.') + '</div>';
     html += '<h3>ثقة الإدارة: ' + o.conf + '%</h3><div class="ch-conf"><i style="width:' + o.conf + '%;background:' + (o.conf < 35 ? '#ff7a59' : o.conf < 65 ? '#f6c445' : '#24e982') + '"></i></div><p class="cm-note">كانت متوقعة المركز ' + o.exp + '. دخل الموسم: ' + esc(money(o.income)) + '</p>';
     if (o.scorers && o.scorers.length) html += '<h3>هدافو الدوري</h3>' + o.scorers.map((x, i) => '<div class="ch-ev"><span class="min">' + (i + 1) + '</span><span>' + esc(x.p.n) + ' — ' + x.g + ' هدف (' + esc(S.clubs[x.club].ar) + ')</span></div>').join('');
+    if (o.tourn && o.tourn.length) {
+      html += '<h3>بطولات المنتخبات</h3>' + o.tourn.map(t => '<div class="ch-ev"><span class="min">🌍</span><span>' + esc(t.rec.ar) + ' ' + t.rec.year + ': البطل <b>' + esc(t.rec.champ) + '</b> · الوصيف ' + esc(t.rec.runner) + (t.stage ? '<br><small style="color:var(--green)">' + esc(t.nat) + ': ' + esc(t.stage) + '</small>' : '') + '</span></div>').join('');
+    }
     info.innerHTML = html; root.appendChild(info);
     const act = el('div', 'cm-card'); root.appendChild(act);
     if (o.natOffer && !o.natHandled) {
-      act.appendChild(el('p', '', 'عرض: تدريب منتخب <b>' + esc(o.natOffer.ar) + '</b>'));
+      act.appendChild(el('p', 'ch-offer', 'منتخب <b>' + esc(o.natOffer.ar) + '</b> (بلدك) استدعاك بعد أدائك الموسم ده. تقبل تدرّبه؟'));
       const a = el('button', 'cm-btn', 'اقبل'), d = el('button', 'cm-btn ghost', 'ارفض'); a.type = d.type = 'button'; d.style.marginTop = '8px';
       a.addEventListener('click', () => { E.acceptNational(S, o.natOffer); o.natHandled = 1; save(); renderSummary(); });
       d.addEventListener('click', () => { o.natHandled = 1; save(); renderSummary(); }); act.appendChild(a); act.appendChild(d); return;
