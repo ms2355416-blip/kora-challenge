@@ -90,7 +90,7 @@
   const posName = id => (D.POSITIONS.find(p => p.id === id) || {}).ar || id;
 
   function show(id) {
-    ['cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire'].forEach(k => { $(k).hidden = k !== id; });
+    ['cmMode', 'cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire'].forEach(k => { $(k).hidden = k !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -651,8 +651,18 @@
 
   function newCareer() { S = null; try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } render(); }
 
+  /* ====== اختيار المهنة ====== */
+  function renderMode() {
+    let c = null; try { c = JSON.parse(localStorage.getItem('koraCoach') || 'null'); } catch (e) { /* ignore */ }
+    $('cmModeCoachNote').textContent = c && c.kind === 'coach' ? 'كمّل مسيرتك مع ' + (c.clubs && c.me && c.clubs[c.me.clubId] ? c.clubs[c.me.clubId].ar : '') : '';
+    $('cmModePlayerNote').textContent = S ? 'عندك مسيرة شغالة — كمّل' : '';
+  }
+  window.addEventListener('hashchange', render);
+  $('cmChange').addEventListener('click', () => { location.hash = ''; render(); });
+
   /* ====== التشغيل ====== */
   function render() {
+    if (location.hash !== '#player') { renderMode(); show('cmMode'); return; }
     if (!S) { show('cmCreate'); return; }
     if (S.phase === 'retired') { renderRetire(); show('cmRetire'); return; }
     if (S.phase === 'awards') { renderAwards(); show('cmAwards'); return; }
