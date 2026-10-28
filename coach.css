@@ -186,3 +186,77 @@
 .ch-face{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .ch-ph.big{width:96px;height:96px}
 .ch-ph.big img:not(.ch-face){width:30px;height:21px}
+/* التشكيلة */
+.ch-pitch{position:relative;border-radius:18px;padding:18px 6px 14px;margin-bottom:12px;display:flex;flex-direction:column;gap:14px;border:2px solid #2a8a54;background:repeating-linear-gradient(180deg,#14633a 0 56px,#17703f 56px 112px);overflow:hidden}
+.ch-pitch::before{content:'';position:absolute;inset:8px;border:2px solid rgba(255,255,255,.35);border-radius:10px;pointer-events:none}
+.ch-pitch::after{content:'';position:absolute;left:50%;top:50%;width:90px;height:90px;margin:-45px 0 0 -45px;border:2px solid rgba(255,255,255,.3);border-radius:50%;pointer-events:none}
+.ch-prow{display:flex;justify-content:space-around;align-items:flex-start;position:relative;z-index:1}
+.ch-pn2{display:flex;flex-direction:column;align-items:center;gap:2px;width:25%;max-width:84px;font:inherit;color:#fff;background:none;border:0;padding:0;cursor:pointer;position:relative}
+.ch-ph.sm{width:44px;height:44px;border-color:#fff;background:#0c3b24;color:#9fd9b6}
+.ch-ph.sm img:not(.ch-face){width:16px;height:11px;bottom:-2px;inset-inline-end:-6px}
+.ch-pov{position:absolute;top:-4px;inset-inline-start:6px;min-width:22px;height:22px;border-radius:11px;font-size:.7rem;font-weight:900;color:#04110a;display:flex;align-items:center;justify-content:center;padding:0 3px;box-shadow:0 0 0 2px #0c3b24}
+.ch-pnm{font-size:.7rem;font-weight:800;text-shadow:0 1px 2px #000;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.ch-pen{width:34px;height:4px;border-radius:99px;background:rgba(0,0,0,.4);overflow:hidden}
+.ch-pen i{display:block;height:100%}
+.ch-pen.lo i{background:#ff7a59}.ch-pen.mid i{background:#f6c445}.ch-pen.hi i{background:#24e982}
+.ch-back{display:inline-flex;align-items:center;justify-content:center}
+.ch-fchip{flex:none;white-space:nowrap;font:inherit;font-weight:800;font-size:.82rem;color:var(--text,#e8f3ee);background:var(--surface,#101714);border:2px solid var(--border,#1f2b26);border-radius:999px;padding:6px 14px;cursor:pointer}
+.ch-fchip.on{border-color:var(--green,#24e982);color:var(--green,#24e982)}
+/* فصل وتنظيم */
+.ch-page .cm-card{margin-bottom:12px}
+.ch-page .cm-card h3{margin:0 0 10px;font-size:1rem}
+.ch-page .cm-note{margin:8px 0;line-height:1.7}
+.ch-page .cm-stat{display:flex;flex-direction:column;gap:4px;padding:10px 6px}
+.ch-page .cm-stat small{font-size:.7rem}
+.ch-page .cm-stat b{font-size:1.02rem}
+.ch-kpis{gap:10px}
+.ch-ev{gap:10px;padding:7px 0;line-height:1.6;border-top:1px solid var(--border,#1f2b26)}
+.ch-ev:first-child{border-top:0}
+.ch-msg{margin:10px 0;line-height:1.6}
+.ch-tags{gap:6px;margin-top:5px}
+.ch-pl{gap:12px;padding:11px 4px}
+.ch-pn b{margin-bottom:2px}
+.ch-rdh{margin:16px 0 8px}
+.ch-clubrow{gap:14px}
+.ch-clubrow .nm small{display:block;margin-top:3px}
+.ch-tie{padding:11px 4px;gap:10px}
+.ch-ld{gap:12px;padding:10px 4px}
+.ch-cc .ch-club{gap:12px}
+.ch-cc .meta small{margin-top:3px}
+.ch-mini{gap:8px;margin-top:8px}
+.ch-mini span{gap:2px;padding:6px 2px}
+.ch-next{margin-top:10px}
+.ch-fab{margin:12px 0}
+.ch-filters{gap:16px}
+.ch-fr{gap:12px}
+.ch-fr label{gap:6px}
+.ch-career-h b{display:block;margin-top:4px}
+.ch-tr{gap:8px}
+.ch-tr span{display:block}
+.ch-tabs{margin-bottom:14px}
+.ch-sub{margin-bottom:12px}
+.ch-scroll{margin-bottom:12px}
+/* قبل المباراة */
+.ch-tac{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:8px;margin-bottom:8px}
+.ch-tc{display:flex;flex-direction:column;gap:6px;text-align:start;font:inherit;color:var(--text,#e8f3ee);background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);border-radius:14px;padding:10px 12px;cursor:pointer;min-width:0}
+.ch-tc small{font-size:.68rem;color:var(--muted,#8aa397)}
+.ch-tc b{font-size:.95rem;color:var(--green,#24e982);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-hint{font-size:.74rem}
+.ch-pn2.sel .ch-ph,.ch-bn.sel .ch-ph{box-shadow:0 0 0 3px var(--green,#24e982)}
+.ch-pn2.elig .ch-ph,.ch-bn.elig .ch-ph{box-shadow:0 0 0 3px #f6c445}
+.ch-ppos{font-size:.6rem;font-weight:800;border-radius:6px;padding:0 6px;background:rgba(0,0,0,.45);color:#fff;margin-top:2px}
+.ch-cap{position:absolute;top:22px;inset-inline-end:8px;width:17px;height:17px;border-radius:50%;background:#f6c445;color:#04110a;font-size:.62rem;font-weight:900;display:flex;align-items:center;justify-content:center}
+.ch-bench-h{margin:18px 0 10px;padding:6px 12px;text-align:center;font-weight:800;font-size:.85rem;border-radius:10px;background:var(--surface,#101714);border:1px solid var(--border,#1f2b26)}
+.ch-bench{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 6px}
+.ch-bn{display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;font:inherit;color:var(--text,#e8f3ee);background:none;border:0;padding:0;cursor:pointer;min-width:0}
+.ch-bn .ch-pov{inset-inline-start:2px}
+.ch-bn .ch-pnm{text-shadow:none;font-size:.7rem}
+.ch-bn .ch-ppos{background:var(--surface-2,#17211d);color:var(--muted,#8aa397)}
+.ch-bn .ch-pen{background:var(--surface-2,#17211d)}
+.ch-binfo{display:flex;align-items:center;gap:6px;flex:none}
+.ch-binfo .cm-badge{width:34px;height:34px;font-size:.8rem}
+.ch-bvs{font-size:.7rem;font-weight:800;color:var(--muted,#8aa397);white-space:nowrap}
+.ch-bar{align-items:center}
+.ch-bar .cm-btn{max-width:none}
+.ch-bn .ch-pnm{color:var(--text,#e8f3ee)}
+.ch-back,.ch-back svg{color:var(--text,#e8f3ee)}
