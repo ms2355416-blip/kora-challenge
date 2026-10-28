@@ -94,7 +94,9 @@
   }
   function teamStr(state, id, xi) {
     xi = xi || lineup(state, id);
-    var s = 0; xi.forEach(function (p) { s += eff(p); });
+    var s = 0, mine = state.me && id === state.me.clubId, slots = null;
+    if (mine) { var F0 = FORMS[state.formation || '4-3-3'] || START; slots = []; ['G', 'D', 'M', 'F'].forEach(function (k) { for (var q = 0; q < F0[k]; q++) slots.push(k); }); }
+    xi.forEach(function (p, i) { s += eff(p) * (slots && slots[i] && slots[i] !== p.p && xi.length === 11 ? 0.86 : 1); });
     return s / xi.length + (state.me && id === state.me.clubId ? [0, 0.6, 1.2][state.pressure || 0] : 0);
   }
   function squadOvr(state, id) { return round1(teamStr(state, id)); }
@@ -166,7 +168,7 @@
           var e = opt.sc[sc.i] || (opt.sc[sc.i] = [0, 0]); e[0]++;
           if (as2) { var e2 = opt.sc[as2.i] || (opt.sc[as2.i] = [0, 0]); e2[1]++; }
         }
-        if (opt.detail) ev.push({ m: 1 + Math.floor(rng() * 90), tm: tm, s: sc.n, a: as2 ? as2.n : null, sp: sc.i });
+        if (opt.detail) ev.push({ m: 1 + Math.floor(rng() * 90), tm: tm, s: sc.n, a: as2 ? as2.n : null, sp: sc.i, ap: as2 ? as2.i : null });
       }
     }
     goals(hg, hx, 'h'); goals(ag, ax, 'a');
@@ -245,7 +247,7 @@
 
   function tieSim(state, tie, rd, total, rng, mine, played) {
     var neutral = total === 2 && rd.name === 'النهائي';
-    var r = simMatch(state, tie.h, tie.a, rng, { neutral: neutral, detail: mine });
+    var r = (state.force && state.force[tie.h + '|' + tie.a]) || simMatch(state, tie.h, tie.a, rng, { neutral: neutral, detail: mine });
     tie.res = [r.hg, r.ag];
     if (r.hg === r.ag) {
       var p = clamp(0.5 + (teamStr(state, tie.h, r.hx) - teamStr(state, tie.a, r.ax)) / 160, 0.3, 0.7);
@@ -279,7 +281,8 @@
       var out = [];
       L.fixtures[k].forEach(function (m, i) {
         var mine = m[0] === me || m[1] === me;
-        var r = simMatch(state, m[0], m[1], rng, { sc: L.sc, detail: mine });
+        var fr = state.force && state.force[m[0] + '|' + m[1]], r = fr || simMatch(state, m[0], m[1], rng, { sc: L.sc, detail: mine });
+        if (fr) applySc(L.sc, fr.ev);
         out[i] = [r.hg, r.ag]; played[m[0]] = r.hx; played[m[1]] = r.ax;
         if (mine) rep.my = { comp: LG[lk].ar, ck: lk, stage: 'الجولة ' + (k + 1), round: k + 1, home: m[0], away: m[1], hg: r.hg, ag: r.ag, ev: r.ev, hx: r.hx.map(function (p) { return p.n; }), ax: r.ax.map(function (p) { return p.n; }) };
       });
@@ -356,6 +359,58 @@
     return null;
   }
 
+
+  /* ====== مباراة مباشرة ====== */
+  function applySc(sc, evs) {
+    (evs || []).forEach(function (e) {
+      var a = sc[e.sp] || (sc[e.sp] = [0, 0]); a[0]++;
+      if (e.ap) { var b = sc[e.ap] || (sc[e.ap] = [0, 0]); b[1]++; }
+    });
+  }
+  function liveBegin(state, rng) {
+    var me = state.me.clubId, guard = 0, nx;
+    while (guard++ < 400) {
+      nx = nextMine(state); if (!nx) return null;
+      if (nx.idx === state.idx) break;
+      playEvent(state, rng);
+    }
+    var world = state.world, ev = world.cal[state.idx], fx = [];
+    var live = { comp: nx.comp, stage: nx.stage, home: nx.home, away: nx.away, fixtures: fx, neutral: false };
+    state.force = {};
+    function pre(h, a, neutral) { var r = simMatch(state, h, a, rng, { neutral: neutral, detail: true }); state.force[h + '|' + a] = r; return r; }
+    if (ev.t === 'lg') {
+      var lk = state.clubs[me].league, L = world.leagues[lk], k = L.results.length;
+      L.fixtures[k].forEach(function (m) { var mine = m[0] === me || m[1] === me; fx.push({ home: m[0], away: m[1], mine: mine, r: mine ? null : pre(m[0], m[1], false) }); });
+    } else {
+      var cp = world.cups.filter(function (c) { return c.ar === nx.comp; })[0], rd = cp && cp.rounds[ev.t === 'sup' ? 0 : ev.rd];
+      if (rd) rd.ties.forEach(function (t) {
+        var mine = t.h === me || t.a === me, neutral = rd.ties.length * 2 === 2 && rd.name === 'النهائي';
+        if (mine) live.neutral = neutral;
+        fx.push({ home: t.h, away: t.a, mine: mine, r: mine ? null : pre(t.h, t.a, neutral) });
+      });
+    }
+    return live;
+  }
+  /* هدف محتمل في الدقيقة m (بيستعمل التشكيلة الحالية، فالتبديلات بتأثر) */
+  function liveGoal(state, live, m, rng) {
+    var hx = lineup(state, live.home), ax = lineup(state, live.away);
+    var hs = teamStr(state, live.home, hx) + (live.neutral ? 0 : 2.2), as = teamStr(state, live.away, ax), l = teamLambda(hs, as), out = [];
+    [['h', l[0], hx], ['a', l[1], ax]].forEach(function (t) {
+      if (rng() < 1 - Math.exp(-t[1] / 90)) {
+        var xi = t[2], sc = wpick(xi, function (p) { return W_SCORE[p.p] * Math.pow(p.o / 75, 4); }, rng), as2 = null;
+        if (rng() < 0.72) as2 = wpick(xi.filter(function (p) { return p !== sc; }), function (p) { return W_ASSIST[p.p] * Math.pow(p.o / 75, 3); }, rng);
+        out.push({ m: m, tm: t[0], s: sc.n, a: as2 ? as2.n : null, sp: sc.i, ap: as2 ? as2.i : null });
+      }
+    });
+    return out;
+  }
+  function liveFinish(state, live, myEv, rng) {
+    var hg = 0, ag = 0; myEv.forEach(function (e) { if (e.tm === 'h') hg++; else ag++; });
+    var r = { hg: hg, ag: ag, ev: myEv, hx: lineup(state, live.home), ax: lineup(state, live.away) };
+    state.force[live.home + '|' + live.away] = r;
+    var rep = playNext(state, rng); state.force = null; return rep;
+  }
+
   /* ====== المهنة والمدرب ====== */
   function myLeague(state) { return state.clubs[state.me.clubId].league; }
   function rankInLeague(state, id) {
@@ -374,7 +429,8 @@
     initWorldClubs(state, rng);
     ids(state.clubs).forEach(function (id) { if (SQ[id]) state.clubs[id].t = Math.round(teamStr(state, id)); });
     state.me = { clubId: opts.clubId };
-    state.career = { name: opts.name || 'المدرب', stints: [], cur: null, trophies: [], nat: null, natHist: [], seasons: [] };
+    state.career = { name: opts.name || 'المدرب', coachNat: opts.nat || null, stints: [], cur: null, trophies: [], nat: null, natHist: [], seasons: [] };
+    state.banned = {}; state.tourn = [];
     var c = state.clubs[opts.clubId];
     state.budget = D.budgetFor(c.t, c.league);
     buildWorld(state, rng);
@@ -431,7 +487,10 @@
     var delta = clamp(diff * 2.4, -16, 14) + (pos === 1 ? 10 : 0) + out.trophies.length * 3 - (pos > tab.length - LG[lk].rel ? 12 : 0);
     state.boardConf = clamp(Math.round(state.boardConf * 0.65 + 35 * 0.35 + delta), 0, 100);
     out.conf = state.boardConf; out.exp = state.exp;
-    out.sacked = state.boardConf < 22;
+    var cs = state.career.cur; if (cs) { cs.conf = cs.conf || []; cs.conf.push(state.boardConf); }
+    var h = cs && cs.conf || [], two = h.length >= 2 && h[h.length - 1] < 45 && h[h.length - 2] < 45;
+    out.sacked = state.boardConf < 22 || (two && rng() < (state.boardConf < 35 ? 0.7 : 0.45));
+    if (out.sacked) { state.banned = state.banned || {}; state.banned[me] = { year: year, asked: -1 }; }
     /* الدخل */
     var b0 = D.budgetFor(c.t, lk);
     var income = b0 * 0.32 * (1.3 - 0.9 * (pos - 1) / Math.max(1, tab.length - 1)) + out.trophies.length * 0.12 * b0;
@@ -444,12 +503,18 @@
     out.moves = applyPromotions(state, rng);
     out.moved = out.moves.map[me] || null;
     state.summary = out;
-    /* المنتخب */
-    out.nat = natSeason(state, rng);
+    /* المنتخبات */
+    out.tourn = natTournaments(state, rng);
     out.natOffer = null;
-    if (!state.career.nat && !out.sacked && reputation(state) >= 8 && rng() < 0.6) {
-      var cand = D.NATIONAL.filter(function (n) { return n[2] <= 70 + reputation(state) * 0.8; });
-      if (cand.length) { var nn = pick(cand, rng); out.natOffer = { ar: nn[0], code: nn[1], str: nn[2] }; }
+    var cn = state.career.coachNat;
+    if (cn && !state.career.nat && !out.sacked) {
+      var nn = D.NATIONAL.filter(function (n) { return n[1] === cn.code; })[0];
+      if (nn) {
+        var rk = reputation(state) * 0.2 > 2 ? 2 : reputation(state) * 0.2;
+        var score = out.trophies.length * 2 + (pos === 1 ? 2 : pos <= 3 ? 2 : pos <= Math.ceil(tab.length * 0.3) ? 1 : 0) + (LG[lk].tier === 1 ? 1 : 0) + rk;
+        var need = nn[2] >= 84 ? 5 : nn[2] >= 76 ? 3.5 : nn[2] >= 70 ? 2.5 : 1.5;
+        if (score >= need && rng() < 0.85) out.natOffer = { ar: nn[0], code: nn[1], str: nn[2] };
+      }
     }
     state.phase = 'summary';
     return out;
@@ -586,23 +651,84 @@
     state.exp = rankInLeague(state, state.me.clubId);
     summerFlags(state, rng);
     var cr = state.career.cur; void cr;
-    natTournament(state, rng);
   }
 
   /* ====== المنتخب ====== */
   function acceptNational(state, n) { state.career.nat = { ar: n.ar, code: n.code, str: n.str, from: state.year, results: [] }; state.career.natHist.push(state.career.nat); }
-  function natSeason() { return null; }
-  function natTournament(state, rng) {
-    var nt = state.career.nat; if (!nt) return;
-    var y = state.year;
-    var kind = y % 4 === 2 ? 'wc' : y % 4 === 0 ? 'cont' : null;
-    if (!kind) return;
-    var score = nt.str + gauss(rng) * 5 + Math.min(reputation(state), 12) * 0.4, gap = score - (kind === 'wc' ? 76 : 72);
-    var stage = gap > 11 ? 'بطل' : gap > 7 ? 'وصيف' : gap > 4 ? 'نصف النهائي' : gap > 1.5 ? 'ربع النهائي' : gap > -2 ? 'دور الـ16' : 'دور المجموعات';
-    var name = kind === 'wc' ? 'كأس العالم ' + y : 'البطولة القارية ' + y;
-    var res = { year: y, text: name + ': ' + stage, stage: stage, kind: kind, name: name };
-    nt.results.push(res);
-    if (stage === 'بطل') { var t = { year: y, type: 'nat', key: kind, text: 'بطل ' + name + ' مع ' + nt.ar, clubId: null, clubAr: nt.ar }; state.career.trophies.push(t); }
+  var TOURN = {
+    wc: { ar: 'كأس العالم', q: { UEFA: 12, CAF: 6, CONMEBOL: 6, AFC: 5, CONCACAF: 3 } },
+    euro: { ar: 'أمم أوروبا', q: { UEFA: 16 } },
+    copa: { ar: 'كوبا أمريكا', q: { CONMEBOL: 10, CONCACAF: 6 } },
+    afcon: { ar: 'كأس الأمم الأفريقية', q: { CAF: 16 } }
+  };
+  function tourneysIn(ty) { var o = []; if (ty % 4 === 2) o.push('wc'); if (ty % 4 === 0) { o.push('euro'); o.push('copa'); } if (ty % 2 === 1) o.push('afcon'); return o; }
+  function natMatch(a, b, rng, ko) {
+    var l = teamLambda(a.s - 1.5, b.s + 1.5), flip = rng() < 0.5; if (flip) l = [l[1], l[0]];
+    var x = poisson(l[0], rng), y = poisson(l[1], rng);
+    if (flip) { var t = x; x = y; y = t; }
+    var w = x > y ? a : x < y ? b : null;
+    if (!w && ko) w = rng() < clamp(0.5 + (a.s - b.s) / 80, 0.35, 0.65) ? a : b;
+    return { x: x, y: y, w: w };
+  }
+  function simTournament(state, key, ty, rng) {
+    var def = TOURN[key], field = [], me = state.career.nat, rep = Math.min(reputation(state), 12);
+    ids(def.q).forEach(function (cf) {
+      var pool = D.NATIONAL.filter(function (n) { return n[3] === cf; }).map(function (n) { return { ar: n[0], code: n[1], s: n[2] + gauss(rng) * 2.5, base: n[2] }; })
+        .sort(function (a, b) { return b.s - a.s; });
+      field = field.concat(pool.slice(0, def.q[cf]));
+    });
+    field.forEach(function (t) { t.stage = 'دور المجموعات'; if (me && me.code === t.code) { t.s += rep * 0.3; t.mine = true; } });
+    var ng = field.length / 4, pots = [], groups = [], i, j;
+    field.sort(function (a, b) { return b.s - a.s; });
+    for (i = 0; i < 4; i++) pots.push(shuffle(field.slice(i * ng, (i + 1) * ng), rng));
+    for (j = 0; j < ng; j++) groups.push([pots[0][j], pots[1][j], pots[2][j], pots[3][j]]);
+    var qual = [];
+    groups.forEach(function (g) {
+      g.forEach(function (t) { t.pt = 0; t.gd = 0; });
+      for (i = 0; i < 4; i++) for (j = i + 1; j < 4; j++) {
+        var m = natMatch(g[i], g[j], rng, false);
+        g[i].gd += m.x - m.y; g[j].gd += m.y - m.x;
+        if (m.w === g[i]) g[i].pt += 3; else if (m.w === g[j]) g[j].pt += 3; else { g[i].pt++; g[j].pt++; }
+      }
+      g.sort(function (a, b) { return b.pt - a.pt || b.gd - a.gd || b.s - a.s; });
+      qual.push([g[0], g[1]]);
+    });
+    var rounds = ng === 8 ? ['دور الـ16', 'ربع النهائي', 'نصف النهائي', 'النهائي'] : ['ربع النهائي', 'نصف النهائي', 'النهائي'];
+    var cur = [];
+    for (i = 0; i < ng; i += 2) { cur.push([qual[i][0], qual[i + 1][1]]); cur.push([qual[i + 1][0], qual[i][1]]); }
+    var champ = null, runner = null, semis = [];
+    rounds.forEach(function (rn, ri) {
+      var nxt = [];
+      cur.forEach(function (pr) {
+        pr[0].stage = rn; pr[1].stage = rn;
+        var m = natMatch(pr[0], pr[1], rng, true); nxt.push(m.w);
+        if (rn === 'نصف النهائي') semis.push(m.w === pr[0] ? pr[1] : pr[0]);
+        if (rn === 'النهائي') { champ = m.w; runner = m.w === pr[0] ? pr[1] : pr[0]; }
+      });
+      cur = [];
+      for (var q = 0; q < nxt.length; q += 2) if (nxt[q + 1]) cur.push([nxt[q], nxt[q + 1]]);
+    });
+    champ.stage = 'بطل'; runner.stage = 'وصيف';
+    semis.forEach(function (t) { if (t.stage === 'نصف النهائي') t.stage = 'نصف النهائي'; });
+    var rec = { year: ty, key: key, ar: def.ar, champ: champ.ar, champCode: champ.code, runner: runner.ar, runnerCode: runner.code, semis: semis.map(function (t) { return t.ar; }) };
+    state.tourn = (state.tourn || []).concat([rec]);
+    var mineT = field.filter(function (t) { return t.mine; })[0], out = { rec: rec };
+    var myConf = me && (D.NATIONAL.filter(function (n) { return n[1] === me.code; })[0] || [])[3];
+    if (me && (mineT || def.q[myConf])) {
+      var stage = mineT ? mineT.stage : 'لم يتأهل';
+      me.results.push({ year: ty, text: def.ar + ' ' + ty + ': ' + stage, stage: stage, kind: key, name: def.ar });
+      out.stage = stage; out.nat = me.ar;
+      if (stage === 'بطل') { var tr = { year: ty, type: 'nat', key: key, text: 'بطل ' + def.ar + ' ' + ty + ' مع ' + me.ar, clubId: null, clubAr: me.ar }; state.career.trophies.push(tr); out.trophy = tr; }
+    }
+    return out;
+  }
+  function natTournaments(state, rng) { return tourneysIn(state.year + 1).map(function (k) { return simTournament(state, k, state.year + 1, rng); }); }
+  function askReturn(state, id, rng) {
+    var b = state.banned && state.banned[id]; if (!b) return { ok: true, msg: '' };
+    if (b.asked === state.year) return { ok: false, msg: 'رئيس النادي رفض الطلب ده السنة دي. جرّب السنة الجاية.' };
+    var p = clamp(0.08 + reputation(state) * 0.035, 0.05, 0.6), ok = rng() < p;
+    if (ok) { delete state.banned[id]; return { ok: true, msg: 'رئيس النادي وافق يرجّعك.' }; }
+    b.asked = state.year; return { ok: false, msg: 'رئيس النادي رفض يرجّعك.' };
   }
   function resignNational(state) { state.career.nat = null; }
 
@@ -684,7 +810,7 @@
   var API = { mulberry: mulberry, startCareer: startCareer, selectClub: selectClub, playNext: playNext, nextMine: nextMine, finishSeason: finishSeason, startNextSeason: startNextSeason,
     table: table, lineup: lineup, teamStr: teamStr, squadOvr: squadOvr, valueOf: valueOf, priceOf: priceOf, footOf: footOf, heightOf: heightOf, eff: eff,
     topScorers: topScorers, searchPlayers: searchPlayers, buy: buy, sellOffer: sellOffer, sell: sell, marketOpen: marketOpen, findP: findP, cupOf: cupOf,
-    acceptNational: acceptNational, resignNational: resignNational, reputation: reputation, leagueRounds: leagueRounds, POS_AR: POS_AR, POS_ORDER: POS_ORDER, initWorldClubs: initWorldClubs, FORMS: FORMS, D: D };
+    acceptNational: acceptNational, resignNational: resignNational, reputation: reputation, leagueRounds: leagueRounds, POS_AR: POS_AR, POS_ORDER: POS_ORDER, initWorldClubs: initWorldClubs, FORMS: FORMS, askReturn: askReturn, TOURN: TOURN, tourneysIn: tourneysIn, liveBegin: liveBegin, liveGoal: liveGoal, liveFinish: liveFinish, D: D };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.KoraCoachEngine = API;
 })(typeof window !== 'undefined' ? window : globalThis);
