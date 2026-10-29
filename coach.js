@@ -60,7 +60,8 @@
     const m = $('cmModal'), sh = $('cmSheet'); sh.innerHTML = html; m.hidden = false;
     sh.scrollTop = 0; return sh;
   }
-  function closeModal() { $('cmModal').hidden = true; }
+  let onModalClose = null;
+  function closeModal() { const was = !$('cmModal').hidden; $('cmModal').hidden = true; if (was && onModalClose) { const f = onModalClose; onModalClose = null; f(); } }
   $('cmModal').addEventListener('click', e => { if (e.target === $('cmModal')) closeModal(); });
   function toast(msg, bad) { const t = el('div', 'ch-msg' + (bad ? ' bad' : ''), esc(msg)); const p = $('chPane'); if (p) p.prepend(t); setTimeout(() => t.remove(), 4000); }
   const ico = {
@@ -97,6 +98,7 @@
     view = st && st.view || 'squad'; if (S.phase === 'summary') renderSummary(); else renderGame();
   });
   $('chBack').addEventListener('click', e => { e.preventDefault(); goBack(); });
+  try { const hd = document.querySelector('header.top, .top'); if (hd && getComputedStyle(hd).position === 'static') hd.style.position = 'relative'; } catch (e) { /* ignore */ }
 
   /* ====== اختيار النادي ====== */
   function startSelect(forced) {
@@ -212,16 +214,33 @@
     if (!rep) { if (!S.seasonOver) { S.seasonOver = true; } save(); renderGame(); return; }
     save(); showReport(rep);
   }
+
+  function formLabel(pl) { const c = { D: 0, M: 0, F: 0 }; pl.forEach(p => { if (c[p.p] != null) c[p.p]++; }); return c.D + '-' + c.M + '-' + c.F; }
+  function miniPitch(pl) {
+    const pitch = el('div', 'ch-pitch mini');
+    ['F', 'M', 'D', 'G'].forEach(k => {
+      const row = el('div', 'ch-prow');
+      pl.filter(p => typeof p === 'object' && p.p === k).forEach(p => {
+        const n = el('span', 'ch-pn2'); const av = avatar(p); av.classList.add('sm'); n.appendChild(av);
+        n.appendChild(el('span', 'ch-pov ' + ovrCls(p.o), String(p.o))); n.appendChild(el('span', 'ch-pnm', esc(p.n.split(' ').slice(-1)[0]))); row.appendChild(n);
+      });
+      if (row.children.length) pitch.appendChild(row);
+    });
+    return pitch;
+  }
+
   function showReport(rep, fromLive) {
     const h = club(rep.home), a = club(rep.away), me = S.me.clubId;
     let html = '<div class="cm-sheet-h"><b>' + esc(rep.comp) + '</b><small>' + esc(rep.stage) + '</small></div>';
     html += '<div class="ch-next"><div class="vs"><span id="rpH"></span><b style="font-size:1.5rem">' + rep.hg + ' - ' + rep.ag + '</b><span id="rpA"></span></div>' + (rep.pens ? '<div class="t" style="text-align:center;margin-top:6px">ركلات الترجيح ' + rep.pens[0] + ' - ' + rep.pens[1] + '</div>' : '') + '</div>';
     html += '<div style="margin-top:10px">' + (rep.ev || []).map(e => '<div class="ch-ev"><span class="min">' + e.m + '\'</span><span>⚽ ' + esc(e.s) + (e.a ? ' <small style="color:var(--muted)">(صناعة ' + esc(e.a) + ')</small>' : '') + ' <small style="color:var(--muted)">— ' + esc(e.tm === 'h' ? h.ar : a.ar) + '</small></span></div>').join('') + '</div>';
-    html += '<div class="ch-lu"><div><h5>' + esc(h.ar) + '</h5><ol>' + (rep.hx || []).map(n => '<li>' + esc(n) + '</li>').join('') + '</ol></div><div><h5>' + esc(a.ar) + '</h5><ol>' + (rep.ax || []).map(n => '<li>' + esc(n) + '</li>').join('') + '</ol></div></div>';
+    html += '<div class="ch-rp" id="rpPitches"></div>';
     html += '<button class="cm-btn" id="rpOk" type="button" style="margin-top:14px;width:100%">تمام</button>';
     const sh = modal(html);
     const sp1 = sh.querySelector('#rpH'), sp2 = sh.querySelector('#rpA');
     sp1.appendChild(badge(h)); sp1.appendChild(document.createTextNode(h.ar)); sp2.appendChild(document.createTextNode(a.ar)); sp2.appendChild(badge(a));
+    const pp = sh.querySelector('#rpPitches');
+    [[h, rep.hx], [a, rep.ax]].forEach(x => { if (x[1] && x[1].length) { pp.appendChild(el('div', 'ch-rdh', esc(x[0].ar) + ' · ' + formLabel(x[1]))); pp.appendChild(miniPitch(x[1])); } });
     sh.querySelector('#rpOk').addEventListener('click', () => { closeModal(); if (LV && !LV.done) return; LV = null; renderGame(); });
     void me;
   }
@@ -259,8 +278,8 @@
   }
   const SIL = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="23" r="11" fill="currentColor" opacity=".55"/><path d="M10 60c0-13 10-22 22-22s22 9 22 22Z" fill="currentColor" opacity=".55"/></svg>';
   function avatar(p) {
-    const ph = el('span', 'ch-ph', SIL);
-    loadPhoto(p.n, url => { if (!url) return; const i = document.createElement('img'); i.className = 'ch-face'; i.alt = ''; i.src = url; i.addEventListener('load', () => { ph.innerHTML = ''; ph.appendChild(i); const fc = flagOf(p.t); if (fc) ph.appendChild(flagImg(fc, '')); }); });
+    const ph = el('span', 'ch-ph', SIL); ph.addEventListener('contextmenu', e => e.preventDefault());
+    loadPhoto(p.n, url => { if (!url) return; const i = document.createElement('img'); i.className = 'ch-face'; i.alt = ''; i.draggable = false; i.src = url; i.addEventListener('load', () => { ph.innerHTML = ''; ph.appendChild(i); const fc = flagOf(p.t); if (fc) ph.appendChild(flagImg(fc, '')); }); });
     const fc = flagOf(p.t); if (fc) ph.appendChild(flagImg(fc, ''));
     return ph;
   }
@@ -336,7 +355,7 @@
     node.addEventListener('touchstart', start, { passive: true }); node.addEventListener('touchmove', move, { passive: false });
     node.addEventListener('touchend', end); node.addEventListener('touchcancel', end);
     node.addEventListener('mousedown', e => { start(e); document.addEventListener('mousemove', move); document.addEventListener('mouseup', end); });
-    node.addEventListener('contextmenu', e => { if (active) e.preventDefault(); });
+    node.addEventListener('contextmenu', e => e.preventDefault());
   }
   function doSwap(a, b) {
     if (a === b) return;
@@ -534,7 +553,6 @@
     return { t: 'lg', k: lk };
   }
   function drawComp(pane) {
-    const bk = el('button', 'ch-miniback', '→ رجوع'); bk.type = 'button'; bk.addEventListener('click', goBack); pane.appendChild(bk);
     if (!compSel) compSel = autoComp();
     if (compSel.t === 'lg' && !S.world.leagues[compSel.k]) compSel = { t: 'lg', k: club(S.me.clubId).league };
     if (compSel.t === 'nat') return natView(pane);
@@ -590,7 +608,7 @@
     pane.appendChild(card);
   }
   function compPicker() {
-    let html = '<div class="cm-sheet-h"><b>اختار البطولة</b></div><div class="ch-pickc">';
+    let html = '<div class="ch-picker-h"><div class="cm-sheet-h"><b>اختار البطولة</b></div><button class="ch-iconbtn" id="cpX" type="button" aria-label="رجوع"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button></div><div class="ch-pickc">';
     D.COUNTRY_ORDER.forEach(ck => {
       const c = D.COUNTRIES[ck];
       html += '<h4><img src="https://flagcdn.com/w40/' + c.code + '.png" alt="" onerror="this.remove()">' + esc(c.ar) + '</h4>';
@@ -599,6 +617,7 @@
     });
     html += '<h4>المنتخبات</h4>' + Object.keys(E.TOURN).map(k => '<button class="cm-chip" data-t="nat" data-k="' + k + '" type="button">' + esc(E.TOURN[k].ar) + '</button>').join('');
     const sh = modal(html + '</div>');
+    sh.querySelector('#cpX').addEventListener('click', closeModal);
     sh.querySelectorAll('.cm-chip').forEach(b => b.addEventListener('click', () => { compSel = { t: b.dataset.t, k: b.dataset.k }; compTab = 'table'; closeModal(); renderGame(); }));
   }
 
@@ -665,8 +684,8 @@
     root.appendChild(top);
     root.appendChild(el('div', 'ch-lv-comp', '<b>' + esc(L.comp) + '</b><small>' + esc(L.stage) + '</small>'));
     const list = el('div', 'ch-lv-list', ''); list.id = 'lvList';
-    L.fixtures.forEach((f, i) => {
-      const r = el('button', 'ch-lv-row' + (f.mine ? ' mine' : '')); r.type = 'button'; r.dataset.i = i;
+    L.fixtures.slice().sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0)).forEach((f, i) => {
+      const r = el('button', 'ch-lv-row' + (f.mine ? ' mine' : '')); r.type = 'button'; r.dataset.i = L.fixtures.indexOf(f);
       const h = el('span', 'ch-lv-t'), a = el('span', 'ch-lv-t b');
       h.appendChild(el('span', 'nm', esc(club(f.home).ar))); h.appendChild(badge(club(f.home)));
       a.appendChild(badge(club(f.away))); a.appendChild(el('span', 'nm', esc(club(f.away).ar)));
@@ -681,14 +700,14 @@
   function drawLvBtns() {
     const bt = $('lvBtns'); if (!bt) return; bt.innerHTML = '';
     if (!LV.done) {
-      const t = el('button', 'cm-btn', 'تشكيلتي والتبديلات'); t.type = 'button'; t.addEventListener('click', openMyPanel); bt.appendChild(t);
-      const k = el('button', 'cm-btn ghost', 'تخطي للنهاية'); k.type = 'button'; k.addEventListener('click', () => { clearTimeout(LV.timer); while (LV.minute < 90) stepMinute(); finishLive(); }); bt.appendChild(k);
+      bt.appendChild(el('p', 'cm-note', 'دوس على مباراتك عشان تشوف تشكيلتك وتبدّل.'));
+      const k = el('button', 'cm-btn ghost', 'تخطي للنهاية'); k.type = 'button'; k.addEventListener('click', () => { clearTimeout(LV.timer); LV.half = false; LV.waitHalf = false; onModalClose = null; closeModal(); while (LV.minute < 90) stepMinute(); finishLive(); }); bt.appendChild(k);
     } else {
       const t = el('button', 'cm-btn', 'تقرير المباراة'); t.type = 'button'; t.addEventListener('click', () => showReport(LV.rep)); bt.appendChild(t);
     }
   }
   function updateLive() {
-    const rows = document.querySelectorAll('#lvList .ch-lv-row');
+    const rows = {}; document.querySelectorAll('#lvList .ch-lv-row').forEach(r => { rows[r.dataset.i] = r; });
     LV.live.fixtures.forEach((f, i) => {
       const g = goalsAt(f, LV.minute), sc = rows[i] && rows[i].querySelector('.ch-lv-sc'); if (!sc) return;
       const txt = g[0] + ' - ' + g[1];
@@ -704,7 +723,12 @@
   function tickLive() {
     if (LV.minute >= 90) return finishLive();
     stepMinute(); updateLive(); refreshPanel();
-    if (LV.minute === 45 && !LV.half) { LV.half = true; updateLive(); LV.timer = setTimeout(() => { LV.half = false; updateLive(); LV.timer = setTimeout(tickLive, 333); }, 2200); return; }
+    if (LV.minute === 45 && !LV.half2) {
+      LV.half2 = true; LV.half = true; updateLive();
+      openMyPanel(true);
+      onModalClose = () => { onModalClose = null; LV.half = false; updateLive(); LV.timer = setTimeout(tickLive, 600); };
+      return;
+    }
     LV.timer = setTimeout(tickLive, 333);
   }
   function finishLive() {
@@ -714,8 +738,9 @@
     setTimeout(() => { if (LV.rep) showReport(LV.rep, true); }, 600);
   }
   function refreshPanel() { const e = $('lvPMin'); if (e) e.textContent = LV.minute + "'  ·  " + goalsAt(LV.live.fixtures.filter(f => f.mine)[0], LV.minute).join(' - '); }
-  function openMyPanel() {
-    const sh = modal('<div class="ch-ph-head"><div class="cm-sheet-h"><b>تشكيلتي</b><small id="lvPMin"></small></div><button class="cm-btn" id="lvPX" type="button">رجوع للمباراة</button></div><p class="cm-note" id="lvPNote"></p><div id="lvPBody"></div>');
+  function openMyPanel(half) {
+    if (half !== true && LV && LV.half) return;
+    const sh = modal('<div class="ch-ph-head"><div class="cm-sheet-h"><b>' + (half === true ? 'استراحة بين الشوطين' : 'تشكيلتي') + '</b><small id="lvPMin"></small></div><button class="cm-btn" id="lvPX" type="button">' + (half === true ? 'ابدأ الشوط الثاني' : 'رجوع للمباراة') + '</button></div><p class="cm-note" id="lvPNote"></p><div id="lvPBody"></div>');
     sh.querySelector('#lvPX').addEventListener('click', closeModal);
     lvSel = null; drawPanel(); refreshPanel();
   }
