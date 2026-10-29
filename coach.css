@@ -307,3 +307,19 @@
 .ch-lock{flex:none;font-size:.66rem;font-weight:800;color:#ffb0b0;background:color-mix(in srgb,#ff6b6b 18%,transparent);border-radius:8px;padding:2px 8px}
 .ch-offer{line-height:1.8;margin:0 0 12px}
 .ch-page .cm-card h3:not(:first-child){margin-top:18px}
+/* زرار الرجوع فوق شمال */
+#chBack.ch-back{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:14px;color:#ff6b6b;background:var(--surface,#101714);border:1.5px solid rgba(255,107,107,.5);display:inline-flex;align-items:center;justify-content:center;margin:0;z-index:5}
+#chBack.ch-back svg{color:#ff6b6b}
+.ch-picker-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.ch-picker-h .cm-sheet-h{margin:0}
+.ch-iconbtn{flex:none;width:40px;height:40px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;color:#ff6b6b;background:var(--surface-2,#17211d);border:1.5px solid rgba(255,107,107,.5);cursor:pointer}
+/* صور بلا قايمة الضغط الطويل */
+.ch-ph,.ch-ph *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.ch-ph img{pointer-events:none;-webkit-user-drag:none}
+/* تشكيلة التقرير */
+.ch-pitch.mini{padding:12px 4px 10px;gap:10px;margin-bottom:10px}
+.ch-pitch.mini .ch-pn2{width:20%;max-width:64px}
+.ch-pitch.mini .ch-ph.sm{width:36px;height:36px}
+.ch-pitch.mini .ch-pov{min-width:18px;height:18px;font-size:.62rem;top:-4px}
+.ch-pitch.mini .ch-pnm{font-size:.62rem}
+.ch-rp .ch-rdh{margin-top:14px}
