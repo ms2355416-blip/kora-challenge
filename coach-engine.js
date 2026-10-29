@@ -263,7 +263,7 @@
     rd.ties.forEach(function (t) {
       var mine = t.h === me || t.a === me;
       var r = tieSim(state, t, rd, rd.ties.length * 2, rng, mine, played);
-      if (mine) { rep.my = { comp: cp.ar, ck: cp.key, stage: rd.name, home: t.h, away: t.a, hg: r.hg, ag: r.ag, pens: t.pens, ev: r.ev, hx: r.hx.map(function (p) { return p.n; }), ax: r.ax.map(function (p) { return p.n; }) }; }
+      if (mine) { rep.my = { comp: cp.ar, ck: cp.key, stage: rd.name, home: t.h, away: t.a, hg: r.hg, ag: r.ag, pens: t.pens, ev: r.ev, hx: r.hx.map(function (p) { return { n: p.n, p: p.p, o: p.o, t: p.t, i: p.i }; }), ax: r.ax.map(function (p) { return { n: p.n, p: p.p, o: p.o, t: p.t, i: p.i }; }) }; }
     });
     var winners = rd.ties.map(function (t) { return t.w; });
     cp.cur = rdIdx + 1;
@@ -284,7 +284,7 @@
         var fr = state.force && state.force[m[0] + '|' + m[1]], r = fr || simMatch(state, m[0], m[1], rng, { sc: L.sc, detail: mine });
         if (fr) applySc(L.sc, fr.ev);
         out[i] = [r.hg, r.ag]; played[m[0]] = r.hx; played[m[1]] = r.ax;
-        if (mine) rep.my = { comp: LG[lk].ar, ck: lk, stage: 'الجولة ' + (k + 1), round: k + 1, home: m[0], away: m[1], hg: r.hg, ag: r.ag, ev: r.ev, hx: r.hx.map(function (p) { return p.n; }), ax: r.ax.map(function (p) { return p.n; }) };
+        if (mine) rep.my = { comp: LG[lk].ar, ck: lk, stage: 'الجولة ' + (k + 1), round: k + 1, home: m[0], away: m[1], hg: r.hg, ag: r.ag, ev: r.ev, hx: r.hx.map(function (p) { return { n: p.n, p: p.p, o: p.o, t: p.t, i: p.i }; }), ax: r.ax.map(function (p) { return { n: p.n, p: p.p, o: p.o, t: p.t, i: p.i }; }) };
       });
       L.results[k] = out;
     });
