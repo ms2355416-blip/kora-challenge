@@ -2,6 +2,11 @@
 <html lang="ar" dir="rtl" class="auth-pending">
 <head>
   <meta charset="UTF-8">
+  <script>
+    /* قفل مهنة المدرب: بتتفتح بس بعد ما تخلّص مهنة لاعب وتعتزل */
+    try { if (localStorage.getItem('koraPlayerRetired') !== '1') { location.replace('careermode.html'); } } catch (e) {}
+  </script>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>مهنة مدرب | Kora Challenge</title>
   <link rel="stylesheet" href="style.css">

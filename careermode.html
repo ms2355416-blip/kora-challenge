@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>كارير مود | Kora Challenge</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="careermode.css?v=8">
+  <link rel="stylesheet" href="careermode.css?v=9">
   <link rel="stylesheet" href="unlocks.css">
   <link rel="stylesheet" href="buttons.css">
   <link rel="icon" type="image/png" href="favicon.png">
@@ -72,7 +72,7 @@
     <div class="cm-modes">
       <a class="cm-mode" href="coach.html" id="cmModeCoach">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 9h4M7 12h6M15 9l1.5 1.5L19 8M8 20h8M12 16v4"/></svg>
-        <b>مهنة مدرب</b><small>اختار أي نادي في 18 دوري ودرّبه، اتعاقد مع لاعيبة وكسّب البطولات</small><em id="cmModeCoachNote"></em>
+        <b>مهنة مدرب</b><small>اختار أي نادي في 18 دوري ودرّبه، اتعاقد مع لاعيبة وكسّب البطولات</small><em id="cmModeCoachNote"></em><u class="cm-lock-note" id="cmCoachLock" hidden>🔒 بتتفتح لما تخلّص مهنة لاعب وتعتزل</u>
       </a>
       <a class="cm-mode" href="#player" id="cmModePlayer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="3.2"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg>
@@ -95,13 +95,12 @@
         <small class="cm-photo-err" id="cmPhotoErr" role="alert"></small>
       </div>
 
-      <label class="cm-field"><span>اسم اللاعب</span>
-        <input id="cmName" type="text" maxlength="22" placeholder="اكتب اسم لاعبك" required>
-      </label>
-
-      <label class="cm-field"><span>الجنسية</span>
-        <select id="cmNat"></select>
-      </label>
+      <div class="cm-field"><span>اسم اللاعب وبلده</span>
+        <div class="cm-name-row">
+          <input id="cmName" type="text" maxlength="22" placeholder="اكتب اسم لاعبك" required>
+          <button class="cm-nat-btn" id="cmNatBtn" type="button" aria-label="اختار منتخبك"></button>
+        </div>
+      </div>
 
       <div class="cm-field"><span>المركز</span>
         <div class="cm-chips" id="cmPos" role="radiogroup"></div>
@@ -112,7 +111,8 @@
       </div>
 
       <div class="cm-field"><span>بداية المسيرة</span>
-        <div class="cm-chips cm-chips-col" id="cmStart" role="radiogroup"></div>
+        <select id="cmStart"></select>
+        <small class="cm-hint" id="cmStartNote"></small>
       </div>
 
       <button class="cm-btn" type="submit">ابدأ المسيرة</button>
@@ -127,7 +127,6 @@
       <button class="cm-tab active" data-tab="home" type="button">الرئيسية</button>
       <button class="cm-tab" data-tab="table" type="button">الترتيب</button>
       <button class="cm-tab" data-tab="fixtures" type="button">المباريات</button>
-      <button class="cm-tab" data-tab="trophies" type="button">بطولاتي</button>
       <button class="cm-tab" data-tab="market" type="button">الانتقالات</button>
       <button class="cm-tab" data-tab="clubtrophies" type="button">بطولات النادي</button>
     </div>
@@ -136,6 +135,12 @@
 
     <div class="cm-foot"><button class="cm-link" id="cmReset" type="button">مسيرة جديدة</button> <button class="cm-link" id="cmChange" type="button">تغيير المهنة</button></div>
   </section>
+
+  <!-- توقيع العقد -->
+  <section id="cmSign" class="cm-screen" hidden></section>
+
+  <!-- أحداث الصيف: منتخب وكأس العالم للأندية -->
+  <section id="cmSummer" class="cm-screen" hidden></section>
 
   <!-- نهاية الموسم والعروض -->
   <section id="cmAwards" class="cm-screen" hidden></section>
@@ -146,6 +151,11 @@
   <section id="cmRetire" class="cm-screen" hidden></section>
 </main>
 
+<div class="cm-drawer" id="cmDrawer" hidden>
+  <div class="cm-drawer-bg" id="cmDrawerBg"></div>
+  <aside class="cm-drawer-panel" id="cmDrawerPanel" role="dialog" aria-modal="true" aria-label="القائمة"></aside>
+</div>
+
 <div class="cm-modal" id="cmModal" hidden>
   <div class="cm-sheet" id="cmSheet" role="dialog" aria-modal="true"></div>
 </div>
@@ -155,7 +165,13 @@
 <script src="unlocks.js"></script>
 <script src="points-sync.js"></script>
 <script src="careermode-data.js"></script>
-<script src="careermode-engine.js"></script>
-<script src="careermode.js?v=8"></script>
+<script src="coach-data.js?v=8"></script>
+<script src="coach-squads-1.js?v=8"></script>
+<script src="coach-squads-2.js?v=8"></script>
+<script src="careermode-rosters.js?v=1"></script>
+<script src="careermode-world.js?v=1"></script>
+<script src="careermode-art.js?v=1"></script>
+<script src="careermode-engine.js?v=9"></script>
+<script src="careermode.js?v=9"></script>
 </body>
 </html>
