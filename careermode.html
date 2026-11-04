@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>كارير مود | Kora Challenge</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="careermode.css?v=9">
+  <link rel="stylesheet" href="careermode.css?v=10">
   <link rel="stylesheet" href="unlocks.css">
   <link rel="stylesheet" href="buttons.css">
   <link rel="icon" type="image/png" href="favicon.png">
@@ -47,6 +47,22 @@
   <script src="icons.js"></script>
 </head>
 <body>
+  <script>
+  /* عرض أي خطأ على الشاشة عشان نعرف السبب */
+  (function () {
+    function show(t) {
+      var d = document.getElementById('cmErrBox');
+      if (!d) { d = document.createElement('pre'); d.id = 'cmErrBox'; d.style.cssText = 'white-space:pre-wrap;direction:ltr;text-align:left;margin:12px;padding:12px;border:2px solid #ff7a59;border-radius:12px;color:#ffd7cc;background:#2a1511;font-size:12px;position:relative;z-index:99999'; (document.body || document.documentElement).appendChild(d); }
+      d.textContent += t + '\n';
+    }
+    window.addEventListener('error', function (e) {
+      if (e.target && e.target !== window && (e.target.src || e.target.href)) { var u = e.target.src || e.target.href; if (/\.(js|css)(\?|$)/.test(u) && u.indexOf('http') !== 0 || /careermode|coach-/.test(u)) show('FILE NOT LOADED: ' + u); return; }
+      show('ERROR: ' + e.message + ' @ ' + String(e.filename || '').split('/').pop() + ':' + e.lineno);
+    }, true);
+    window.addEventListener('unhandledrejection', function (e) { show('PROMISE: ' + (e.reason && e.reason.message || e.reason)); });
+  })();
+  </script>
+
 <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
   <symbol id="icon-ball" viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="4"/><path d="m32 18 11 8-4 13H25l-4-13Z" fill="currentColor"/><path d="m32 18-1-12M43 26l13-4M39 39l7 12M25 39l-7 12M21 26 8 22" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></symbol>
 </svg>
@@ -168,10 +184,10 @@
 <script src="coach-data.js?v=8"></script>
 <script src="coach-squads-1.js?v=8"></script>
 <script src="coach-squads-2.js?v=8"></script>
-<script src="careermode-rosters.js?v=1"></script>
-<script src="careermode-world.js?v=1"></script>
-<script src="careermode-art.js?v=1"></script>
-<script src="careermode-engine.js?v=9"></script>
-<script src="careermode.js?v=9"></script>
+<script src="careermode-rosters.js?v=2"></script>
+<script src="careermode-world.js?v=2"></script>
+<script src="careermode-art.js?v=2"></script>
+<script src="careermode-engine.js?v=10"></script>
+<script src="careermode.js?v=10"></script>
 </body>
 </html>
