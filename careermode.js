@@ -2,6 +2,24 @@
 (() => {
   'use strict';
 
+  /* فحص الملفات: لو ملف ناقص أو قديم نطلّع رسالة بدل الشاشة الفاضية */
+  (function () {
+    const miss = [];
+    if (!window.KoraCMData) miss.push('careermode-data.js');
+    if (!window.KoraCoachData) miss.push('coach-data.js');
+    if (!window.KoraCMRosters) miss.push('careermode-rosters.js');
+    if (!(window.KoraCMData && window.KoraCMData.TOP15)) miss.push('careermode-world.js');
+    if (!window.KoraCMArt) miss.push('careermode-art.js');
+    if (!(window.KoraCMEngine && window.KoraCMEngine.nextExtra)) miss.push('careermode-engine.js (النسخة الجديدة)');
+    if (miss.length) {
+      const m = document.querySelector('main') || document.body, d = document.createElement('div');
+      d.style.cssText = 'margin:20px 16px;padding:16px;border:2px solid #ff7a59;border-radius:14px;line-height:1.9;color:#fff';
+      d.innerHTML = '<b>في ملفات ناقصة أو قديمة على الموقع:</b><br>' + miss.join('<br>') + '<br><small>ارفعها في نفس فولدر careermode.html وامسح الكاش وجرب تاني.</small>';
+      m.appendChild(d);
+      throw new Error('Missing files: ' + miss.join(', '));
+    }
+  })();
+
   const E = window.KoraCMEngine, D = window.KoraCMData, LG = D.LEAGUES;
   const KEY = 'koraCareerMode';
   const STATS_KEY = 'koraChallengeStats';
@@ -14,10 +32,14 @@
   let tab = 'home';
   let tabLeague = null;
   let fxFilter = 'all';
-  const sel = { color: COLORS[0], pos: 'ST', start: 'eng3', photo: null };
+  const sel = { color: COLORS[0], pos: 'ST', start: 'eng3', photo: null, nat: ['مصر', 'eg'] };
+  let assetKind = 'house';
+  let awTimer = null;
+  const money = n => '\u200E€' + fmt(Math.round(n)) + '\u200E';
+  const isMine = id => id === S.clubId || id === 'nt_' + S.player.natCode;
 
   /* ====== التخزين ====== */
-  function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); return s && s.v === 1 && s.player && s.world ? s : null; } catch (e) { return null; } }
+  function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); return s && s.v === 2 && s.player && s.world ? s : null; } catch (e) { return null; } }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } }
 
   function saveStats(pts) {
@@ -69,6 +91,12 @@
     const b = el('span', 'cm-badge');
     const initial = Array.from(club.ar)[0];
     const fallback = () => { b.textContent = initial; b.style.background = hashColor(club.id); };
+    if (club.flag) {
+      b.classList.add('flagb');
+      const fi = document.createElement('img'); fi.alt = ''; fi.src = 'https://flagcdn.com/w80/' + club.flag + '.png';
+      fi.addEventListener('error', () => { fi.remove(); b.classList.remove('flagb'); fallback(); });
+      b.appendChild(fi); return b;
+    }
     if (club.crest) {
       const img = document.createElement('img');
       img.alt = ''; img.loading = 'lazy';
@@ -90,14 +118,27 @@
   const posName = id => (D.POSITIONS.find(p => p.id === id) || {}).ar || id;
 
   function show(id) {
-    ['cmMode', 'cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire'].forEach(k => { $(k).hidden = k !== id; });
+    ['cmMode', 'cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire', 'cmSign', 'cmSummer'].forEach(k => { $(k).hidden = k !== id; });
     window.scrollTo(0, 0);
   }
 
   /* ====== شاشة الإنشاء ====== */
   function buildCreate() {
-    const natSel = $('cmNat');
-    D.NATIONS.forEach(n => { const o = document.createElement('option'); o.value = n[1]; o.textContent = n[0]; natSel.appendChild(o); });
+    const natBtn = $('cmNatBtn');
+    const paintNat = () => { natBtn.textContent = ''; natBtn.append(flag(sel.nat[1]), el('span', '', sel.nat[0])); };
+    paintNat();
+    natBtn.addEventListener('click', () => {
+      const w = el('div'); w.appendChild(el('div', 'cm-sum-title', 'اختار بلدك'));
+      const g = el('div', 'cm-flags');
+      D.NATIONS.forEach(n => {
+        const b = el('button', 'cm-flag-opt' + (n[1] === sel.nat[1] ? ' on' : '')); b.type = 'button';
+        const im = document.createElement('img'); im.alt = ''; im.src = 'https://flagcdn.com/w80/' + n[1] + '.png';
+        b.append(im, el('span', '', n[0]));
+        b.addEventListener('click', () => { sel.nat = n; paintNat(); $('cmModal').hidden = true; });
+        g.appendChild(b);
+      });
+      w.appendChild(g); openModal(w, 'إغلاق');
+    });
 
     const pos = $('cmPos');
     D.POSITIONS.forEach(p => {
@@ -116,13 +157,10 @@
     });
 
     const st = $('cmStart');
-    D.STARTS.forEach(s => {
-      const b = el('button', 'cm-chip' + (s.id === sel.start ? ' on' : ''));
-      b.type = 'button'; b.setAttribute('role', 'radio');
-      b.append(el('b', '', s.ar), el('small', '', s.note));
-      b.addEventListener('click', () => { sel.start = s.id; st.querySelectorAll('.cm-chip').forEach(x => x.classList.toggle('on', x === b)); });
-      st.appendChild(b);
-    });
+    const startList = D.STARTS.slice().sort((a, b) => (LG[b.id].tier - LG[a.id].tier) || a.ar.localeCompare(b.ar, 'ar'));
+    startList.forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.ar + ' — ' + x.note; if (x.id === sel.start) o.selected = true; st.appendChild(o); });
+    const stNote = () => { $('cmStartNote').textContent = 'هتبدأ في نادي من الأضعف في الدوري ده وهتتفاوض على عقدك.'; };
+    st.addEventListener('change', () => { sel.start = st.value; stNote(); }); stNote();
     $('cmPrev').innerHTML = avatarHTML(sel);
     const pf = $('cmPhoto'), pr = $('cmPhotoClear'), pe = $('cmPhotoErr');
     pf.addEventListener('change', () => {
@@ -137,8 +175,7 @@
       e.preventDefault();
       const name = $('cmName').value.trim();
       if (!name) return;
-      const opt = natSel.options[natSel.selectedIndex];
-      S = E.newCareer({ name, nat: opt.textContent, natCode: opt.value, pos: sel.pos, color: sel.color, start: sel.start, photo: sel.photo }, Math.random);
+      S = E.newCareer({ name, nat: sel.nat[0], natCode: sel.nat[1], pos: sel.pos, color: sel.color, start: sel.start, photo: sel.photo }, Math.random);
       S.pointsGiven = false;
       tab = 'home'; tabLeague = S.league;
       save(); render();
@@ -150,6 +187,9 @@
     const p = S.player, c = club(S.clubId), box = $('cmPlayer');
     box.textContent = '';
 
+    const mb = el('button', 'cm-menu-btn'); mb.type = 'button'; mb.setAttribute('aria-label', 'القائمة');
+    mb.append(el('i'), el('i'), el('i')); mb.addEventListener('click', openDrawer);
+    box.appendChild(mb);
     const ph = el('div', 'cm-ph');
     const av = el('div', 'cm-avatar-sm'); av.innerHTML = avatarHTML(p);
     const pi = el('div', 'cm-pi');
@@ -195,7 +235,7 @@
     const myRounds = E.rounds(S.league);
     const card = el('div', 'cm-card cm-next');
 
-    const due = E.euroDue(S);
+    const due = E.nextExtraInfo(S);
     if ((S.seasonOver || S.round >= myRounds) && !due) {
       card.appendChild(el('h3', '', 'الموسم خلص!'));
       const p = E.myPosition(S);
@@ -207,10 +247,9 @@
     } else {
       let fx;
       if (due) {
-        const nx = S.euro.next;
-        fx = { home: nx.home ? S.clubId : nx.opp, away: nx.home ? nx.opp : S.clubId };
+        fx = { home: due.home, away: due.away };
         card.classList.add('cm-next-euro');
-        card.appendChild(el('h3', '', 'دوري أبطال أوروبا • ' + E.STAGE_AR[nx.stage] + (nx.md ? ' (' + nx.md + ' من 8)' : '')));
+        card.appendChild(el('h3', '', due.label));
       } else {
         fx = E.myFixtures(S).find(f => f.round === S.round + 1);
         card.appendChild(el('h3', '', 'الجولة ' + (S.round + 1) + ' من ' + myRounds + ' • ' + LG[S.league].ar));
@@ -230,6 +269,12 @@
     }
 
     if (S.euro) pane.appendChild(euroCard());
+    (S.cups || []).forEach(c => pane.appendChild(cupCard(c)));
+    if (S.intl && S.intl.caps > 0) {
+      const ic = el('div', 'cm-card cm-cup'); const nt = E.ntOf(S);
+      ic.append(el('b', '', 'لاعب في منتخب ' + (nt ? nt.ar : '')), el('small', 'cm-sub', S.intl.caps + ' مباراة دولية • ' + S.intl.goals + ' هدف • ' + S.intl.assists + ' أسيست'));
+      pane.appendChild(ic);
+    }
     const last = S.log[S.log.length - 1];
     if (last) {
       const c = el('div', 'cm-card cm-fx click'); c.tabIndex = 0; c.addEventListener('click', () => openModal(reportNode(last), 'تمام'));
@@ -258,6 +303,14 @@
     c.appendChild(el('div', 'cm-euro-t ' + (e.status === 'champ' ? 'win' : e.status === 'out' ? 'out' : ''), t));
     if (e.rank) c.appendChild(el('small', 'cm-sub', 'ترتيبك في مرحلة الدوري: ' + e.rank + ' من 36'));
     return c;
+  }
+
+  function cupCard(c) {
+    const card = el('div', 'cm-card cm-cup');
+    card.appendChild(el('b', '', c.ar));
+    const t = c.status === 'active' ? 'الدور الجاي: ' + c.next.label + ' (بعد الجولة ' + c.next.after + ')' : c.result;
+    card.appendChild(el('div', 'cm-euro-t ' + (c.status === 'champ' ? 'win' : c.status === 'out' ? 'out' : ''), t));
+    return card;
   }
 
   function roleText(r) {
@@ -319,7 +372,7 @@
   function paneFixtures() {
     const pane = $('cmPane'); pane.textContent = '';
     const chips = el('div', 'cm-leagues');
-    [['all', 'الكل'], ['played', 'اللي اتلعبت'], ['next', 'اللي جاية']].concat(S.log.some(x => x.comp) ? [['cl', 'دوري الأبطال']] : []).forEach(f => {
+    [['all', 'الكل'], ['played', 'اللي اتلعبت'], ['next', 'اللي جاية']].concat(S.log.some(x => x.comp) ? [['cl', 'الكؤوس وأوروبا']] : []).forEach(f => {
       const b = el('button', 'cm-tab' + (fxFilter === f[0] ? ' active' : ''), f[1]); b.type = 'button';
       b.addEventListener('click', () => { fxFilter = f[0]; paneFixtures(); });
       chips.appendChild(b);
@@ -328,13 +381,13 @@
     const card = el('div', 'cm-card');
     if (fxFilter === 'cl') {
       const items = S.log.filter(x => x.comp);
-      if (!items.length) card.appendChild(el('div', 'cm-soon', 'لسه ماتلعبتش مباريات أوروبية.'));
+      if (!items.length) card.appendChild(el('div', 'cm-soon', 'لسه ماتلعبتش مباريات كؤوس أو أوروبا.'));
       items.forEach(x => {
         const row = el('div', 'cm-fx click'); row.tabIndex = 0;
-        row.appendChild(el('span', 'rd', 'أوروبا'));
+        row.appendChild(el('span', 'rd', x.cn ? 'كأس' : 'أوروبا'));
         const mt = el('div', 'mt'), homeMe = x.home === S.clubId, opp = club(homeMe ? x.away : x.home);
         mt.appendChild(document.createTextNode((homeMe ? 'ضد ' : 'عند ') + opp.ar));
-        mt.appendChild(el('small', '', E.STAGE_AR[x.stage] + (x.pens ? ' • ترجيح ' + (homeMe ? x.pens[0] + '-' + x.pens[1] : x.pens[1] + '-' + x.pens[0]) : '')));
+        mt.appendChild(el('small', '', (x.cn ? x.cn + ' • ' : '') + (x.st || E.STAGE_AR[x.stage] || '') + (x.pens ? ' • ترجيح ' + (homeMe ? x.pens[0] + '-' + x.pens[1] : x.pens[1] + '-' + x.pens[0]) : '')));
         row.appendChild(mt);
         row.appendChild(el('span', 'sc', x.hg + ' - ' + x.ag));
         row.appendChild(el('span', 'rt ' + (x.rating != null ? ratingClass(x.rating) : ''), x.rating != null ? x.rating.toFixed(1) : (x.role === 'bench' ? 'دكة' : 'خارج')));
@@ -374,13 +427,78 @@
     pane.appendChild(card);
   }
 
+  function paneHead(title) {
+    const h = el('div', 'cm-pane-head'); h.appendChild(el('h2', '', title));
+    const b = el('button', 'cm-link', 'رجوع للرئيسية'); b.type = 'button';
+    b.addEventListener('click', () => { tab = 'home'; renderPane(); });
+    h.appendChild(b); return h;
+  }
   function paneHonors() {
-    const pane = $('cmPane'); pane.textContent = '';
+    const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('بطولاتي'));
     const hs = S.honors || [];
-    if (!hs.length) { const c = el('div', 'cm-card cm-soon'); c.append(el('b', '', 'بطولاتي'), el('div', '', 'لسه مكسبتش حاجة. العب كويس وهتلاقي بطولاتك وجوايزك هنا.')); pane.appendChild(c); return; }
+    if (!hs.length) { const c = el('div', 'cm-card cm-soon'); c.append(el('b', '', 'لسه مكسبتش حاجة'), el('div', '', 'العب كويس وهتلاقي بطولاتك وجوايزك هنا.')); pane.appendChild(c); return; }
     const c = el('div', 'cm-card');
-    hs.slice().reverse().forEach(h => { const r = el('div', 'cm-fx'); r.append(el('span', 'rd', String(h.year)), el('div', 'mt', h.text)); c.appendChild(r); });
+    hs.slice().reverse().forEach(h => {
+      const r = el('div', 'cm-fx'); r.append(el('span', 'rd', String(h.year)));
+      const mt = el('div', 'mt', h.text); if (h.clubId && S.clubs[h.clubId]) mt.appendChild(el('small', '', S.clubs[h.clubId].ar));
+      r.appendChild(mt); c.appendChild(r);
+    });
     pane.appendChild(c);
+  }
+
+  const ASSET_KINDS = [['house', 'البيوت', 'بيت'], ['car', 'العربيات', 'عربية'], ['moto', 'الموتوسيكلات', 'موتوسيكل'], ['bike', 'الدراجات', 'دراجة']];
+  function assetArt(kind, it) {
+    const A = window.KoraCMArt;
+    return kind === 'house' ? A.house(it.k, it.c) : kind === 'car' ? A.car(it.t, it.c) : kind === 'moto' ? A.moto(it.t, it.c) : A.bike(it.t, it.c);
+  }
+  function paneAssets() {
+    const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('ممتلكاتي'));
+    const top = el('div', 'cm-card'); top.style.padding = '12px';
+    const own = ASSET_KINDS.map(k => k[2] + ': ' + D.ASSETS[k[0]].filter(i => S.owned.indexOf(i.id) > -1).length).join(' • ');
+    top.append(el('b', '', 'رصيدك: ' + money(S.money)), el('div', 'cm-sub', own));
+    pane.appendChild(top);
+    const tabs = el('div', 'cm-asset-tabs');
+    ASSET_KINDS.forEach(k => { const b = el('button', 'cm-tab' + (assetKind === k[0] ? ' active' : ''), k[1]); b.type = 'button'; b.addEventListener('click', () => { assetKind = k[0]; paneAssets(); }); tabs.appendChild(b); });
+    pane.appendChild(tabs);
+    const grid = el('div', 'cm-asset-grid');
+    D.ASSETS[assetKind].forEach(it => {
+      const owned = S.owned.indexOf(it.id) > -1, card = el('div', 'cm-asset' + (owned ? ' own' : ''));
+      const art = el('div', 'cm-asset-art'); art.innerHTML = assetArt(assetKind, it);
+      card.append(art, el('b', '', it.n), el('small', '', money(it.p)));
+      if (owned) card.appendChild(el('div', 'own-tag', 'ملكك ✓'));
+      else {
+        const can = S.money >= it.p, b = el('button', 'cm-btn' + (can ? '' : ' ghost'), can ? 'اشتري' : 'ناقصك ' + money(it.p - S.money)); b.type = 'button'; b.disabled = !can;
+        b.addEventListener('click', () => {
+          window.KoraDialog.confirm({ title: 'تشتري ' + it.n + '؟', message: 'هيتخصم ' + money(it.p) + ' من رصيدك.', okText: 'اشتري', cancelText: 'لأ', danger: false })
+            .then(ok => { if (ok && E.buyAsset(S, assetKind, it.id)) { save(); paneAssets(); } });
+        });
+        card.appendChild(b);
+      }
+      grid.appendChild(card);
+    });
+    pane.appendChild(grid);
+  }
+
+  function paneClubs() {
+    const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('الأندية اللي لعبتلها'));
+    const rows = {}, order = [];
+    function row(id, year) { if (!rows[id]) { rows[id] = { id, seasons: 0, apps: 0, goals: 0, assists: 0, rs: 0, first: year, last: year, titles: 0 }; order.push(id); } rows[id].last = year; return rows[id]; }
+    S.history.forEach(h => { const r = row(h.clubId, h.year); r.seasons++; r.apps += h.apps; r.goals += h.goals; r.assists += h.assists; r.rs += (h.avg || 0) * h.apps; });
+    const cs = S.stats; if (cs) { const r = row(S.clubId, S.year); if (cs.apps || !S.history.some(h => h.clubId === S.clubId && h.year === S.year)) { r.seasons++; r.apps += cs.apps; r.goals += cs.goals; r.assists += cs.assists; r.rs += cs.ratingSum || 0; } }
+    (S.honors || []).forEach(h => { if (h.clubId && rows[h.clubId] && ['league', 'cup', 'cl', 'cwc', 'caf'].indexOf(h.type) > -1) rows[h.clubId].titles++; });
+    if (!order.length) { pane.appendChild(el('div', 'cm-card cm-soon', 'لسه ماعملتش مسيرة.')); return; }
+    order.slice().reverse().forEach(id => {
+      const r = rows[id], c = club(id), card = el('div', 'cm-card cm-clubrow');
+      const contrib = r.apps ? (r.goals + r.assists) / r.apps : 0, avg = r.apps ? r.rs / r.apps : 0;
+      const rate = Math.max(0, Math.min(100, Math.round(contrib * 55 + r.titles * 8 + Math.max(0, avg - 3) * 14)));
+      const top = el('div', 'top'); top.append(badge(c), el('b', '', c.ar), el('span', 'cm-rate', rate + '%'));
+      const g = el('div', 'cm-sum-grid');
+      [['مباريات', r.apps], ['أهداف', r.goals], ['أسيست', r.assists], ['ألقاب', r.titles]].forEach(x => { const d = el('div', 'cm-stat'); d.append(el('small', '', x[0]), el('b', '', String(x[1]))); g.appendChild(d); });
+      const bar = el('div', 'bar'); const fi = el('i'); fi.style.width = Math.max(3, rate) + '%'; bar.appendChild(fi);
+      card.append(top, el('small', '', r.seasons + ' موسم • من ' + r.first + ' لـ ' + r.last), g, bar,
+        el('small', '', 'معدل الإنجاز ' + rate + '% • مساهمة تهديفية ' + contrib.toFixed(2) + ' في المباراة • متوسط التقييم ' + (avg ? avg.toFixed(1) : '-')));
+      pane.appendChild(card);
+    });
   }
 
   function paneMarket() {
@@ -421,6 +539,8 @@
     else if (tab === 'table') paneTable();
     else if (tab === 'fixtures') paneFixtures();
     else if (tab === 'trophies') paneHonors();
+    else if (tab === 'assets') paneAssets();
+    else if (tab === 'clubs') paneClubs();
     else if (tab === 'market') paneMarket();
     else paneSoon('بطولات النادي');
   }
@@ -445,13 +565,13 @@
 
   function reportNode(pm, multi) {
     const wrap = el('div');
-    const myHome = pm.home === S.clubId;
+    const myHome = isMine(pm.home);
     const sc = el('div', 'cm-score');
     sc.append(el('span', '', club(pm.home).ar), el('span', 'num', pm.hg + ' - ' + pm.ag), el('span', '', club(pm.away).ar));
     wrap.appendChild(sc);
-    const cmp = pm.comp ? 'دوري الأبطال • ' + E.STAGE_AR[pm.stage] : 'الجولة ' + pm.round;
+    const cmp = pm.comp ? (pm.cupName || pm.cn || 'دوري الأبطال') + ' • ' + (pm.stageText || pm.st || E.STAGE_AR[pm.stage] || '') : 'الجولة ' + pm.round;
     wrap.appendChild(el('div', 'cm-sub', cmp + ' • ' + (myHome ? 'على ملعبك' : 'خارج الأرض')));
-    if (pm.pens) wrap.appendChild(el('div', 'cm-sub', 'اتحسمت بركلات الترجيح ' + (myHome ? pm.pens[0] + ' - ' + pm.pens[1] : pm.pens[1] + ' - ' + pm.pens[0]) + ' لصالح ' + (pm.pens[0] > pm.pens[1] ? club(S.clubId).ar : 'الخصم')));
+    if (pm.pens) wrap.appendChild(el('div', 'cm-sub', 'اتحسمت بركلات الترجيح ' + (myHome ? pm.pens[0] + ' - ' + pm.pens[1] : pm.pens[1] + ' - ' + pm.pens[0]) + ' لصالح ' + (pm.pens[0] > pm.pens[1] ? club(myHome ? pm.home : pm.away).ar : 'الخصم')));
     let role;
     if (pm.role === 'start') role = 'المدرب أشركك أساسي' + (pm.b < 90 ? ' واتبدلت في الدقيقة ' + pm.b : '') + ' • ' + pm.minutes + ' دقيقة';
     else if (pm.role === 'sub') role = 'المدرب نزّلك بديل في الدقيقة ' + pm.a + ' • ' + pm.minutes + ' دقيقة';
@@ -463,6 +583,7 @@
       rr.append(el('b', '', pm.rating.toFixed(1)), el('small', '', 'من 5'));
       wrap.appendChild(rr);
     }
+    if (pm.bonus > 0 || pm.motm) wrap.appendChild(el('div', 'cm-note up', (pm.motm ? 'رجل المباراة! ' : '') + (pm.bonus > 0 ? 'مكافآت عقدك: +' + money(pm.bonus) : '')));
     const evs = el('div', 'cm-events');
     (pm.events || []).forEach(e => {
       const t = evText(e); if (!t[0]) return;
@@ -509,31 +630,46 @@
     b.focus();
   }
 
+  function showCallup() {
+    const c = S.pendingCallup; if (!c) return;
+    S.pendingCallup = null; save();
+    const nt = club(c.nat), w = el('div', 'cm-callup');
+    w.append(badge(nt), el('h2', '', 'استدعاء للمنتخب!'), el('p', 'cm-sub', 'مستواك الكويس خلّى مدرب ' + nt.ar + ' يستدعيك. شاركت معاه في مباراتين:'));
+    c.matches.forEach(pm => {
+      const r = el('div', 'cm-tmatch'); const opp = club(pm.home === c.nat ? pm.away : pm.home);
+      r.append(el('span', 'st', pm.stageText), el('span', 'mt', nt.ar + ' ' + (pm.home === c.nat ? pm.hg + ' - ' + pm.ag : pm.ag + ' - ' + pm.hg) + ' ' + opp.ar + (pm.goals ? ' • ' + pm.goals + ' هدف' : '')),
+        el('span', 'rt', pm.rating != null ? pm.rating.toFixed(1) : (pm.role === 'bench' ? 'دكة' : 'خارج')));
+      w.appendChild(r);
+    });
+    openModal(w, 'يلا نكمل');
+  }
   function playRounds(n) {
     const reports = [];
     const myRounds = E.rounds(S.league);
-    for (let i = 0; i < n && (S.round < myRounds || E.euroDue(S)); i++) {
+    for (let i = 0; i < n && (S.round < myRounds || E.nextExtra(S)); i++) {
       const rep = E.playRound(S, Math.random);
       if (rep.my) reports.push(rep.my);
+      if (S.pendingCallup) break;
     }
     if (window.KoraStreak) window.KoraStreak.touch();
     save();
     renderPlayer(); renderPane();
-    if (!reports.length) return;
-    if (reports.length === 1) { openModal(reportNode(reports[0]), 'تمام'); return; }
+    if (!reports.length) { showCallup(); return; }
+    if (reports.length === 1) { openModal(reportNode(reports[0]), 'تمام', showCallup); return; }
     const wrap = el('div', 'cm-multi');
     wrap.appendChild(el('div', 'cm-sum-title', 'ملخص ' + reports.length + ' جولات'));
     const evs = el('div', 'cm-events');
+    let bonus = 0;
     reports.forEach(pm => {
+      bonus += pm.bonus || 0;
       const r = el('div', 'cm-ev');
-      const left = el('span', '', (pm.comp ? 'أوروبا' : 'ج' + pm.round) + ' • ' + club(pm.home).ar + ' ' + pm.hg + '-' + pm.ag + ' ' + club(pm.away).ar);
+      const left = el('span', '', (pm.comp ? (pm.cupName || 'أوروبا') : 'ج' + pm.round) + ' • ' + club(pm.home).ar + ' ' + pm.hg + '-' + pm.ag + ' ' + club(pm.away).ar);
       const right = el('span', '', pm.rating != null ? pm.rating.toFixed(1) + (pm.goals ? ' • ' + pm.goals + ' هدف' : '') + (pm.assists ? ' • ' + pm.assists + ' أسيست' : '') : (pm.role === 'bench' ? 'دكة' : 'خارج'));
       r.append(left, right); evs.appendChild(r);
     });
     wrap.appendChild(evs);
-    const last = reports[reports.length - 1];
-    openModal(wrap, (S.seasonOver || S.round >= myRounds) && !E.euroDue(S) ? 'كمّل' : 'تمام');
-    void last;
+    if (bonus > 0) wrap.appendChild(el('div', 'cm-note up', 'مكافآت عقدك في الجولات دي: +' + money(bonus)));
+    openModal(wrap, (S.seasonOver || S.round >= myRounds) && !E.nextExtra(S) ? 'كمّل' : 'تمام', showCallup);
   }
 
   /* ====== نهاية الموسم ====== */
@@ -550,31 +686,91 @@
     club: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 10 14v16c0 15 9 24 22 28 13-4 22-13 22-28V14z" fill="currentColor"/><path d="m32 20 4 8 9 1-6.5 6 1.7 9L32 40l-8.2 4 1.7-9-6.5-6 9-1z" fill="#04110a"/></svg>',
     glove: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 58V40L10 28l5-5 7 8V12a4 4 0 0 1 8 0v14h2V8a4 4 0 0 1 8 0v18h2V12a4 4 0 0 1 8 0v26c0 12-6 20-16 20z" fill="currentColor"/></svg>'
   };
+  function confetti(host) {
+    const cols = ['#f6c445', '#24e982', '#ff7a59', '#8b5cf6', '#2f7cf6', '#fff'];
+    for (let i = 0; i < 26; i++) {
+      const c = el('i', 'cm-confetti'); c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % cols.length];
+      c.style.animationDelay = (Math.random() * 0.6) + 's'; host.appendChild(c); setTimeout(() => c.remove(), 3400);
+    }
+  }
+  function compareNode(w, name) {
+    const box = el('div', 'cm-cmp');
+    w.cands.forEach((c, i) => {
+      const r = el('div', 'cm-cmp-row' + (i === 0 ? ' win' : '') + (c.mine ? ' me' : ''));
+      const nm = el('div', 'nm'); nm.appendChild(document.createTextNode(c.name + (c.mine ? ' (إنت)' : '')));
+      nm.appendChild(el('small', '', (name === 'club' ? '' : (S.clubs[c.clubId] ? S.clubs[c.clubId].ar + ' • ' : '')) + c.stat));
+      r.append(el('span', 'r', String(i + 1)), nm, el('span', 'sc', c.score + ' نقطة'));
+      box.appendChild(r);
+    });
+    if (w.myRank > 5) box.appendChild(el('div', 'cm-cmp-row me', 'ترتيبك: المركز ' + w.myRank));
+    else if (w.myRank === 0 && name !== 'club') box.appendChild(el('div', 'cm-sub', 'ماكنتش ضمن المرشحين الموسم ده (مباريات قليلة أو برة أوروبا).'));
+    return box;
+  }
   function renderAwards() {
+    clearTimeout(awTimer);
     const box = $('cmAwards'); box.textContent = '';
-    const sm = S.summary, aw = S.awards, head = el('div', 'cm-card');
-    head.appendChild(el('div', 'cm-sub', 'موسم ' + sm.year + '/' + String(sm.year + 1).slice(2)));
-    head.appendChild(el('h2', 'cm-sum-title', 'جوائز الموسم'));
-    box.appendChild(head);
+    const sm = S.summary, aw = S.awards;
+    const cere = el('div', 'cm-cere');
+    cere.append(el('small', '', 'موسم ' + sm.year + '/' + String(sm.year + 1).slice(2)), el('h2', '', 'حفل جوائز الموسم'),
+      el('small', '', 'كل اللاعيبة اتحاكوا ودرجاتهم اتقارنت. الجوايز بتتسلّم واحدة واحدة.'));
+    box.appendChild(cere);
     const lg = LG[sm.league].ar;
-    [['ballon', 'الكرة الذهبية', 'أحسن لاعب في العالم'], ['boot', 'الحذاء الذهبي', 'هداف ' + lg], ['glove', 'القفاز الذهبي', 'أحسن حارس في ' + lg], ['kopa', 'جايزة كوبا', 'أحسن لاعب تحت 21 سنة'], ['club', 'أفضل نادي في العام', 'نادي العام في العالم']].forEach(a => {
-      const w = aw[a[0]], card = el('div', 'cm-card cm-award' + (w.mine ? ' mine' : ''));
+    const defs = [['club', 'أفضل نادي في العام', 'نادي العام في العالم'], ['kopa', 'جايزة كوبا', 'أحسن لاعب تحت 21 سنة في أوروبا'],
+      ['glove', 'القفاز الذهبي', 'أحسن حارس في ' + lg], ['boot', 'الحذاء الذهبي', 'هداف ' + lg], ['ballon', 'الكرة الذهبية', 'أحسن لاعب في أوروبا والعالم']];
+    const items = [];
+    defs.forEach(a => {
+      const w = aw[a[0]], wrap = el('div', 'cm-aw' + (w && w.mine ? ' mine' : '') + (!w ? ' na' : '')); wrap.hidden = true;
+      const card = el('div', 'cm-card cm-award' + (w && w.mine ? ' mine' : ''));
       const ic = el('div', 'cm-award-ic'); ic.innerHTML = AW_ICONS[a[0]];
       const info = el('div', 'cm-award-info');
       info.append(el('small', '', a[2]), el('b', 'cm-award-t', a[1]));
-      const who = el('div', 'cm-award-who');
-      who.append(badge(club(w.clubId)), el('span', 'cm-award-name', w.name));
-      if (w.mine) who.appendChild(el('span', 'cm-award-me', a[0] === 'club' ? 'ناديك!' : 'إنت!'));
-      info.appendChild(who);
-      info.append(el('small', 'cm-award-club', (a[0] === 'club' ? '' : club(w.clubId).ar + ' • ') + w.stat));
-      card.append(ic, info);
-      box.appendChild(card);
+      if (!w) {
+        info.appendChild(el('small', 'cm-award-club', a[0] === 'glove' ? 'بتتوزع على الحراس في الدرجة الأولى بس.' : a[0] === 'boot' ? 'بتتوزع على هدافي الدرجة الأولى بس (إنت في درجة أدنى).' : 'مفيش مرشحين الموسم ده.'));
+        card.append(ic, info);
+      } else {
+        const who = el('div', 'cm-award-who');
+        who.append(badge(club(w.clubId)), el('span', 'cm-award-name', w.name));
+        if (w.mine) who.appendChild(el('span', 'cm-award-me', a[0] === 'club' ? 'ناديك!' : 'إنت!'));
+        info.appendChild(who);
+        info.append(el('small', 'cm-award-club', (a[0] === 'club' ? '' : club(w.clubId).ar + ' • ') + w.stat));
+        if (a[0] === 'ballon' && aw.ballonEligible === false) info.appendChild(el('small', 'cm-award-club', 'الكرة الذهبية بتتدي للاعيبة أوروبا بس، وإنت بتلعب برة أوروبا.'));
+        const tg = el('button', 'cm-link cm-cmp-toggle', 'شوف المقارنة'); tg.type = 'button';
+        let cmp = null;
+        tg.addEventListener('click', () => { if (cmp) { cmp.remove(); cmp = null; tg.textContent = 'شوف المقارنة'; } else { cmp = compareNode(w, a[0]); card.appendChild(cmp); tg.textContent = 'اخفي المقارنة'; } });
+        info.appendChild(tg);
+        card.append(ic, info);
+      }
+      wrap.appendChild(card); box.appendChild(wrap); items.push(wrap);
     });
-    const won = ['ballon', 'boot', 'glove', 'kopa', 'club'].filter(k => aw[k].mine).length;
-    box.appendChild(el('div', 'cm-note', won ? 'مبروك! كسبت ' + won + (won === 1 ? ' جايزة' : ' جوايز') + ' وفيه نقاط زيادة اتضافت لرصيدك.' : 'ماكسبتش جوايز الموسم ده. كمّل وحسّن مستواك وهتقرّب منهم.'));
-    const b = el('button', 'cm-btn', 'كمّل'); b.type = 'button';
-    b.addEventListener('click', () => { E.continueAfterAwards(S); save(); render(); });
-    box.appendChild(b);
+    const tail = el('div'); tail.hidden = true; box.appendChild(tail);
+    const skip = el('button', 'cm-link', 'تخطي العرض'); skip.type = 'button'; skip.style.cssText = 'display:block;margin:10px auto'; box.insertBefore(skip, tail);
+    function finish() {
+      clearTimeout(awTimer); skip.remove();
+      items.forEach(it => { it.hidden = false; it.classList.add('in'); });
+      tail.hidden = false;
+      if (tail.childNodes.length) return;
+      const won = ['ballon', 'boot', 'glove', 'kopa', 'club'].filter(k => aw[k] && aw[k].mine).length;
+      const wc = el('div', 'cm-card'); wc.appendChild(el('h3', 'cm-sum-title', 'أبطال الموسم حول العالم')); wc.lastChild.style.fontSize = '.95rem';
+      const wl = el('div', 'cm-world');
+      (sm.worldChamps || []).forEach(w => {
+        const r = el('div', 'row'); const parts = ['🏆 ' + (S.clubs[w.champ] ? S.clubs[w.champ].ar : '')].concat(w.cups.map(c => c.ar + ': ' + (S.clubs[c.id] ? S.clubs[c.id].ar : '')));
+        r.append(el('b', '', LG[w.lk].ar), el('span', '', parts.join(' • '))); wl.appendChild(r);
+      });
+      wc.appendChild(wl); tail.appendChild(wc);
+      tail.appendChild(el('div', 'cm-note', won ? 'مبروك! كسبت ' + won + (won === 1 ? ' جايزة' : ' جوايز') + ' وفيه نقاط زيادة اتضافت لرصيدك.' : 'ماكسبتش جوايز الموسم ده. الجوايز بتتحسم بالأرقام (أهداف وأسيست وتقييم وبطولات) قدام كل لاعيبة العالم، فكمّل وحسّن مستواك.'));
+      const b = el('button', 'cm-btn', 'كمّل'); b.type = 'button';
+      b.addEventListener('click', () => { E.continueAfterAwards(S); save(); render(); });
+      tail.appendChild(b);
+    }
+    skip.addEventListener('click', finish);
+    function reveal(i) {
+      if (i >= items.length) { awTimer = setTimeout(finish, 600); return; }
+      const it = items[i]; it.hidden = false; void it.offsetWidth; it.classList.add('in');
+      try { it.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
+      if (it.classList.contains('mine')) confetti(it);
+      awTimer = setTimeout(() => reveal(i + 1), 1000);
+    }
+    awTimer = setTimeout(() => reveal(0), 700);
   }
 
   function renderSeason() {
@@ -596,8 +792,29 @@
     if (qk) card.appendChild(el('div', 'cm-note up', qk === 'cl' ? 'ناديك اتأهل لدوري أبطال أوروبا الموسم الجاي!' : 'ناديك هيلعب تصفيات دوري الأبطال الموسم الجاي.'));
     if (sm.moved === 'up') card.appendChild(el('div', 'cm-note up', 'ناديك طلع للدرجة الأعلى في الموسم الجاي!'));
     if (sm.moved === 'down') card.appendChild(el('div', 'cm-note down', 'ناديك هبط للدرجة الأقل في الموسم الجاي.'));
+    (sm.cups || []).forEach(cp => card.appendChild(el('div', 'cm-note' + (cp.status === 'champ' ? ' up' : ''), cp.result)));
     card.appendChild(el('div', 'cm-note', '+' + sm.points + ' نقطة اتضافت لرصيدك في الموقع'));
     box.appendChild(card);
+
+    const mc = el('div', 'cm-card'); mc.appendChild(el('h3', 'cm-sum-title', 'فلوس الموسم')); mc.lastChild.style.fontSize = '.95rem';
+    const ptot = (sm.prizes || []).reduce((a, x) => a + x.amt, 0);
+    const mg = el('div', 'cm-money-grid');
+    [['راتب الموسم', sm.salary], ['مكافآت الأهداف', sm.bonus], ['مكافآت البطولات', ptot]].forEach(x => { const d = el('div'); d.append(el('small', '', x[0]), el('b', '', money(x[1]))); mg.appendChild(d); });
+    mc.appendChild(mg);
+    (sm.prizes || []).forEach(x => { const r = el('div', 'cm-prize'); r.append(el('span', '', x.text), el('b', '', '+' + money(x.amt))); mc.appendChild(r); });
+    mc.appendChild(el('div', 'cm-note', 'رصيدك دلوقتي: ' + money(S.money) + ' • شهرتك ' + S.fame + ' من 100'));
+    box.appendChild(mc);
+
+    if ((S.sponsorOffers || []).length) {
+      const sh = el('h3', 'cm-sum-title', 'عروض الرعاة'); sh.style.cssText = 'font-size:1rem;margin:14px 0 8px'; box.appendChild(sh);
+      S.sponsorOffers.forEach((o, i) => {
+        const r = el('div', 'cm-card cm-spons'); const info = el('div', 'info');
+        info.append(el('b', '', o.brand), el('small', '', 'شركة ' + o.kind + ' عايزاك سفير ليها'), el('b', '', money(o.amt)));
+        const b = el('button', 'cm-btn', 'وقّع الرعاية'); b.type = 'button';
+        b.addEventListener('click', () => { if (E.takeSponsor(S, i)) { save(); renderSeason(); } });
+        r.append(info, b); box.appendChild(r);
+      });
+    }
 
     const h = el('h3', 'cm-sum-title', 'العروض'); h.style.fontSize = '1rem'; h.style.margin = '14px 0 8px';
     box.appendChild(h);
@@ -612,7 +829,7 @@
         row.appendChild(info);
         const b = el('button', 'cm-btn', 'اقبل'); b.type = 'button';
         b.addEventListener('click', () => {
-          window.KoraDialog.confirm({ title: 'تنتقل لـ ' + oc.ar + '؟', message: 'الصفقة بـ ' + fmt(o.fee) + ' مليون ' + o.cur + '.', okText: 'أنتقل', cancelText: 'لأ', danger: false })
+          window.KoraDialog.confirm({ title: 'تنتقل لـ ' + oc.ar + '؟', message: 'الصفقة بـ ' + fmt(o.fee) + ' مليون ' + o.cur + '. هتروح تتفاوض وتوقّع العقد.', okText: 'أنتقل', cancelText: 'لأ', danger: false })
             .then(ok => { if (ok) choose(i); });
         });
         row.appendChild(b);
@@ -631,58 +848,28 @@
     save(); render();
   }
 
-  function renderRetire() {
-    const box = $('cmRetire'); box.textContent = '';
-    const card = el('div', 'cm-card');
-    card.appendChild(el('h2', 'cm-sum-title', 'اعتزلت الكورة'));
-    card.appendChild(el('div', 'cm-sub', S.player.name + ' • ' + S.history.length + ' موسم'));
-    const g = el('div', 'cm-sum-grid');
-    [['مباريات', S.totals.apps], ['أهداف', S.totals.goals], ['أسيست', S.totals.assists]].forEach(x => {
-      const d = el('div', 'cm-stat'); d.append(el('small', '', x[0]), el('b', '', fmt(x[1]))); g.appendChild(d);
+  /* ====== شاشة التوقيع ====== */
+  function renderSign() {
+    const box = $('cmSign'); box.textContent = '';
+    const d = S.deal, c = club(d.clubId), card = el('div', 'cm-card cm-contract');
+    card.appendChild(el('div', 'cm-sub', S.signFor === 'start' ? 'أول عقد احتراف ليك' : 'انتقال جديد'));
+    card.appendChild(el('h2', 'cm-sum-title', 'توقيع العقد'));
+    const cc = el('div', 'cm-ct-club'); cc.append(badge(c), el('b', '', c.ar), el('small', 'cm-sub', LG[c.league] ? LG[c.league].ar : ''));
+    card.appendChild(cc);
+    const t = el('div', 'cm-ct-terms');
+    [['مدة العقد', d.years + ' سنين'], ['الراتب السنوي', money(d.salary)], ['مكافأة التوقيع', money(d.signing)], [d.fee ? 'قيمة الصفقة' : 'نوع العقد', d.fee ? fmt(d.fee) + ' مليون ' + d.cur : 'عقد ناشئ']].forEach(x => {
+      const e = el('div'); e.append(el('small', '', x[0]), el('b', '', x[1])); t.appendChild(e);
     });
-    card.appendChild(g);
-    const best = Math.max.apply(null, S.history.map(h => h.ovrAfter));
-    card.appendChild(el('div', 'cm-note', 'أعلى طاقة وصلتلها: ' + Math.floor(best)));
-    const b = el('button', 'cm-btn', 'ابدأ مسيرة جديدة'); b.type = 'button';
-    b.addEventListener('click', newCareer);
-    card.appendChild(b);
-    box.appendChild(card);
-  }
-
-  function newCareer() { S = null; try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } render(); }
-
-  /* ====== اختيار المهنة ====== */
-  function renderMode() {
-    let c = null; try { c = JSON.parse(localStorage.getItem('koraCoach') || 'null'); } catch (e) { /* ignore */ }
-    $('cmModeCoachNote').textContent = c && c.kind === 'coach' ? 'كمّل مسيرتك مع ' + (c.clubs && c.me && c.clubs[c.me.clubId] ? c.clubs[c.me.clubId].ar : '') : '';
-    $('cmModePlayerNote').textContent = S ? 'عندك مسيرة شغالة — كمّل' : '';
-  }
-  window.addEventListener('hashchange', render);
-  $('cmChange').addEventListener('click', () => { location.hash = ''; render(); });
-
-  /* ====== التشغيل ====== */
-  function render() {
-    if (location.hash !== '#player') { renderMode(); show('cmMode'); return; }
-    if (!S) { show('cmCreate'); return; }
-    if (S.phase === 'retired') { renderRetire(); show('cmRetire'); return; }
-    if (S.phase === 'awards') { renderAwards(); show('cmAwards'); return; }
-    if (S.phase === 'offers') { renderSeason(); show('cmSeason'); return; }
-    renderPlayer(); renderPane(); show('cmGame');
-  }
-
-  $('cmTabs').addEventListener('click', e => {
-    const b = e.target.closest('.cm-tab'); if (!b) return;
-    tab = b.dataset.tab; renderPane();
-  });
-  $('cmReset').addEventListener('click', () => {
-    window.KoraDialog.confirm({ title: 'تبدأ مسيرة جديدة؟', message: 'مسيرتك الحالية هتتمسح ومش هترجع تاني.', okText: 'امسح وابدأ', cancelText: 'لأ، كمّل' })
-      .then(ok => { if (ok) newCareer(); });
-  });
-  $('cmModal').addEventListener('click', e => { if (e.target === $('cmModal')) $('cmModal').hidden = true; });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('cmModal').hidden = true; });
-
-  buildCreate();
-  S = load();
-  if (S) { tabLeague = S.league; }
-  render();
-})();
+    card.appendChild(t);
+    card.appendChild(el('div', 'cm-sub', 'وقّع بصباعك جوه المربع'));
+    const sb = el('div', 'cm-sigbox'), cv = document.createElement('canvas'); cv.width = 480; cv.height = 180;
+    const hint = el('div', 'hint', 'ارسم توقيعك هنا');
+    sb.append(cv, hint, el('div', 'line'), el('div', 'x', '✕'));
+    card.appendChild(sb);
+    const ctx = cv.getContext('2d'); ctx.lineWidth = 3.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#14213d';
+    let drawing = false, last = null, ink = 0;
+    const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+    const row = el('div', 'cm-row');
+    const clear = el('button', 'cm-btn ghost', 'امسح'); clear.type = 'button';
+    const ok = el('button', 'cm-btn', 'وقّع العقد'); ok.type = 'button'; ok.disabled = true;
+    r
