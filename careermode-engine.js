@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
 
-  var D = (typeof require !== 'undefined' && typeof module !== 'undefined') ? require('./careermode-data.js') : root.KoraCMData;
+  var D = root.KoraCMData || ((typeof require !== 'undefined' && typeof module !== 'undefined') ? require('./careermode-data.js') : null);
   var LG = D.LEAGUES;
 
   /* ====== أدوات ====== */
@@ -125,7 +125,7 @@
   }
 
   function playerMatch(state, home, away, rng, opt) {
-    var p = state.player, me = state.clubId, isHome = home === me;
+    var p = state.player, me = (opt && opt.me) || state.clubId, isHome = home === me;
     var opp = isHome ? away : home;
     var teamStr = state.clubs[me].str, oppStr = state.clubs[opp].str;
     var diffLg = opt && opt.diff != null ? opt.diff : LG[state.league].diff;
@@ -227,7 +227,8 @@
 
   /* ====== الجولة ====== */
   function playRound(state, rng) {
-    if (euroDue(state)) return playEuro(state, rng);
+    var ex = nextExtra(state);
+    if (ex) return ex.kind === 'cup' ? playCup(state, ex.cup, rng) : playEuro(state, rng);
     var r = state.round, report = { round: r + 1, my: null, others: 0 };
     var myRounds = rounds(state.league);
     Object.keys(state.world.leagues).forEach(function (lk) {
@@ -245,6 +246,8 @@
       L.results[r] = out;
     });
     state.round = r + 1;
+    if (state.contract) { var wk = state.contract.salary / myRounds; state.money += wk; state.earn.salary += wk; }
+    if (state.round === Math.floor(myRounds / 2) && !state.callupChecked) { state.callupChecked = true; checkCallup(state, rng); }
     if (state.round >= myRounds) finishOthers(state, rng);
     return report;
   }
@@ -263,9 +266,10 @@
 
   function recordMatch(state, pm) {
     var s = state.stats;
+    payBonus(state, pm);
     pm.yr = state.year;
     pm.fm = [formationFor(pm.home, state.year + '|' + pm.round + (pm.comp || '')), formationFor(pm.away, state.year + '|' + pm.round + (pm.comp || ''))];
-    state.log.push({ comp: pm.comp || null, stage: pm.stage || null, pens: pm.pens || null, yr: pm.yr, fm: pm.fm, round: pm.round, home: pm.home, away: pm.away, hg: pm.hg, ag: pm.ag, role: pm.role, minutes: pm.minutes,
+    state.log.push({ comp: pm.comp || null, stage: pm.stage || null, st: pm.stageText || null, cn: pm.cupName || null, bonus: pm.bonus || 0, motm: !!pm.motm, pens: pm.pens || null, yr: pm.yr, fm: pm.fm, round: pm.round, home: pm.home, away: pm.away, hg: pm.hg, ag: pm.ag, role: pm.role, minutes: pm.minutes,
       goals: pm.goals, assists: pm.assists, rating: pm.rating, y: pm.yellow, r: pm.red, pw: pm.pw, pc: pm.pc, pm: pm.pm, a: pm.a, b: pm.b, events: pm.events });
     if (pm.role === 'start' || pm.role === 'sub') {
       s.apps++; if (pm.role === 'start') s.starts++;
@@ -313,15 +317,19 @@
     return [last, Math.floor((spec[last] - 1) / 2)];
   }
 
-  /* تشكيلتين المباراة. entry = عنصر من state.log */
+  /* تشكيلتين المباراة. entry = عنصر من state.log (أسماء حقيقية لو متاحة) */
   function matchLineups(state, entry) {
-    var yr = entry.yr || state.year, me = state.clubId, p = state.player;
+    var yr = entry.yr || state.year, me = state.clubId, p = state.player, ntId = 'nt_' + p.natCode;
     function side(cid, fmStr) {
-      var spec = fmStr.split('-').map(Number);
-      var gk = { n: nameFor(state, cid, yr + '|gk'), me: false };
-      var rows = spec.map(function (n, i) { var a = []; for (var j = 0; j < n; j++) a.push({ n: nameFor(state, cid, yr + '|' + i + '_' + j), me: false }); return a; });
+      var spec = fmStr.split('-').map(Number), sq = squadOf(state, cid), idx = { D: 0, M: 0, F: 0 }, last = spec.length - 1;
+      var gk = { n: sq.G[0] ? sq.G[0].n : 'حارس مرمى', me: false };
+      var rows = spec.map(function (n, i) {
+        var key = i === 0 ? 'D' : i === last ? 'F' : 'M', a = [];
+        for (var j = 0; j < n; j++) { var x = sq[key][idx[key]++]; a.push({ n: x ? x.n : POS_LBL[key], me: false }); }
+        return a;
+      });
       var info = { id: cid, fm: fmStr, gk: gk, rows: rows, note: '' };
-      if (cid === me) {
+      if (cid === me || cid === ntId) {
         if (entry.role === 'start') {
           if (p.pos === 'GK') { gk.n = p.name; gk.me = true; }
           else { var s = slotFor(p.pos, spec, p.name); rows[s[0]][s[1]] = { n: p.name, me: true }; }
@@ -347,7 +355,7 @@
   function euroOthers(state, rng) {
     var cand = Object.keys(state.clubs).filter(function (id) {
       var c = state.clubs[id];
-      return id !== state.clubId && (c.league === 'euro' || ((c.league === 'eng1' || c.league === 'esp1' || c.league === 'ita1') && c.str >= 74));
+      return id !== state.clubId && D.UEFA.indexOf(c.league) > -1 && c.str >= 70;
     }).sort(function (a, b) { return state.clubs[b].str - state.clubs[a].str; });
     return cand.slice(0, 35);
   }
@@ -357,7 +365,8 @@
     var e = { kind: kind, phase: kind === 'qual' ? 'qual' : 'league', status: 'active', history: [], lp: null, rank: null, lpTable: null, alive: null, next: null, result: null };
     state.euro = e;
     if (kind === 'qual') {
-      var weak = Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return c.league === 'euro' && c.str >= 66 && c.str <= 76; });
+      var weak = Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return D.UEFA.indexOf(c.league) > -1 && c.league !== state.league && c.str >= 64 && c.str <= 74; });
+      if (!weak.length) weak = Object.keys(state.clubs).filter(function (id) { return D.UEFA.indexOf(state.clubs[id].league) > -1 && id !== state.clubId; });
       e.qualOpp = pick(weak, rng); e.qualHome = rng() < 0.5;
     } else initLP(state, rng);
     setNext(state);
@@ -375,12 +384,13 @@
     e.lp = { opps: opps.map(function (id, i) { return { id: id, home: homes[i] }; }), played: 0, pts: 0, gf: 0, ga: 0 };
   }
 
+  function scl(state, x) { var R = rounds(state.league); return Math.min(Math.max(0, R - 1), Math.round(x * R / 38)); }
   function setNext(state) {
     var e = state.euro;
     if (!e || e.status !== 'active') { if (e) e.next = null; return; }
     if (e.phase === 'qual') e.next = { after: 0, stage: 'qual', opp: e.qualOpp, home: e.qualHome };
-    else if (e.phase === 'league') { var o = e.lp.opps[e.lp.played]; e.next = { after: LP_AFTER[e.lp.played], stage: 'league', opp: o.id, home: o.home, md: e.lp.played + 1 }; }
-    else e.next = { after: KO_AFTER[e.phase], stage: e.phase, opp: e.ko.opp, home: e.phase === 'final' ? false : e.ko.home };
+    else if (e.phase === 'league') { var o = e.lp.opps[e.lp.played]; e.next = { after: scl(state, LP_AFTER[e.lp.played]), stage: 'league', opp: o.id, home: o.home, md: e.lp.played + 1 }; }
+    else e.next = { after: scl(state, KO_AFTER[e.phase]), stage: e.phase, opp: e.ko.opp, home: e.phase === 'final' ? false : e.ko.home };
   }
 
   function euroDue(state) { var e = state.euro; return !!(e && e.status === 'active' && e.next && state.round >= e.next.after); }
@@ -490,68 +500,542 @@
   }
 
   /* ====== الجوايز ====== */
-  function computeAwards(state, rng, ctx) {
-    var p = state.player, s = state.stats, lk = state.league, lgd = LG[lk], tab = ctx.tab, year = state.year;
-    var out = {};
-    // الكرة الذهبية
-    var stars = Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return c.league === 'eng1' || c.league === 'esp1' || c.league === 'ita1' || c.league === 'euro'; })
-      .map(function (id) { return { id: id, score: state.clubs[id].str + 2.5 + gauss(rng) * 2.8 }; })
-      .sort(function (a, b) { return b.score - a.score; })[0];
-    var euroB = 0, ee = state.euro;
-    if (ee) euroB = ee.status === 'champ' ? 4 : (ee.phase === 'final' || (ee.result || '').indexOf('نهائي') > -1) ? 3 : ee.phase === 'sf' ? 2 : ee.phase === 'qf' ? 1.5 : ee.phase === 'r16' ? 0.8 : 0;
-    var myScore = s.apps >= 15 ? ctx.before + (ctx.avg - 3.4) * 5 + Math.min(s.goals + s.assists * 0.7, 45) * 0.1 + (ctx.champion ? 2 : 0) + euroB - (2 - lgd.diff) * 2.5 : -99;
-    var sc = state.clubs[stars.id];
-    if (myScore > stars.score) out.ballon = { name: p.name, clubId: state.clubId, mine: true, stat: s.goals + ' هدف • ' + s.assists + ' أسيست • تقييم ' + round1(ctx.avg) };
-    else out.ballon = { name: nameFor(state, stars.id, year + '|star'), clubId: stars.id, mine: false,
-      stat: clamp(Math.round((sc.str - 62) * 0.7 + 6 + rng() * 8), 8, 38) + ' هدف • ' + clamp(Math.round(4 + (sc.str - 70) * 0.3 + rng() * 7), 2, 20) + ' أسيست' };
+  /* =====================================================================
+     توسيع كارير مود: لاعيبة حقيقيين، محاكاة عالمية، كؤوس، فلوس وعقود، منتخبات وبطولات
+     ===================================================================== */
+  var POSMAP = { G: 'GK', D: 'DF', M: 'MF', F: 'ST' };
+  var GW = { ST: 1.0, MF: 0.28, DF: 0.07, GK: 0 }, AW = { ST: 0.55, MF: 0.6, DF: 0.22, GK: 0.01 };
+  var CUP_STAGE = { 64: 'دور الـ64', 32: 'دور الـ32', 16: 'دور الـ16', 8: 'ربع النهائي', 4: 'نصف النهائي', 2: 'النهائي' };
+  var AFR = [['afr_sun', 'ماميلودي صنداونز', 66], ['afr_est', 'الترجي التونسي', 63], ['afr_orl', 'أورلاندو بايريتس', 62], ['afr_maz', 'تي بي مازيمبي', 58],
+    ['afr_sim', 'سيمبا', 56], ['afr_yan', 'يانج أفريكانز', 56], ['afr_bel', 'شباب بلوزداد', 56], ['afr_css', 'النجم الساحلي', 54],
+    ['afr_jsk', 'شبيبة القبائل', 52], ['afr_hil', 'الهلال السوداني', 52], ['afr_pet', 'بترو أتلتيكو', 52], ['afr_hor', 'هوروريا', 50]];
+  var NAT_FIX = { en: 'gb-eng', sc: 'gb-sct', wa: 'gb-wls', ie: 'ie' };
 
-    // الحذاء الذهبي (في دوري اللاعب)
-    var best = null;
-    tab.forEach(function (r) {
-      var c = state.clubs[r.id];
-      if (r.id === state.clubId) return;
-      var g = Math.round(r.gf * (0.2 + 0.08 * (c.str - 55) / 35 + rng() * 0.12));
-      if (!best || g > best.g) best = { id: r.id, g: g };
+  function sum(a) { var s = 0; a.forEach(function (x) { s += x; }); return s; }
+  function pw(o, p, W) { return W[p] * Math.exp((o - 72) / 13); }
+  function wpick(ws, tot, rng) { var x = rng() * tot, i = 0; for (; i < ws.length; i++) { x -= ws[i]; if (x <= 0) return i; } return ws.length - 1; }
+  function roundMoney(v) { return v >= 1e6 ? Math.round(v / 1e4) * 1e4 : v >= 1e4 ? Math.round(v / 1e3) * 1e3 : Math.round(v / 10) * 10; }
+
+  /* ---- اللاعيبة الحقيقيين ---- */
+  function parseRoster(str, clubId) {
+    return str.split(';').map(function (s) { var a = s.split('|'); return { n: a[0], p: POSMAP[a[1]] || 'MF', a: +a[2] || 25, o: +a[3] || 70, nat: a[4] || '', c: clubId }; });
+  }
+  function initPlayers(state) {
+    var pl = [];
+    Object.keys(D.ROSTERS || {}).forEach(function (cid) {
+      if (!state.clubs[cid]) return;
+      parseRoster(D.ROSTERS[cid], cid).forEach(function (x) { x.id = pl.length; pl.push(x); });
     });
-    if (best && s.goals > 0 && s.goals >= best.g) out.boot = { name: p.name, clubId: state.clubId, mine: true, stat: s.goals + ' هدف' };
-    else out.boot = { name: nameFor(state, best.id, year + '|boot'), clubId: best.id, mine: false, stat: best.g + ' هدف' };
+    state.pl = pl; state.ps = {};
+  }
+  function initExtras(state) {
+    D.NATIONAL.forEach(function (n) { var id = 'nt_' + n[1]; if (!state.clubs[id]) state.clubs[id] = { id: id, ar: n[0], str: n[2], crest: null, flag: n[1], league: 'nt', conf: n[3] }; });
+    AFR.forEach(function (c) { if (!state.clubs[c[0]]) state.clubs[c[0]] = { id: c[0], ar: c[1], str: c[2], crest: null, league: 'afr' }; });
+    if (!state.pl) initPlayers(state);
+    state.intl = state.intl || { caps: 0, goals: 0, assists: 0, log: [] };
+    if (state.money == null) state.money = 20000;
+    state.owned = state.owned || [];
+    state.sponsors = state.sponsors || [];
+    state.contracts = state.contracts || [];
+    state.earn = state.earn || { salary: 0, bonus: 0, prizes: 0, sponsor: 0 };
+    state.fame = state.fame || 0;
+  }
+  function ntOf(state) { return state.clubs['nt_' + state.player.natCode]; }
 
-    // القفاز الذهبي (في دوري اللاعب)
-    var cs = {}, L = state.world.leagues[lk];
-    L.teams.forEach(function (id) { cs[id] = 0; });
-    L.results.forEach(function (rd, r) { rd.forEach(function (res, i) { if (!res) return; var m = L.fixtures[r][i]; if (res[1] === 0) cs[m[0]]++; if (res[0] === 0) cs[m[1]]++; }); });
-    var bg = null;
-    Object.keys(cs).forEach(function (id) { if (id === state.clubId) return; var v = cs[id] + (rng() < 0.3 ? -1 : 0); if (!bg || v > bg.v) bg = { id: id, v: Math.max(0, v) }; });
-    var myCs = 0;
-    state.log.forEach(function (x) { if (x.comp) return; if ((x.role === 'start' || x.role === 'sub') && x.minutes >= 60) { var conc = x.home === state.clubId ? x.ag : x.hg; if (conc === 0) myCs++; } });
-    if (p.pos === 'GK' && s.apps >= rounds(lk) * 0.5 && myCs >= bg.v) out.glove = { name: p.name, clubId: state.clubId, mine: true, stat: myCs + ' مباراة بدون أهداف' };
-    else out.glove = { name: nameFor(state, bg.id, year + '|glove'), clubId: bg.id, mine: false, stat: bg.v + ' مباراة بدون أهداف' };
+  function markStarters(list) {
+    var need = { GK: 1, DF: 4, MF: 3, ST: 3 };
+    ['GK', 'DF', 'MF', 'ST'].forEach(function (pp) {
+      list.filter(function (x) { return x.p === pp; }).sort(function (a, b) { return b.o - a.o; }).forEach(function (x, i) { x.s = i < need[pp] ? 1 : 0; });
+    });
+  }
+  /* توزيع أهداف وتمريرات وتقييم مباراة على لاعيبة الفريق المعروفين */
+  function attribute(list, gf, ga, res, rng, ps) {
+    var av = [], rec = {}, i, k;
+    for (i = 0; i < list.length; i++) { var x = list[i]; if (rng() < (x.p === 'GK' ? (x.s ? 0.95 : 0.03) : (x.s ? 0.9 : 0.1))) av.push(x); }
+    if (!av.length) return;
+    av.forEach(function (y) { rec[y.id] = [0, 0]; });
+    var of = av.filter(function (y) { return y.p !== 'GK'; });
+    if (gf > 0 && of.length) {
+      var gw = of.map(function (y) { return pw(y.o, y.p, GW); }), aw = of.map(function (y) { return pw(y.o, y.p, AW); });
+      var miss = Math.max(0, 10 - of.length), fg = miss * (sum(gw) / of.length) * 0.6, fa = miss * (sum(aw) / of.length) * 0.6;
+      for (k = 0; k < gf; k++) {
+        var gi = wpick(gw.concat([fg]), sum(gw) + fg, rng);
+        if (gi < of.length) rec[of[gi].id][0]++;
+        if (rng() < 0.72) {
+          var aw2 = aw.slice(); if (gi < of.length) aw2[gi] = 0;
+          var ai = wpick(aw2.concat([fa]), sum(aw2) + fa, rng);
+          if (ai < of.length) rec[of[ai].id][1]++;
+        }
+      }
+    }
+    av.forEach(function (y) {
+      var r = rec[y.id], q = 3 + (y.o - 74) / 35 + (res > 0 ? 0.25 : res < 0 ? -0.25 : 0) + r[0] * 0.55 + r[1] * 0.35 + (ga === 0 && (y.p === 'GK' || y.p === 'DF') ? 0.35 : 0) + gauss(rng) * 0.25;
+      var e = ps[y.id] || (ps[y.id] = [0, 0, 0, 0, 0]);
+      e[0]++; e[1] += r[0]; e[2] += r[1]; e[3] += clamp(q, 1.5, 5);
+      if (ga === 0 && (y.p === 'GK' || y.p === 'DF')) e[4]++;
+    });
+  }
+  function runLeague(state, lk, rng, ps, byClub, own, logRound) {
+    var L = own ? state.world.leagues[lk] : null, rows = {};
+    var teams = own ? L.teams : Object.keys(state.clubs).filter(function (id) { return state.clubs[id].league === lk; });
+    var fx = own ? L.fixtures : genFixtures(teams, rng);
+    teams.forEach(function (id) { rows[id] = { id: id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 }; });
+    fx.forEach(function (rd, r) {
+      rd.forEach(function (m, i) {
+        var rs = own ? (L.results[r] && L.results[r][i]) : quickMatch(state, m[0], m[1], rng);
+        if (!rs) return;
+        var h = rows[m[0]], a = rows[m[1]];
+        h.p++; a.p++; h.gf += rs[0]; h.ga += rs[1]; a.gf += rs[1]; a.ga += rs[0];
+        if (rs[0] > rs[1]) { h.w++; h.pts += 3; a.l++; } else if (rs[0] < rs[1]) { a.w++; a.pts += 3; h.l++; } else { h.d++; a.d++; h.pts++; a.pts++; }
+        [0, 1].forEach(function (k) {
+          var cid = m[k], list = byClub[cid]; if (!list) return;
+          var gf = rs[k], ga = rs[1 - k];
+          if (cid === state.clubId && lk === state.league) { var lg = logRound[r + 1]; if (lg) gf = Math.max(0, gf - (lg.goals || 0)); }
+          attribute(list, gf, ga, gf > ga ? 1 : gf < ga ? -1 : 0, rng, ps);
+        });
+      });
+    });
+    return Object.keys(rows).map(function (k) { var x = rows[k]; x.gd = x.gf - x.ga; return x; })
+      .sort(function (x, y) { return y.pts - x.pts || y.gd - x.gd || y.gf - x.gf || (state.clubs[y.id].str - state.clubs[x.id].str); });
+  }
 
-    // جايزة كوبا (أحسن لاعب تحت 21 سنة)
-    var starClubs = Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return c.league === 'eng1' || c.league === 'esp1' || c.league === 'ita1' || c.league === 'euro'; });
-    var kc = starClubs.map(function (id) { return { id: id, score: state.clubs[id].str - 21 + gauss(rng) * 2.6 }; }).sort(function (a, b) { return b.score - a.score; })[0];
-    var seasonAge = p.age - 1;
-    var kMine = seasonAge <= 20 && s.apps >= 12 ? ctx.before + (ctx.avg - 3.4) * 5 + Math.min(s.goals + s.assists * 0.7, 40) * 0.1 + (ctx.champion ? 1.5 : 0) + euroB - (2 - lgd.diff) * 2.5 : -99;
-    var kcl = state.clubs[kc.id];
-    if (kMine > kc.score) out.kopa = { name: p.name, clubId: state.clubId, mine: true, stat: s.goals + ' هدف • ' + s.assists + ' أسيست • تقييم ' + round1(ctx.avg) };
-    else out.kopa = { name: nameFor(state, kc.id, year + '|kopa'), clubId: kc.id, mine: false,
-      stat: clamp(Math.round((kcl.str - 66) * 0.6 + 5 + rng() * 6), 5, 28) + ' هدف • ' + clamp(Math.round(3 + (kcl.str - 70) * 0.3 + rng() * 6), 2, 16) + ' أسيست' };
+  /* مراحل دوري أبطال أوروبا لكل الأندية (0 مرحلة الدوري .. 6 بطل) */
+  function myClStage(state) {
+    var e = state.euro; if (!e || (e.status === 'out' && e.phase === 'qual')) return -1;
+    return e.status === 'champ' ? 6 : e.phase === 'final' ? 5 : e.phase === 'sf' ? 4 : e.phase === 'qf' ? 3 : e.phase === 'r16' ? 2 : e.phase === 'playoff' ? 1 : 0;
+  }
+  function clStages(state, tabs, rng) {
+    var field = [], seen = {};
+    D.UEFA.forEach(function (lk) { (tabs[lk] || []).slice(0, D.EUROQ[lk]).forEach(function (r) { if (!seen[r.id]) { seen[r.id] = 1; field.push(r.id); } }); });
+    var rest = [];
+    ['eng1', 'esp1', 'ita1', 'ger1', 'fra1'].forEach(function (lk) { (tabs[lk] || []).slice(D.EUROQ[lk], D.EUROQ[lk] + 3).forEach(function (r) { if (!seen[r.id]) rest.push(r.id); }); });
+    rest.sort(function (a, b) { return state.clubs[b].str - state.clubs[a].str; });
+    while (field.length < 36 && rest.length) { var x = rest.shift(); seen[x] = 1; field.push(x); }
+    var meIn = !!(state.euro && !(state.euro.status === 'out' && state.euro.phase === 'qual'));
+    field = field.filter(function (id) { return id !== state.clubId; });
+    var scored = field.map(function (id) { return { id: id, s: state.clubs[id].str + gauss(rng) * 4.2 }; }).sort(function (a, b) { return b.s - a.s; }).map(function (x) { return x.id; });
+    if (meIn) {
+      var myStage = myClStage(state);
+      scored.splice(Math.min([24, 16, 8, 4, 2, 1, 0][myStage], scored.length), 0, state.clubId);
+    }
+    var stage = {};
+    scored.forEach(function (id, i) { stage[id] = i === 0 ? 6 : i === 1 ? 5 : i < 4 ? 4 : i < 8 ? 3 : i < 16 ? 2 : i < 24 ? 1 : 0; });
+    return { stage: stage, champ: scored[0] };
+  }
+  function clBulk(state, stage, byClub, ps, rng) {
+    var M = [8, 10, 12, 14, 15, 16, 17];
+    Object.keys(stage).forEach(function (cid) {
+      var list = byClub[cid]; if (!list || cid === state.clubId) return;
+      var s = stage[cid], m = M[s], str = state.clubs[cid].str;
+      var cg = Math.round(m * clamp(0.9 + (str - 60) * 0.03, 0.8, 2.1) * (0.85 + rng() * 0.3));
+      var of = list.filter(function (y) { return y.p !== 'GK'; });
+      var ws = of.map(function (y) { return pw(y.o, y.p, GW) * (y.s ? 1 : 0.25); }), tot = sum(ws), miss = Math.max(0, 10 - of.length);
+      var fill = of.length ? miss * (tot / of.length) * 0.6 : 0, gs = {}, as = {};
+      for (var k = 0; k < cg && of.length; k++) {
+        var gi = wpick(ws.concat([fill]), tot + fill, rng);
+        if (gi < of.length) { gs[of[gi].id] = (gs[of[gi].id] || 0) + 1; }
+        if (rng() < 0.7) { var ai = Math.floor(rng() * of.length); if (ai !== gi) as[of[ai].id] = (as[of[ai].id] || 0) + 1; }
+      }
+      list.forEach(function (y) {
+        var ap = Math.round(m * (y.s ? 0.8 : 0.1)); if (!ap) return;
+        var e = ps[y.id] || (ps[y.id] = [0, 0, 0, 0, 0]);
+        e[0] += ap; e[1] += gs[y.id] || 0; e[2] += as[y.id] || 0; e[3] += ap * (3.15 + (y.o - 74) / 35 + (s >= 4 ? 0.1 : 0));
+        if (y.p === 'GK' || y.p === 'DF') e[4] += Math.round(ap * 0.28);
+      });
+    });
+  }
 
+  function simCupChamp(state, cd, rng) {
+    var ids = [];
+    cd.from.forEach(function (lk) { Object.keys(state.clubs).forEach(function (id) { if (state.clubs[id].league === lk) ids.push(id); }); });
+    ids = ids.map(function (id) { return { id: id, s: state.clubs[id].str + gauss(rng) * 3 }; }).sort(function (a, b) { return b.s - a.s; }).slice(0, cd.n).map(function (x) { return x.id; });
+    return ids.length > 1 ? champOf(state, ids, rng) : ids[0];
+  }
+
+  function simGlobal(state, rng) {
+    var byClub = {}, ps = {};
+    state.pl.forEach(function (x) { (byClub[x.c] = byClub[x.c] || []).push(x); });
+    Object.keys(byClub).forEach(function (cid) { markStarters(byClub[cid]); });
+    var logRound = {}; state.log.forEach(function (x) { if (!x.comp) logRound[x.round] = x; });
+    var tabs = {}, champs = {};
+    D.TOP15.forEach(function (lk) {
+      tabs[lk] = runLeague(state, lk, rng, ps, byClub, !!(state.world.leagues[lk]), logRound);
+      champs[lk] = tabs[lk][0].id;
+    });
+    var cl = clStages(state, tabs, rng);
+    clBulk(state, cl.stage, byClub, ps, rng);
+    state.ps = ps;
+    var worldChamps = D.TOP15.map(function (lk) {
+      var ck = LG[lk].country, cups = (D.COUNTRIES[ck].cups || []).map(function (cd) {
+        var mine = ck === LG[state.league].country && (state.cups || []).filter(function (c) { return c.id === cd.id; })[0];
+        return { ar: cd.ar, id: mine ? mine.champ : simCupChamp(state, cd, rng) };
+      });
+      return { lk: lk, champ: champs[lk], cups: cups };
+    });
+    return { tabs: tabs, champs: champs, cl: cl, byClub: byClub, worldChamps: worldChamps };
+  }
+
+  /* ---- الجوايز (محاكاة لكل اللاعيبة ثم مقارنة) ---- */
+  function computeAwards(state, rng, ctx) {
+    var p = state.player, s = state.stats, lk = state.league, G = ctx.glob, year = state.year, ps = state.ps;
+    var avg = ctx.avg, out = {};
+    var clMe = myClStage(state);
+    var CLB = [0, 0.5, 1.5, 3, 5, 8, 13];
+    function team(cid, mine) {
+      var t = 0, c = state.clubs[cid], L = c && c.league;
+      if (G.champs[L] === cid) t += 5;
+      var st = mine ? clMe : G.cl.stage[cid];
+      if (st != null && st >= 0) t += CLB[st];
+      return t;
+    }
+    function cand(x) { var e = ps[x.id] || [0, 0, 0, 0, 0]; return { n: x.n, clubId: x.c, a: e[0], g: e[1], as: e[2], avg: e[0] ? e[3] / e[0] : 0, cs: e[4], p: x.p, age: x.a, mine: false, o: x.o, g0: !!x.g }; }
+    function score(c, mine) {
+      var s0 = c.g + c.as * 0.6 + (c.avg - 3) * 14 + (c.p === 'GK' ? c.cs * 0.8 : c.p === 'DF' ? c.cs * 0.3 : 0) + team(c.clubId, mine);
+      return s0;
+    }
+    function line(c) { return c.p === 'GK' ? c.cs + ' مباراة بدون أهداف • تقييم ' + round1(c.avg) : c.g + ' هدف • ' + c.as + ' أسيست • تقييم ' + round1(c.avg); }
+    var meC = { n: p.name, clubId: state.clubId, a: s.apps, g: s.goals, as: s.assists, avg: avg, cs: 0, p: p.pos, age: p.age - 1, mine: true, o: p.ovr };
+    state.log.forEach(function (x) { if ((x.role === 'start' || x.role === 'sub') && x.minutes >= 60 && (x.home === state.clubId ? x.ag : x.hg) === 0) meC.cs++; });
+    function pickWinner(list, sc, minApps) {
+      var all = list.filter(function (c) { return c.a >= minApps; });
+      all.forEach(function (c) { c.score = sc(c); });
+      all.sort(function (a, b) { return b.score - a.score; });
+      return all;
+    }
+    function pack(all, key) {
+      var w = all[0];
+      out[key] = { name: w.n, clubId: w.clubId, mine: !!w.mine, stat: line(w), cands: all.slice(0, 5).map(function (c) { return { name: c.n, clubId: c.clubId, mine: !!c.mine, stat: line(c), score: Math.round(c.score * 10) / 10 }; }), myRank: all.findIndex(function (c) { return c.mine; }) + 1 };
+    }
+    // الكرة الذهبية: اللي بيلعبوا في أوروبا بس
+    var euroLg = function (cid) { var c = state.clubs[cid]; return c && D.UEFA.indexOf(c.league) > -1; };
+    var bl = state.pl.filter(function (x) { return euroLg(x.c); }).map(cand);
+    if (euroLg(state.clubId) && s.apps >= 15) bl.push(meC);
+    var bw = pickWinner(bl, function (c) { return score(c, c.mine); }, 18);
+    if (bw.length) pack(bw, 'ballon'); else out.ballon = null;
+    var meEuro = euroLg(state.clubId);
+    out.ballonEligible = meEuro;
+    // الحذاء الذهبي والقفاز (الدوري اللي بتلعب فيه، الدرجة الأولى بس)
+    var lgd = LG[lk], myLeagueTop = lgd.tier === 1;
+    var cl = state.pl.filter(function (x) { var c = state.clubs[x.c]; return c && c.league === lk; });
+    var cov = state.world.leagues[lk] ? cl.reduce(function (m, x) { m[x.c] = 1; return m; }, {}) : {};
+    var coverage = Object.keys(cov).length / Math.max(1, state.world.leagues[lk].teams.length);
+    if (myLeagueTop) {
+      var boot = cl.map(cand); boot.push(meC);
+      boot = pickWinner(boot, function (c) { return c.g + c.as * 0.01; }, 10);
+      var need = coverage < 0.7 ? Math.round(rounds(lk) * 0.45) : 0;
+      if (boot[0] && boot[0].mine && s.goals < need && boot.length > 1) boot = boot.filter(function (c) { return !c.mine; }).concat(boot.filter(function (c) { return c.mine; }));
+      if (boot.length) pack(boot, 'boot'); else out.boot = null;
+      var gl = cl.filter(function (x) { return x.p === 'GK'; }).map(cand);
+      if (p.pos === 'GK') gl.push(meC);
+      gl = pickWinner(gl, function (c) { return c.cs + c.avg * 0.1; }, 10);
+      if (gl.length) pack(gl, 'glove'); else out.glove = null;
+    }
+    // كوبا: أحسن لاعب تحت 21 في أوروبا
+    var kl = state.pl.filter(function (x) { return euroLg(x.c) && x.a <= 20; }).map(cand);
+    if (meEuro && p.age - 1 <= 20 && s.apps >= 12) kl.push(meC);
+    kl = pickWinner(kl, function (c) { return score(c, c.mine); }, 15);
+    if (kl.length) pack(kl, 'kopa'); else out.kopa = null;
     // أفضل نادي في العام
-    var cands = starClubs.map(function (id) { var c = state.clubs[id]; return { id: id, score: c.str + gauss(rng) * 3.2 + (ee && ee.champ === id ? 5 : 0) }; })
-      .sort(function (a, b) { return b.score - a.score; })[0];
-    var my = state.clubs[state.clubId];
-    var myClubScore = (LG[lk].tier === 1 ? my.str : my.str - 8) + (champion0(ctx) ? 3.5 : 0) + euroB * 1.8 + (ee && ee.status === 'champ' ? 5 : 0) + gauss(rng) * 2.6 - (2 - lgd.diff) * 3;
-    if (myClubScore > cands.score) out.club = { name: my.ar, clubId: state.clubId, mine: true, stat: ee && ee.status === 'champ' ? 'بطل دوري أبطال أوروبا' : ctx.champion ? 'بطل ' + lgd.ar : 'موسم استثنائي' };
-    else out.club = { name: state.clubs[cands.id].ar, clubId: cands.id, mine: false, stat: ee && ee.champ === cands.id ? 'بطل دوري أبطال أوروبا' : 'أحسن نادي في العالم' };
+    var clubs = []; D.TOP15.forEach(function (L) { Object.keys(state.clubs).forEach(function (id) { if (state.clubs[id].league === L) clubs.push(id); }); });
+    var cs = clubs.map(function (id) {
+      var c = state.clubs[id], tab = G.tabs[c.league] || [], pos = tab.findIndex(function (r) { return r.id === id; });
+      var st = id === state.clubId ? clMe : G.cl.stage[id];
+      var sc = c.str * 0.3 + (pos === 0 ? 5 : pos === 1 ? 2.5 : pos === 2 ? 1 : 0) + (st != null && st >= 0 ? CLB[st] : 0) + (D.UEFA.indexOf(c.league) > -1 ? 0 : -3) + gauss(rng) * 1.3;
+      var cupWin = (G.worldChamps.filter(function (w) { return w.champ === id; }).length ? 0 : 0);
+      var extra = 0; G.worldChamps.forEach(function (w) { w.cups.forEach(function (cp) { if (cp.id === id) extra += 1.2; }); });
+      return { id: id, score: sc + extra };
+    }).sort(function (a, b) { return b.score - a.score; });
+    var wc = cs[0], wcl = state.clubs[wc.id];
+    var tabw = G.tabs[wcl.league] || [], pw0 = tabw.findIndex(function (r) { return r.id === wc.id; });
+    var stw = wc.id === state.clubId ? clMe : G.cl.stage[wc.id];
+    out.club = { name: wcl.ar, clubId: wc.id, mine: wc.id === state.clubId, stat: stw === 6 ? 'بطل دوري أبطال أوروبا' : pw0 === 0 ? 'بطل ' + (LG[wcl.league] ? LG[wcl.league].ar : 'الدوري') : 'موسم استثنائي',
+      cands: cs.slice(0, 5).map(function (x) { return { name: state.clubs[x.id].ar, clubId: x.id, mine: x.id === state.clubId, stat: Math.round(state.clubs[x.id].str) + ' قوة', score: Math.round(x.score * 10) / 10 }; }), myRank: cs.findIndex(function (x) { return x.id === state.clubId; }) + 1 };
     return out;
   }
   function champion0(ctx) { return !!ctx.champion; }
 
-  /* ====== سوق الانتقالات (بيحصل في الخلفية من غير تدخل اللاعب) ====== */
+  /* ---- فلوس وعقود ---- */
+  var LMULT = { sau1: 1.5, egy1: 0.35, mar1: 0.3, usa1: 1.0, bra1: 0.7, arg1: 0.6, bel1: 0.8, tur1: 0.9, por1: 0.9, ned1: 0.95 };
+  function salaryFor(state, clubId, ovr) {
+    var c = state.clubs[clubId], lk = c.league, l = LG[lk] || { tier: 3 };
+    var tm = l.tier === 1 ? 1 : l.tier === 2 ? 0.45 : 0.25;
+    return roundMoney(200000 * Math.exp((ovr - 60) / 7) * clamp(0.4 + (c.str - 55) / 35, 0.35, 1.7) * (LMULT[lk] || 1) * tm * (lk === 'sau1' && ovr >= 70 ? 1.8 : 1));
+  }
+  function clauses(salary, rng) {
+    var g = roundMoney(Math.max(100, salary * 0.012 * (0.8 + rng() * 0.4)));
+    return { perGoal: g, perAssist: roundMoney(g * 0.6), perMotm: roundMoney(g * 1.5) };
+  }
+  function makeDeal(state, clubId, rng, fee, cur) {
+    var sal = salaryFor(state, clubId, state.player.ovr), cl = clauses(sal, rng), c = state.clubs[clubId];
+    var l = LG[c.league], country = l ? l.country : 'eng';
+    return { clubId: clubId, years: 3, salary: sal, perGoal: cl.perGoal, perAssist: cl.perAssist, perMotm: cl.perMotm, signing: roundMoney(sal * 0.1), fee: fee || 0, cur: cur || D.COUNTRIES[country].cur };
+  }
+  function refreshContract(state, rng) {
+    if (!state.contract) return;
+    var sal = salaryFor(state, state.clubId, state.player.ovr), cl = clauses(sal, rng);
+    state.contract.salary = sal; state.contract.perGoal = cl.perGoal; state.contract.perAssist = cl.perAssist; state.contract.perMotm = cl.perMotm;
+  }
+  function signContract(state, sig, rng) {
+    var d = state.deal; if (!d) return;
+    state.contract = { clubId: d.clubId, years: d.years, salary: d.salary, perGoal: d.perGoal, perAssist: d.perAssist, perMotm: d.perMotm, sig: sig, year: state.year };
+    state.contracts.push({ clubId: d.clubId, year: state.year, salary: d.salary, sig: sig });
+    state.money += d.signing; state.earn.sponsor += 0; state.lastSigning = d.signing;
+    var f = state.signFor; state.deal = null; state.signFor = null;
+    if (f === 'start') state.phase = 'play'; else finishMove(state, rng);
+  }
+  function payBonus(state, pm) {
+    var c = state.contract; pm.bonus = 0;
+    if (!c || (pm.role !== 'start' && pm.role !== 'sub')) return;
+    pm.motm = pm.rating != null && pm.rating >= 4.5 && pm.ourGoals >= pm.oppGoals;
+    var b = pm.goals * c.perGoal + pm.assists * c.perAssist + (pm.motm ? c.perMotm : 0);
+    pm.bonus = b; state.money += b; state.earn.bonus += b;
+    if (pm.motm) state.stats.motm = (state.stats.motm || 0) + 1;
+  }
+  function buyAsset(state, kind, id) {
+    var it = (D.ASSETS[kind] || []).filter(function (x) { return x.id === id; })[0];
+    if (!it || state.owned.indexOf(id) > -1 || state.money < it.p) return false;
+    state.money -= it.p; state.owned.push(id); return true;
+  }
+  function makeSponsors(state, rng, fameNow) {
+    state.fame = clamp(Math.round(0.5 * (state.fame || 0) + 0.5 * fameNow), 0, 100);
+    var f = state.fame, offers = [];
+    if (f >= 25) {
+      var n = 1 + (f >= 45 ? 1 : 0) + (f >= 65 ? 1 : 0), pool = shuffle(D.SPONSORS, rng).filter(function (x) { return state.sponsors.indexOf(x[0]) < 0 || true; });
+      for (var i = 0; i < n && i < pool.length; i++) {
+        offers.push({ brand: pool[i][0], kind: pool[i][1], amt: roundMoney(pool[i][2] * 1e6 * clamp(f / 45, 0.5, 3) * (0.85 + rng() * 0.3)) });
+      }
+    }
+    state.sponsorOffers = offers;
+  }
+  function takeSponsor(state, idx) {
+    var o = (state.sponsorOffers || [])[idx]; if (!o) return false;
+    state.money += o.amt; state.earn.sponsor += o.amt; state.sponsors.push(o.brand); state.sponsorOffers.splice(idx, 1); return true;
+  }
+
+  /* ---- الكؤوس المحلية ---- */
+  function setupCupStage(state, cup, rng) {
+    var n = cup.alive.length, me = state.clubId;
+    var others = cup.alive.filter(function (id) { return id !== me; });
+    cup.next = { after: cup.sched[Math.min(cup.k, cup.sched.length - 1)], opp: pick(others, rng), home: n === 2 ? false : rng() < 0.5, label: CUP_STAGE[n] || ('دور الـ' + n), final: n === 2 };
+  }
+  function initCups(state, rng) {
+    var country = LG[state.league].country, defs = D.COUNTRIES[country].cups || [], R = rounds(state.league);
+    state.cups = defs.map(function (cd) {
+      var pool = [];
+      cd.from.forEach(function (lk) { var L = state.world.leagues[lk]; if (L) shuffle(L.teams, rng).forEach(function (id) { pool.push(id); }); });
+      var n = cd.n; while (n > pool.length) n = n / 2;
+      var sel = pool.slice(0, n);
+      if (sel.indexOf(state.clubId) < 0) sel[sel.length - 1] = state.clubId;
+      var K = Math.round(Math.log(n) / Math.log(2)), sched = [];
+      for (var k = 0; k < K; k++) sched.push(Math.min(R - 1, Math.round(R * (0.1 + 0.8 * k / Math.max(1, K - 1)))));
+      var cup = { id: cd.id, ar: cd.ar, n: n, alive: shuffle(sel, rng), k: 0, sched: sched, status: 'active', history: [], result: null, champ: null };
+      setupCupStage(state, cup, rng);
+      return cup;
+    });
+  }
+  function advanceCup(state, cup, won, rng) {
+    var me = state.clubId, opp = cup.next.opp, fin = cup.next.final, lbl = cup.next.label;
+    var rest = shuffle(cup.alive.filter(function (id) { return id !== me && id !== opp; }), rng), surv = [];
+    for (var i = 0; i + 1 < rest.length; i += 2) surv.push(coin(state, rest[i], rest[i + 1], rng) ? rest[i] : rest[i + 1]);
+    if (fin) { cup.status = won ? 'champ' : 'out'; cup.result = won ? 'بطل ' + cup.ar : 'خسرت نهائي ' + cup.ar; cup.champ = won ? me : opp; cup.next = null; return; }
+    if (!won) { cup.status = 'out'; cup.result = 'خرجت من ' + lbl + ' في ' + cup.ar; cup.champ = surv.length ? champOf(state, surv.concat([opp]), rng) : opp; cup.next = null; return; }
+    cup.alive = surv.concat([me]); cup.k++; setupCupStage(state, cup, rng);
+  }
+  function playCup(state, cup, rng) {
+    var nx = cup.next, me = state.clubId, home = nx.home ? me : nx.opp, away = nx.home ? nx.opp : me;
+    var pm = playerMatch(state, home, away, rng, {});
+    pm.home = home; pm.away = away; pm.round = state.round; pm.comp = 'cup'; pm.stage = 'cup'; pm.stageText = nx.label; pm.cupName = cup.ar;
+    var ours = nx.home ? pm.hg : pm.ag, theirs = nx.home ? pm.ag : pm.hg, won = ours > theirs;
+    if (ours === theirs) { won = rng() < clamp(0.5 + (state.clubs[me].str - state.clubs[nx.opp].str) / 200, 0.3, 0.7); pm.pens = won ? [5, 4] : [4, 5]; }
+    recordMatch(state, pm);
+    cup.history.push({ label: nx.label, home: home, away: away, hg: pm.hg, ag: pm.ag, pens: pm.pens || null, won: won });
+    advanceCup(state, cup, won, rng);
+    return { round: state.round, my: pm, others: 0, cup: true };
+  }
+  function nextExtra(state) {
+    var c = (state.cups || []).filter(function (x) { return x.status === 'active' && x.next && state.round >= x.next.after; })[0];
+    if (c) return { kind: 'cup', cup: c };
+    if (euroDue(state)) return { kind: 'cl' };
+    return null;
+  }
+  function nextExtraInfo(state) {
+    var ex = nextExtra(state); if (!ex) return null;
+    var me = state.clubId;
+    if (ex.kind === 'cup') { var n = ex.cup.next; return { kind: 'cup', label: ex.cup.ar + ' • ' + n.label, home: n.home ? me : n.opp, away: n.home ? n.opp : me }; }
+    var e = state.euro.next; return { kind: 'cl', label: 'دوري أبطال أوروبا • ' + STAGE_AR[e.stage] + (e.md ? ' (' + e.md + ' من 8)' : ''), home: e.home ? me : e.opp, away: e.home ? e.opp : me };
+  }
+
+  /* ---- المنتخب ---- */
+  function natNorm(c) { return NAT_FIX[c] || c; }
+  function checkCallup(state, rng) {
+    var s = state.stats, p = state.player, nt = ntOf(state), it = state.intl; if (!nt) return null;
+    var avg = s.rated ? s.ratingSum / s.rated : 0, need = nt.str - 14, chance = 0;
+    if (s.apps >= 6 && avg >= 3.3 && p.ovr >= need) chance = clamp(0.2 + (avg - 3.3) * 0.6 + (p.ovr - need) * 0.025 + (it.caps > 0 ? 0.25 : 0), 0, 0.95);
+    if (rng() >= chance) return null;
+    var opps = shuffle(Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return c.league === 'nt' && id !== nt.id && Math.abs(c.str - nt.str) <= 10; }), rng).slice(0, 2);
+    var ms = [], labels = ['مباراة ودية', 'تصفيات'];
+    opps.forEach(function (oid, i) {
+      var home = i === 0, pm = playerMatch(state, home ? nt.id : oid, home ? oid : nt.id, rng, { me: nt.id, diff: 2 });
+      pm.home = home ? nt.id : oid; pm.away = home ? oid : nt.id; pm.round = 0; pm.comp = 'nt'; pm.stageText = labels[i]; pm.cupName = 'المنتخب';
+      if (pm.role === 'start' || pm.role === 'sub') { it.caps++; it.goals += pm.goals; it.assists += pm.assists; }
+      ms.push(pm);
+    });
+    state.pendingCallup = { nat: nt.id, matches: ms };
+    return state.pendingCallup;
+  }
+
+  var STG = { 32: 'دور الـ32', 16: 'دور الـ16', 8: 'ربع النهائي', 4: 'نصف النهائي', 2: 'النهائي' };
+  /* بطولة: مجموعات اختيارية ثم خروج مغلوب. meId = فريقي (نادي أو منتخب) أو null */
+  function tourney(state, cfg, rng) {
+    var teams = cfg.teams.slice(), meId = cfg.meId, out = { my: [], rounds: [], placed: null, champion: null, groupPos: null };
+    function play(h, a, ko) {
+      var mine = meId && (h === meId || a === meId), r;
+      if (mine) {
+        var pm = playerMatch(state, h, a, rng, { me: meId, diff: cfg.diff });
+        pm.home = h; pm.away = a; pm.round = 0; pm.comp = cfg.id; pm.stageText = ''; pm.cupName = cfg.ar;
+        r = { hg: pm.hg, ag: pm.ag, pm: pm };
+        if (cfg.counts && (pm.role === 'start' || pm.role === 'sub')) { state.intl.caps++; state.intl.goals += pm.goals; state.intl.assists += pm.assists; }
+      } else { var q = quickMatch(state, h, a, rng); r = { hg: q[0], ag: q[1] }; }
+      if (ko && r.hg === r.ag) {
+        var hw = rng() < clamp(0.5 + (state.clubs[h].str - state.clubs[a].str) / 220, 0.35, 0.65);
+        r.pens = hw ? [5, 4] : [4, 5]; r.w = hw ? h : a;
+      } else r.w = r.hg > r.ag ? h : r.hg < r.ag ? a : null;
+      return r;
+    }
+    var q;
+    if (cfg.groups) {
+      var seeded = teams.slice().sort(function (a, b) { return state.clubs[b].str - state.clubs[a].str; }), G = [];
+      for (var g = 0; g < cfg.groups; g++) G.push([]);
+      seeded.forEach(function (id, i) { var row = Math.floor(i / cfg.groups), idx = row % 2 ? cfg.groups - 1 - (i % cfg.groups) : i % cfg.groups; G[idx].push(id); });
+      var thirds = [], firsts = [], gr = { name: 'مرحلة المجموعات', matches: [] };
+      G.forEach(function (grp) {
+        var rows = {}; grp.forEach(function (id) { rows[id] = { id: id, pts: 0, gf: 0, ga: 0 }; });
+        for (var i = 0; i < grp.length; i++) for (var j = i + 1; j < grp.length; j++) {
+          var h = (i + j) % 2 ? grp[i] : grp[j], a = h === grp[i] ? grp[j] : grp[i], r = play(h, a, false);
+          rows[h].gf += r.hg; rows[h].ga += r.ag; rows[a].gf += r.ag; rows[a].ga += r.hg;
+          if (r.hg > r.ag) rows[h].pts += 3; else if (r.hg < r.ag) rows[a].pts += 3; else { rows[h].pts++; rows[a].pts++; }
+          if (r.pm) { out.my.push({ stage: 'مرحلة المجموعات', h: h, a: a, hg: r.hg, ag: r.ag, pm: r.pm }); }
+        }
+        var srt = Object.keys(rows).map(function (k) { var x = rows[k]; x.k = x.pts * 1000 + (x.gf - x.ga) * 10 + x.gf + rng(); return x; }).sort(function (x, y) { return y.k - x.k; });
+        if (meId && rows[meId]) out.groupPos = srt.findIndex(function (x) { return x.id === meId; }) + 1;
+        firsts.push(srt[0].id, srt[1].id); thirds.push(srt[2]);
+      });
+      thirds.sort(function (x, y) { return y.k - x.k; });
+      q = firsts.concat(thirds.slice(0, cfg.advance - firsts.length).map(function (x) { return x.id; }));
+      if (meId && q.indexOf(meId) < 0) { out.placed = 'مرحلة المجموعات'; }
+    } else q = teams;
+    var alive = shuffle(q, rng), meAlive = meId ? alive.indexOf(meId) > -1 : false;
+    while (alive.length > 1) {
+      var lbl = STG[alive.length] || ('دور الـ' + alive.length), nxt = [];
+      for (var i = 0; i + 1 < alive.length; i += 2) {
+        var h = alive[i], a = alive[i + 1], r = play(h, a, true);
+        if (r.pm) { out.my.push({ stage: lbl, h: h, a: a, hg: r.hg, ag: r.ag, pens: r.pens || null, pm: r.pm }); if (r.w !== meId) { out.placed = lbl; } }
+        nxt.push(r.w);
+      }
+      if (alive.length === 2) out.final = true;
+      alive = nxt;
+    }
+    out.champion = alive[0];
+    if (meId && out.champion === meId) out.placed = 'بطل';
+    else if (meId && !out.placed) out.placed = 'خرجت';
+    if (out.placed === 'النهائي') out.placed = 'وصيف (خسرت النهائي)';
+    return out;
+  }
+
+  /* ---- أحداث الصيف: بطولات المنتخبات وكأس العالم للأندية ودوري أبطال إفريقيا ---- */
+  function buildSummer(state, glob) {
+    var T = state.year + 1, ev = [], nt = ntOf(state), conf = nt ? nt.conf : '';
+    if (T >= 2030 && (T - 2030) % 4 === 0) ev.push({ id: 'wc', ar: 'كأس العالم ' + T, nat: true });
+    if (T >= 2028 && (T - 2028) % 4 === 0 && conf === 'UEFA') ev.push({ id: 'euro', ar: 'أمم أوروبا ' + T, nat: true });
+    if (T >= 2027 && (T - 2027) % 4 === 0 && conf === 'CAF') ev.push({ id: 'afcon', ar: 'أمم إفريقيا ' + T, nat: true });
+    var mycl = state.clubs[state.clubId], pos = (glob.tabs[state.league] || []).findIndex(function (r) { return r.id === state.clubId; }) + 1;
+    if (pos > 0 && pos <= 2 && (state.league === 'egy1' || state.league === 'mar1')) ev.push({ id: 'caf', ar: 'دوري أبطال إفريقيا', nat: false });
+    if (T >= 2029 && (T - 2029) % 4 === 0) {
+      var all = Object.keys(state.clubs).filter(function (id) { var l = state.clubs[id].league; return D.TOP15.indexOf(l) > -1; }).sort(function (a, b) { return state.clubs[b].str - state.clubs[a].str; });
+      if (all.indexOf(state.clubId) > -1 && all.indexOf(state.clubId) < 32 || glob.cl.champ === state.clubId) ev.push({ id: 'cwc', ar: 'كأس العالم للأندية ' + T, nat: false });
+    }
+    ev.forEach(function (e) { e.status = 'pending'; e.year = T; });
+    return ev;
+  }
+  function natPool(state, conf) {
+    return Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return c.league === 'nt' && (!conf || c.conf === conf); });
+  }
+  function runSummerEvent(state, idx, rng) {
+    var e = state.summer[idx]; if (!e || e.status === 'done') return e;
+    var p = state.player, nt = ntOf(state), it = state.intl, res = { id: e.id, ar: e.ar };
+    var share = clamp((state.stats.apps) / (rounds(state.league) * 0.4), 0.3, 1);
+    if (e.nat) {
+      var size = e.id === 'wc' ? 48 : 16, groups = e.id === 'wc' ? 12 : 4, adv = e.id === 'wc' ? 32 : 8;
+      var conf = e.id === 'euro' ? 'UEFA' : e.id === 'afcon' ? 'CAF' : null, pool = natPool(state, conf).filter(function (id) { return id !== nt.id; });
+      var qprob = clamp(0.2 + (nt.str - 58) / 20, 0.05, 0.98);
+      var qual = rng() < qprob;
+      var sel = it.caps > 0 ? p.ovr >= nt.str - 12 : p.ovr >= nt.str - 4;
+      var others = pool.map(function (id) { return { id: id, s: state.clubs[id].str + gauss(rng) * 3 }; }).sort(function (a, b) { return b.s - a.s; }).map(function (x) { return x.id; });
+      if (!qual) { res.noQual = true; var f0 = others.slice(0, size); res.champion = tourney(state, { id: e.id, ar: e.ar, teams: f0, groups: groups, advance: adv, diff: 2 }, rng).champion; }
+      else {
+        var field = others.slice(0, size - 1).concat([nt.id]);
+        var tr = tourney(state, { id: e.id, ar: e.ar, teams: field, groups: groups, advance: adv, meId: sel ? nt.id : null, diff: 2, counts: true }, rng);
+        res.sel = sel; res.out = tr; res.champion = tr.champion;
+        if (!sel) res.notSelected = true;
+        if (sel) {
+          var placed = tr.placed, f = placed === 'بطل' ? 1 : /وصيف/.test(placed) ? 0.4 : placed === 'نصف النهائي' ? 0.2 : placed === 'ربع النهائي' ? 0.1 : 0.04;
+          var amt = roundMoney(D.PRIZE[e.id] * 1e6 * f * (sel ? 1 : 0)); res.prize = amt; state.money += amt; state.earn.prizes += amt;
+          if (placed === 'بطل') { state.honors.push({ year: e.year, type: e.id, text: 'بطل ' + e.ar + ' مع ' + nt.ar, clubId: null }); it.wins = (it.wins || 0) + 1; state.fame = clamp((state.fame || 0) + 12, 0, 100); }
+        }
+      }
+    } else {
+      var me = state.clubId, clubs;
+      if (e.id === 'caf') {
+        var egy = (state.pl && []) , pickl = function (lk) { return Object.keys(state.clubs).filter(function (id) { return state.clubs[id].league === lk && id !== me; }).sort(function (a, b) { return state.clubs[b].str - state.clubs[a].str; }).slice(0, 3); };
+        clubs = pickl('egy1').concat(pickl('mar1')).concat(AFR.map(function (c) { return c[0]; })).slice(0, 15).concat([me]);
+      } else {
+        clubs = Object.keys(state.clubs).filter(function (id) { var l = state.clubs[id].league; return id !== me && (D.TOP15.indexOf(l) > -1 || l === 'afr'); }).sort(function (a, b) { return state.clubs[b].str - state.clubs[a].str; }).slice(0, 31).concat([me]);
+      }
+      var tr2 = tourney(state, { id: e.id, ar: e.ar, teams: clubs, groups: 0, meId: me, diff: 2, club: true }, rng);
+      res.out = tr2; res.champion = tr2.champion;
+      var pl2 = tr2.placed, f2 = pl2 === 'بطل' ? 1 : /وصيف/.test(pl2) ? 0.4 : pl2 === 'نصف النهائي' ? 0.2 : pl2 === 'ربع النهائي' ? 0.1 : 0.04;
+      var amt2 = roundMoney(D.PRIZE[e.id] * 1e6 * f2 * share); res.prize = amt2; state.money += amt2; state.earn.prizes += amt2;
+      if (pl2 === 'بطل') state.honors.push({ year: e.year, type: e.id, text: 'بطل ' + e.ar, clubId: me });
+    }
+    e.status = 'done'; e.res = res;
+    return e;
+  }
+  function finishSummer(state) { state.phase = state.player.age >= 38 ? 'retired' : 'offers'; state.summer = null; }
+  function retireNow(state) { state.phase = 'retired'; }
+
+  /* ---- كبر اللاعيبة والتعويض بناشئين ---- */
+  function agePlayers(state, rng) {
+    var keep = [], ret = [];
+    state.pl.forEach(function (x) {
+      x.a++;
+      var d = x.a <= 21 ? 2.4 : x.a <= 24 ? 1.2 : x.a <= 28 ? 0.1 : x.a <= 31 ? -0.8 : x.a <= 34 ? -1.6 : -2.4;
+      x.o = clamp(Math.round(x.o + d + gauss(rng) * 1.3), 48, 96);
+      if (x.a >= 35 && rng() < (x.a - 34) * 0.16) { ret.push(x); return; }
+      keep.push(x);
+    });
+    ret.forEach(function (x) {
+      var c = state.clubs[x.c], o = clamp(Math.round((c ? c.str : 65) - 14 + rng() * 8), 52, 74);
+      keep.push({ n: nameFor(state, x.c, state.year + '|ng' + keep.length), p: x.p, a: 17 + Math.floor(rng() * 3), o: o, nat: '', c: x.c, g: 1 });
+    });
+    keep.forEach(function (x, i) { x.id = i; });
+    state.retiredNews = ret.map(function (x) { return { n: x.n, club: x.c, age: x.a }; });
+    state.pl = keep;
+  }
+
+  var FEEM = { esp: 1.15, ita: 1.05, ger: 1.05, sau1: 1.35, sau2: 0.5, egy: 0.5, mar: 0.45, usa: 0.9, bra: 0.75, arg: 0.7, tur: 0.85, bel: 0.8 };
+  function squadOf(state, cid) {
+    var c = state.clubs[cid], list;
+    if (c && c.league === 'nt') list = state.pl.filter(function (x) { return natNorm(x.nat) === c.flag; });
+    else list = state.pl.filter(function (x) { return x.c === cid; });
+    list = list.slice().sort(function (a, b) { return b.o - a.o; });
+    return { G: list.filter(function (x) { return x.p === 'GK'; }), D: list.filter(function (x) { return x.p === 'DF'; }), M: list.filter(function (x) { return x.p === 'MF'; }), F: list.filter(function (x) { return x.p === 'ST'; }) };
+  }
+  var POS_LBL = { D: 'مدافع', M: 'وسط', F: 'مهاجم' };
+
+  /* ====== سوق الانتقالات (بيحصل في الخلفية، بلاعيبة حقيقيين) ====== */
   function simMarket(state, rng) {
     var year = state.year, items = [], used = {};
-    var bigLeagues = ['eng1', 'esp1', 'ita1', 'sau1', 'euro'];
+    var bigLeagues = ['eng1', 'esp1', 'ita1', 'ger1', 'fra1', 'por1', 'ned1', 'sau1'];
     var all = Object.keys(state.clubs).filter(function (id) { var l = state.clubs[id].league; return bigLeagues.indexOf(l) > -1 || l === 'egy1' || l === 'eng2' || l === 'esp2' || l === 'ita2'; });
     function cur(id) { var l = LG[state.clubs[id].league]; return l ? D.COUNTRIES[l.country].cur : '€'; }
     function weighted(arr, wf) {
@@ -566,20 +1050,19 @@
       if (!sellers.length) continue;
       var seller = pick(sellers, rng);
       var key = buyer + '>' + seller; if (used[key]) continue; used[key] = 1;
-      var A = state.clubs[seller], B = state.clubs[buyer];
-      var q = clamp(A.str + 2 + gauss(rng) * 3, 55, 95), age = 20 + Math.floor(rng() * 12);
+      var cand = (state.pl || []).filter(function (x) { return x.c === seller && x.a >= 19 && x.a <= 32 && !x.g; });
+      if (!cand.length) continue;
+      var pl = weighted(cand, function (x) { return Math.pow(Math.max(1, x.o - 55), 1.4); });
+      var A = state.clubs[seller], B = state.clubs[buyer], q = pl.o, age = pl.a;
       var d = clamp((q - 66) / 10 * 0.7 + rng() * 0.5, 0.2, 2.2);
       A.str = clamp(round1(A.str - d * 0.8), 40, 95); B.str = clamp(round1(B.str + d * 0.8), 40, 95);
+      pl.c = buyer;
       var fee = feeM(q, age) * (0.85 + rng() * 0.4); fee = fee >= 20 ? Math.round(fee) : round1(fee);
-      items.push({ t: 'tr', n: nameFor(state, seller, year + '|mk' + i), from: seller, to: buyer, fee: fee, cur: cur(buyer), q: Math.round(q), mine: seller === state.clubId || buyer === state.clubId });
+      items.push({ t: 'tr', n: pl.n, from: seller, to: buyer, fee: fee, cur: cur(buyer), q: Math.round(q), mine: seller === state.clubId || buyer === state.clubId });
     }
-    var nRet = 3 + Math.floor(rng() * 4);
-    for (i = 0; i < nRet; i++) {
-      var cid = weighted(all, function (id) { return Math.max(1, state.clubs[id].str - 60); });
-      var C = state.clubs[cid], dd = clamp(0.2 + rng() * 0.9, 0.2, 1.2);
-      C.str = clamp(round1(C.str - dd), 40, 95);
-      items.push({ t: 'ret', n: nameFor(state, cid, year + '|rt' + i), club: cid, age: 35 + Math.floor(rng() * 6), mine: cid === state.clubId });
-    }
+    (state.retiredNews || []).slice(0, 6).forEach(function (r) {
+      if (state.clubs[r.club]) { var C = state.clubs[r.club]; C.str = clamp(round1(C.str - (0.2 + rng() * 0.6)), 40, 95); items.push({ t: 'ret', n: r.n, club: r.club, age: r.age, mine: r.club === state.clubId }); }
+    });
     state.market = { year: year, items: items };
     return items;
   }
@@ -605,7 +1088,7 @@
     var elig = Object.keys(state.clubs).filter(function (id) {
       var c = state.clubs[id];
       if (id === state.clubId) return false;
-      if (['eng1', 'eng2', 'esp1', 'esp2', 'egy1', 'ita1', 'ita2', 'sau1', 'sau2'].indexOf(c.league) < 0) return false;
+      if (!LG[c.league]) return false;
       return c.str <= p.ovr + 3 && c.str >= p.ovr - 14 && c.str >= curStr - 6;
     });
     // فرص أكبر للأندية الأقوى شوية من مستواه
@@ -621,7 +1104,7 @@
     var offers = picked.map(function (id) {
       var c = state.clubs[id], country = LG[c.league].country;
       var mult = 0.85 + rng() * 0.35;
-      var fee = base * mult * (country === 'esp' ? 1.15 : country === 'ita' ? 1.05 : country === 'sau' ? (c.league === 'sau1' ? 1.35 : 0.5) : country === 'egy' ? 0.5 : 1);
+      var fee = base * mult * (FEEM[c.league] || FEEM[country] || 1);
       fee = fee >= 20 ? Math.round(fee) : Math.round(fee * 10) / 10;
       return { clubId: id, league: c.league, fee: fee, cur: D.COUNTRIES[country].cur };
     }).sort(function (x, y) { return state.clubs[y.clubId].str - state.clubs[x.clubId].str; });
@@ -642,6 +1125,7 @@
     var bottom = keys[keys.length - 1];
     var out = tabs[bottom].slice(-3);
     var pool = Object.keys(state.clubs).filter(function (id) { return state.clubs[id].league === world.country + '_pool'; });
+    if (LG[bottom].noRel || !pool.length) return { moves: moves, tabs: tabs };
     out.forEach(function (id) {
       state.clubs[id].league = world.country + '_pool'; moves[id] = 'down';
       var inc = pool.length ? pool.splice(Math.floor(rng() * pool.length), 1)[0] : null;
@@ -652,7 +1136,8 @@
 
   function driftStrengths(state, rng) {
     Object.keys(state.clubs).forEach(function (id) {
-      var c = state.clubs[id], tierMean = D.MEANS[c.league] || (c.league === 'euro' ? 76 : 60);
+      var c = state.clubs[id]; if (c.league === 'nt') return;
+      var tierMean = D.MEANS[c.league] || (c.league === 'euro' ? 76 : 60);
       c.str = clamp(c.str + gauss(rng) * 1.3 + (tierMean - c.str) * 0.04, 40, 95);
       c.str = Math.round(c.str * 10) / 10;
     });
@@ -660,6 +1145,7 @@
 
   function finishSeason(state, rng) {
     if (!state.seasonOver) finishOthers(state, rng);
+    (state.cups || []).forEach(function (c) { if (c.status === 'active') { c.status = 'out'; c.result = 'الموسم خلص قبل ما تكمل'; c.champ = champOf(state, c.alive, rng); c.next = null; } });
     var p = state.player, s = state.stats, lk = state.league;
     var tab = table(state, lk);
     var pos = tab.findIndex(function (r) { return r.id === state.clubId; }) + 1;
@@ -674,15 +1160,31 @@
 
     var champion = tab[0].id === state.clubId;
     if (state.euro && state.euro.status === 'active') eliminate(state, 'الموسم خلص قبل ما تكمل');
-    var awards = computeAwards(state, rng, { tab: tab, before: before, avg: avg, champion: champion });
-    var qmap = {};
-    if (LG[lk].tier === 1 && (LG[lk].country === 'eng' || LG[lk].country === 'esp' || LG[lk].country === 'ita')) tab.slice(0, 4).forEach(function (r, i) { qmap[r.id] = i < 3 ? 'cl' : 'qual'; });
+    var glob = simGlobal(state, rng);
+    var awards = computeAwards(state, rng, { avg: avg, champion: champion, glob: glob });
+    function mine(k) { return !!(awards[k] && awards[k].mine); }
+    var qmap = {}, qn = D.EUROQ[lk];
+    if (qn && LG[lk].tier === 1) tab.slice(0, qn).forEach(function (r, i) { qmap[r.id] = qn >= 4 ? (i < 3 ? 'cl' : 'qual') : qn === 2 ? (i === 0 ? 'cl' : 'qual') : 'qual'; });
     state.euroQual = qmap;
-    var pts = Math.round(s.goals * 2 + s.assists + Math.max(0, avg - 3) * 10) + (awards.ballon.mine ? 60 : 0) + (awards.boot.mine ? 30 : 0) + (awards.glove.mine ? 30 : 0) + (awards.kopa.mine ? 40 : 0) + (awards.club.mine ? 20 : 0);
+
+    /* الفلوس: مكافآت البطولات */
+    var prizes = [], share = clamp(s.apps / (myRounds * 0.45), 0.25, 1);
+    function prize(text, M) { var amt = roundMoney(M * 1e6 * share); if (amt > 0) { state.money += amt; state.earn.prizes += amt; prizes.push({ text: text, amt: amt }); } }
+    var lp = (D.LEAGUE_PRIZE[lk] || (LG[lk].tier === 1 ? 0.5 : 0.1)) * (LG[lk].tier === 1 ? 1 : 0.15);
+    if (champion) prize('بطولة ' + LG[lk].ar, lp);
+    (state.cups || []).forEach(function (c) { if (c.status === 'champ') prize('بطولة ' + c.ar, Math.max(0.05, (D.LEAGUE_PRIZE[lk] || 0.2) * 0.4 * (LG[lk].tier === 1 ? 1 : 0.2))); });
+    var ee = state.euro;
+    if (ee && ee.status === 'champ') prize('بطولة دوري أبطال أوروبا', D.PRIZE.cl);
+    else if (ee && ee.phase === 'final' && ee.status === 'out') prize('وصافة دوري أبطال أوروبا', D.PRIZE.cl * 0.3);
+    else if (ee && ee.phase === 'sf' && ee.status === 'out') prize('نصف نهائي دوري الأبطال', D.PRIZE.cl * 0.12);
+
+    var pts = Math.round(s.goals * 2 + s.assists + Math.max(0, avg - 3) * 10) + (mine('ballon') ? 60 : 0) + (mine('boot') ? 30 : 0) + (mine('glove') ? 30 : 0) + (mine('kopa') ? 40 : 0) + (mine('club') ? 20 : 0);
     var summary = {
       year: state.year, league: lk, clubId: state.clubId, pos: pos, teams: tab.length,
-      apps: s.apps, starts: s.starts, goals: s.goals, assists: s.assists, yellow: s.yellow, red: s.red,
-      euro: euroReach(state), champion0: champion, avg: round1(avg), ovrBefore: Math.round(before * 10) / 10, ovrAfter: p.ovr, age: p.age, points: pts, champion: champion
+      apps: s.apps, starts: s.starts, goals: s.goals, assists: s.assists, yellow: s.yellow, red: s.red, motm: s.motm || 0,
+      euro: euroReach(state), champion0: champion, avg: round1(avg), ovrBefore: Math.round(before * 10) / 10, ovrAfter: p.ovr, age: p.age, points: pts, champion: champion,
+      salary: Math.round(state.earn.salary), bonus: Math.round(state.earn.bonus), prizes: prizes, cups: (state.cups || []).map(function (c) { return { ar: c.ar, status: c.status, result: c.result }; }),
+      worldChamps: glob.worldChamps
     };
     var offerInfo = makeOffers(state, avg, appsRate, rng);
     var promo = applyPromotions(state, rng);
@@ -695,19 +1197,27 @@
     driftStrengths(state, rng);
 
     state.honors = state.honors || [];
-    if (champion) state.honors.push({ year: state.year, type: 'league', text: 'بطل ' + LG[lk].ar });
-    if (state.euro && state.euro.status === 'champ') state.honors.push({ year: state.year, type: 'cl', text: 'بطل دوري أبطال أوروبا' });
-    if (awards.ballon.mine) state.honors.push({ year: state.year, type: 'ballon', text: 'الكرة الذهبية' });
-    if (awards.kopa.mine) state.honors.push({ year: state.year, type: 'kopa', text: 'جايزة كوبا (أحسن لاعب شاب)' });
-    if (awards.club.mine) state.honors.push({ year: state.year, type: 'club', text: 'ناديك أفضل نادي في العام (' + state.clubs[state.clubId].ar + ')' });
-    if (awards.boot.mine) state.honors.push({ year: state.year, type: 'boot', text: 'الحذاء الذهبي (' + LG[lk].ar + ')' });
-    if (awards.glove.mine) state.honors.push({ year: state.year, type: 'glove', text: 'القفاز الذهبي (' + LG[lk].ar + ')' });
+    var cid = state.clubId;
+    if (champion) state.honors.push({ year: state.year, type: 'league', text: 'بطل ' + LG[lk].ar, clubId: cid });
+    (state.cups || []).forEach(function (c) { if (c.status === 'champ') state.honors.push({ year: state.year, type: 'cup', text: 'بطل ' + c.ar, clubId: cid }); });
+    if (state.euro && state.euro.status === 'champ') state.honors.push({ year: state.year, type: 'cl', text: 'بطل دوري أبطال أوروبا', clubId: cid });
+    if (mine('ballon')) state.honors.push({ year: state.year, type: 'ballon', text: 'الكرة الذهبية', clubId: cid });
+    if (mine('kopa')) state.honors.push({ year: state.year, type: 'kopa', text: 'جايزة كوبا (أحسن لاعب شاب)', clubId: cid });
+    if (mine('club')) state.honors.push({ year: state.year, type: 'club', text: 'ناديك أفضل نادي في العام (' + state.clubs[cid].ar + ')', clubId: cid });
+    if (mine('boot')) state.honors.push({ year: state.year, type: 'boot', text: 'الحذاء الذهبي (' + LG[lk].ar + ')', clubId: cid });
+    if (mine('glove')) state.honors.push({ year: state.year, type: 'glove', text: 'القفاز الذهبي (' + LG[lk].ar + ')', clubId: cid });
+
+    var fameNow = (p.ovr - 66) * 2.2 + s.goals * 0.5 + s.assists * 0.25 + (mine('ballon') ? 30 : 0) + (mine('boot') ? 10 : 0) + (mine('kopa') ? 10 : 0) + (champion ? 5 : 0) + (state.euro && state.euro.status === 'champ' ? 12 : 0) + state.intl.caps * 0.4;
+    makeSponsors(state, rng, fameNow);
+    state.summer = buildSummer(state, glob);
+    agePlayers(state, rng);
+
     state.awards = awards;
     state.summary = summary;
     state.offers = offerInfo.offers;
     state.offersReason = offerInfo.reason;
     state.tabs = promo.tabs;
-    state.afterAwards = p.age >= 38 ? 'retired' : 'offers';
+    state.afterAwards = state.summer.length ? 'summer' : (p.age >= 38 ? 'retired' : 'offers');
     state.phase = 'awards';
     return summary;
   }
@@ -720,8 +1230,12 @@
     var country = LG[state.league].country;
     buildWorld(state, country, rng);
     state.phase = 'play'; state.offers = null; state.summary = null; state.awards = null; state.euro = null;
-    initClubs(state);
+    state.callupChecked = false; state.pendingCallup = null; state.summer = null; state.sponsorOffers = [];
+    state.earn = { salary: 0, bonus: 0, prizes: 0, sponsor: 0 };
+    initClubs(state); initExtras(state);
     simMarket(state, rng);
+    refreshContract(state, rng);
+    initCups(state, rng);
     var q = state.euroQual && state.euroQual[state.clubId];
     if (q && LG[state.league].tier === 1) startEuro(state, q, rng);
     state.euroQual = null;
@@ -729,15 +1243,21 @@
 
   function continueAfterAwards(state) { state.phase = state.afterAwards || 'offers'; }
 
-  /* قبول عرض أو البقاء (offerIndex = -1) */
+  /* قبول عرض (بيروح لشاشة التوقيع) أو البقاء (offerIndex = -1) */
   function chooseOffer(state, idx, rng) {
     if (idx >= 0 && state.offers && state.offers[idx]) {
       var o = state.offers[idx];
       state.clubId = o.clubId;
       state.transfer = { fee: o.fee, cur: o.cur, to: o.clubId, year: state.year };
       state.transfers = (state.transfers || []).concat([state.transfer]);
-    } else state.transfer = null;
-    // لو ناديه هبط خارج الهرم (نادرًا) هنقله لأقرب نادي في الدرجة الأخيرة
+      state.deal = makeDeal(state, o.clubId, rng, o.fee, o.cur);
+      state.signFor = 'transfer'; state.phase = 'sign';
+      return;
+    }
+    state.transfer = null;
+    finishMove(state, rng);
+  }
+  function finishMove(state, rng) {
     var cl = state.clubs[state.clubId];
     if (cl.league.indexOf('_pool') > -1) {
       var last = D.COUNTRIES[LG[state.league].country].leagues.slice(-1)[0];
@@ -748,7 +1268,7 @@
   }
 
   function newCareer(opts, rng) {
-    var st = { v: 1, year: 2026, phase: 'play', history: [], totals: { apps: 0, goals: 0, assists: 0 }, form: [] };
+    var st = { v: 2, year: 2026, phase: 'play', history: [], totals: { apps: 0, goals: 0, assists: 0 }, form: [], honors: [] };
     st.player = { name: opts.name, nat: opts.nat, natCode: opts.natCode, pos: opts.pos, color: opts.color, age: 18, ovr: 60 };
     if (opts.photo) st.player.photo = opts.photo;
     initClubs(st);
@@ -758,7 +1278,12 @@
       .sort(function (a, b) { return st.clubs[a].str - st.clubs[b].str; });
     st.clubId = pick(cand.slice(0, Math.ceil(cand.length * 0.7)), rng);
     buildWorld(st, country, rng);
+    initExtras(st);
     simMarket(st, rng);
+    initCups(st, rng);
+    var cc = st.clubs[st.clubId], lg = LG[cc.league];
+    st.deal = makeDeal(st, st.clubId, rng, 0, D.COUNTRIES[lg.country].cur);
+    st.signFor = 'start'; st.phase = 'sign'; st.contract = null;
     return st;
   }
 
@@ -784,7 +1309,9 @@
   }
 
   var API = { mulberry: mulberry, newCareer: newCareer, playRound: playRound, finishSeason: finishSeason, chooseOffer: chooseOffer,
-    table: table, rounds: rounds, myPosition: myPosition, myFixtures: myFixtures, continueAfterAwards: continueAfterAwards, matchLineups: matchLineups, euroDue: euroDue, startEuro: startEuro, STAGE_AR: STAGE_AR, feeM: feeM, ageBase: ageBase, finishOthers: finishOthers, simMarket: simMarket };
+    table: table, rounds: rounds, myPosition: myPosition, myFixtures: myFixtures, continueAfterAwards: continueAfterAwards, matchLineups: matchLineups, euroDue: euroDue, startEuro: startEuro, STAGE_AR: STAGE_AR, feeM: feeM, ageBase: ageBase, finishOthers: finishOthers, simMarket: simMarket,
+    nextExtra: nextExtra, nextExtraInfo: nextExtraInfo, signContract: signContract, buyAsset: buyAsset, takeSponsor: takeSponsor, runSummerEvent: runSummerEvent,
+    finishSummer: finishSummer, retireNow: retireNow, salaryFor: salaryFor, ntOf: ntOf, natNorm: natNorm, checkCallup: checkCallup };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.KoraCMEngine = API;
 })(typeof window !== 'undefined' ? window : globalThis);
