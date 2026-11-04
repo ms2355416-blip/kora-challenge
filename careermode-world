@@ -1,4 +1,4 @@
-/* Kora Challenge — توسيع عالم كارير مود: 15 دوري، كؤوس، تشكيلات حقيقية، منتخبات، ممتلكات ورعاة (موسم 2026/27)
+/* Kora Challenge — توسيع  لعالم كارير مود: 15 دوري، كؤوس، تشكيلات حقيقية، منتخبات، ممتلكات ورعاة (موسم 2026/27)
    لازم يتحمّل بعد careermode-data.js و coach-data.js و coach-squads-*.js و careermode-rosters.js */
 (function (root) {
   'use strict';
