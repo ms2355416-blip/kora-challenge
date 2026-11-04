@@ -1,72 +1,174 @@
-/* Kora Challenge — رسومات الممتلكات (SVG) في كارير مود */
+/* Kora Challenge — رسومات الممتلكات (SVG واقعية بتفاصيل بتزيد مع السعر) */
 (function (root) {
   'use strict';
-  function r(x, y, w, h, f, rx) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + (rx || 0) + '" fill="' + f + '"/>'; }
-  function p(d, f, extra) { return '<path d="' + d + '" fill="' + f + '"' + (extra || '') + '/>'; }
-  function c(cx, cy, rr, f, extra) { return '<circle cx="' + cx + '" cy="' + cy + '" r="' + rr + '" fill="' + f + '"' + (extra || '') + '/>'; }
-  function svg(inner) { return '<svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + inner + '</svg>'; }
-  var GLASS = '#9fd3f2', DARK = '#23303a', GROUND = 'rgba(120,140,130,.35)';
-  function win(x, y, w, h) { return r(x, y, w || 8, h || 9, GLASS, 1) + r(x + (w || 8) / 2 - .4, y, .8, h || 9, 'rgba(0,0,0,.25)'); }
-  function tree(x, y, s) { return r(x - 1.5, y, 3, 10 * s, '#6b4a2f') + c(x, y - 2, 8 * s, '#3f9c58') + c(x - 5 * s, y + 2, 6 * s, '#35874c'); }
+  var N = 0;
+  function uid() { return 'ka' + (++N); }
+  function rgb(h) { h = String(h).replace('#', ''); if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join(''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+  function shade(h, p) { var c = rgb(h); return 'rgb(' + c.map(function (v) { return Math.max(0, Math.min(255, Math.round(p >= 0 ? v + (255 - v) * p : v * (1 + p)))); }).join(',') + ')'; }
+  function lg(id, x1, y1, x2, y2, st) { return '<linearGradient id="' + id + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '">' + st.map(function (s) { return '<stop offset="' + s[0] + '" stop-color="' + s[1] + '"' + (s[2] != null ? ' stop-opacity="' + s[2] + '"' : '') + '/>'; }).join('') + '</linearGradient>'; }
+  function R(x, y, w, h, f, rx, ex) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + (rx || 0) + '" fill="' + f + '"' + (ex || '') + '/>'; }
+  function P(d, f, ex) { return '<path d="' + d + '" fill="' + f + '"' + (ex || '') + '/>'; }
+  function L(d, s, w, ex) { return '<path d="' + d + '" fill="none" stroke="' + s + '" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round"' + (ex || '') + '/>'; }
+  function C(x, y, r, f, ex) { return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + f + '"' + (ex || '') + '/>'; }
+  function E(x, y, rx, ry, f, ex) { return '<ellipse cx="' + x + '" cy="' + y + '" rx="' + rx + '" ry="' + ry + '" fill="' + f + '"' + (ex || '') + '/>'; }
+  function svg(w, h, defs, inner) { return '<svg viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>' + defs + '</defs>' + inner + '</svg>'; }
+  function rep(n, f) { var s = ''; for (var i = 0; i < n; i++) s += f(i); return s; }
 
+  /* ======================= البيوت (200×130) ======================= */
   function house(k, col) {
-    var g = r(0, 70, 120, 10, GROUND), roof = 'rgba(0,0,0,.35)', s = '';
-    if (k === 0) { // استوديو صغير
-      s = r(36, 38, 48, 32, col) + r(32, 33, 56, 6, '#6e7a80') + win(42, 46) + r(62, 48, 12, 22, '#7a5230') + r(30, 70, 60, 2, '#555');
-    } else if (k === 1) { // شقة عائلية (عمارة)
-      s = r(30, 18, 60, 52, col) + r(27, 14, 66, 6, '#6e7a80');
-      for (var i = 0; i < 3; i++) { s += win(37 + i * 18, 26) + win(37 + i * 18, 42); }
-      s += r(54, 56, 12, 14, '#7a5230') + r(33, 50, 20, 2, '#444');
-    } else if (k === 2) { // تاون هاوس بسقف مائل
-      s = r(34, 34, 52, 36, col) + p('M28 36 L60 12 L92 36 Z', '#a34a3a') + r(74, 12, 7, 14, '#7b4a3a') + win(40, 42) + win(66, 42) + r(55, 52, 11, 18, '#5a3a24') + r(40, 56, 10, 2, '#fff');
-    } else if (k === 3) { // بيت عائلي بجراج وشجرة
-      s = tree(14, 52, 1) + r(30, 36, 50, 34, col) + p('M24 38 L55 14 L86 38 Z', '#7a8791') + r(80, 46, 22, 24, '#d4d9dc') + r(83, 52, 16, 18, '#9aa4a9') + win(36, 44) + win(58, 44) + r(47, 54, 10, 16, '#6a4a2e');
-    } else if (k === 4) { // فيلا مودرن مكعبات
-      s = r(18, 38, 52, 32, col) + r(46, 18, 56, 24, '#cfd6da') + r(14, 35, 60, 4, '#3a444b') + r(42, 15, 64, 4, '#3a444b') +
-        r(22, 44, 22, 14, GLASS) + r(50, 24, 46, 12, GLASS) + r(78, 46, 24, 24, '#d9dfe2') + r(82, 52, 16, 18, GLASS) + r(0, 66, 14, 4, '#53b8e8') + tree(110, 54, .8);
+    var sky = uid(), gr = uid(), wl = uid(), rf = uid(), gl = uid(), gld = uid(), pool = uid();
+    var defs = lg(sky, 0, 0, 0, 1, [[0, '#bfe3f7'], [1, '#eef8ee']]) + lg(gr, 0, 0, 0, 1, [[0, '#6cc070'], [1, '#3f9650']]) +
+      lg(wl, 0, 0, 0, 1, [[0, shade(col, .22)], [1, shade(col, -.12)]]) + lg(rf, 0, 0, 0, 1, [[0, '#b85a45'], [1, '#7d3a2b']]) +
+      lg(gl, 0, 0, 1, 1, [[0, '#ffeeb8'], [1, '#f2b45e']]) + lg(gld, 0, 0, 0, 1, [[0, '#f4d775'], [1, '#b98a2a']]) + lg(pool, 0, 0, 0, 1, [[0, '#7fd7f4'], [1, '#2fa4d6']]);
+    function win(x, y, w, h, lit) { return R(x - 1.5, y - 1.5, w + 3, h + 3, '#f3ecd9', 1.5) + R(x, y, w, h, lit === false ? '#8fc3e3' : 'url(#' + gl + ')', 1) + R(x + w / 2 - .5, y, 1, h, '#f3ecd9') + R(x, y + h / 2 - .5, w, 1, '#f3ecd9') + R(x - 2, y + h + 1.5, w + 4, 2, '#d8cfb8', 1); }
+    function door(x, y, w, h, c) { return R(x - 1.5, y - 1.5, w + 3, h + 1.5, '#f3ecd9', 2) + P('M' + x + ' ' + (y + h) + ' L' + x + ' ' + (y + 4) + ' Q' + x + ' ' + y + ' ' + (x + 4) + ' ' + y + ' L' + (x + w - 4) + ' ' + y + ' Q' + (x + w) + ' ' + y + ' ' + (x + w) + ' ' + (y + 4) + ' L' + (x + w) + ' ' + (y + h) + ' Z', c) + R(x + 2, y + 4, w / 2 - 3, h / 2 - 3, shade(c, .18), 1) + R(x + w / 2 + 1, y + 4, w / 2 - 3, h / 2 - 3, shade(c, .18), 1) + C(x + w - 3, y + h / 2 + 2, 1.1, '#e8c25a'); }
+    function bush(x, y, s) { return E(x, y, 9 * s, 6 * s, '#2f8a47') + E(x - 5 * s, y + 1, 7 * s, 5 * s, '#3da556') + E(x + 6 * s, y + 1, 7 * s, 5 * s, '#37984e'); }
+    function tree(x, y, s) { return R(x - 2 * s, y, 4 * s, 20 * s, '#6e4a2e') + C(x, y - 6 * s, 13 * s, '#2f8a47') + C(x - 9 * s, y + s, 9 * s, '#3da556') + C(x + 9 * s, y + s, 9 * s, '#37984e') + C(x - 3 * s, y - 12 * s, 8 * s, '#47b562'); }
+    function palm(x, y, s) { return L('M' + x + ' ' + (y + 30 * s) + ' Q' + (x + 3 * s) + ' ' + (y + 14 * s) + ' ' + x + ' ' + y, '#8a6238', 3 * s) + L('M' + x + ' ' + y + ' q-16 -2 -20 10', '#2f8a47', 3 * s) + L('M' + x + ' ' + y + ' q16 -2 20 10', '#2f8a47', 3 * s) + L('M' + x + ' ' + y + ' q-8 -12 -16 -8', '#3da556', 3 * s) + L('M' + x + ' ' + y + ' q8 -12 16 -8', '#3da556', 3 * s); }
+    var s = R(0, 0, 200, 130, 'url(#' + sky + ')') + P('M0 104 Q100 98 200 104 L200 130 L0 130Z', 'url(#' + gr + ')') + P('M70 130 L84 104 L116 104 L130 130Z', '#c9c4b8', ' opacity=".9"');
+    if (k === 0) { // استوديو بسيط
+      s += E(100, 106, 56, 4, 'rgba(0,0,0,.18)') + R(56, 58, 88, 46, 'url(#' + wl + ')') + R(52, 52, 96, 8, '#7d868b', 1) + R(52, 59, 96, 2, 'rgba(0,0,0,.25)') + win(68, 70, 22, 18) + door(108, 72, 16, 32, '#6c4a30') +
+        R(100, 66, 32, 4, '#b94a3c', 1) + R(128, 80, 12, 8, '#cfd6d9', 1) + R(130, 82, 8, 1, '#8a949a') + R(56, 104, 88, 3, '#aaa') + bush(48, 103, .8) + tree(168, 82, .8);
+    } else if (k === 1) { // شقة في عمارة
+      s += E(100, 106, 62, 4, 'rgba(0,0,0,.18)') + R(48, 20, 104, 84, 'url(#' + wl + ')') + R(44, 15, 112, 7, '#6e7a80', 1) + R(60, 6, 22, 11, '#9aa4a9', 2) + R(62, 3, 18, 4, '#7d868b', 2);
+      for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) { var x = 58 + c * 32, y = 28 + r * 24; s += win(x, y, 16, 14, (r + c) % 2 === 0) + R(x - 4, y + 15, 24, 5, '#e9e4d6', 1) + L('M' + (x - 4) + ' ' + (y + 17.5) + ' L' + (x + 20) + ' ' + (y + 17.5), '#9aa4a9', 1); }
+      s += door(92, 78, 16, 26, '#3f5568') + R(84, 72, 32, 4, '#2f7cf6', 1) + bush(40, 104, .9) + bush(162, 104, .9) + tree(176, 84, .8);
+    } else if (k === 2) { // تاون هاوس
+      s += E(100, 106, 62, 4, 'rgba(0,0,0,.2)') + R(56, 50, 88, 54, 'url(#' + wl + ')') + rep(6, function (b) { return L('M56 ' + (56 + b * 9) + ' L144 ' + (56 + b * 9), 'rgba(0,0,0,.12)', 1); }) +
+        P('M46 52 L100 14 L154 52 Z', 'url(#' + rf + ')') + L('M52 49 L100 18 L148 49', 'rgba(255,255,255,.25)', 1.5) + R(122, 14, 10, 20, '#8a4a3a') + R(120, 12, 14, 4, '#6b3a2e') +
+        win(66, 58, 18, 16) + win(116, 58, 18, 16) + win(66, 80, 14, 14) + R(78, 96, 44, 8, '#bdb7a8') + door(91, 76, 18, 28, '#2f4a3a') + R(88, 100, 24, 4, '#d3cdbd') + win(120, 80, 14, 14, false) +
+        R(40, 100, 14, 1.5, '#e9e4d6') + R(40, 98, 2, 8, '#e9e4d6') + R(46, 98, 2, 8, '#e9e4d6') + bush(48, 104, .9) + bush(152, 104, .9) + tree(172, 80, .85);
+    } else if (k === 3) { // بيت عائلي بجراج
+      s += E(104, 107, 76, 4, 'rgba(0,0,0,.2)') + R(40, 54, 80, 50, 'url(#' + wl + ')') + P('M32 56 L80 20 L128 56 Z', 'url(#' + rf + ')') + L('M38 53 L80 24 L122 53', 'rgba(255,255,255,.25)', 1.5) + R(100, 22, 9, 16, '#8a4a3a') +
+        R(118, 70, 52, 34, '#e9e6de') + P('M114 72 L144 52 L174 72 Z', '#6b3a2e') + R(124, 78, 40, 26, '#c8ccce') + rep(4, function (i) { return R(124, 80 + i * 6, 40, 1, 'rgba(0,0,0,.2)'); }) + R(40, 94, 60, 3, '#d8d2c2') +
+        win(50, 62, 18, 16) + win(92, 62, 18, 16) + door(72, 76, 18, 28, '#3b5a7a') + R(70, 70, 22, 3, '#f3ecd9') + R(46, 98, 70, 2, '#f3ecd9') + rep(8, function (i) { return R(48 + i * 9, 92, 2, 8, '#f3ecd9'); }) + R(120, 104, 46, 4, '#b9b4a8') +
+        bush(36, 104, .9) + tree(16, 82, 1) + tree(186, 86, .8);
+    } else if (k === 4) { // فيلا مودرن
+      s += E(100, 108, 84, 4, 'rgba(0,0,0,.2)') + R(30, 62, 74, 42, '#eceae4') + R(76, 34, 92, 44, '#d9dcdc') + R(26, 58, 82, 6, '#3a444b', 1) + R(72, 30, 100, 6, '#3a444b', 1) +
+        R(80, 40, 62, 32, 'url(#' + gl + ')', 1) + rep(3, function (i) { return R(100 + i * 20, 40, 1.5, 32, '#3a444b'); }) + R(150, 40, 14, 32, '#7a5a3c') + rep(7, function (i) { return R(150, 42 + i * 4.5, 14, 1, 'rgba(0,0,0,.25)'); }) +
+        R(36, 70, 32, 22, 'url(#' + gl + ')', 1) + R(51, 70, 1.5, 22, '#3a444b') + R(74, 84, 20, 20, '#b6bcc0') + R(76, 86, 16, 16, 'url(#' + gl + ')', 1) + R(76, 74, 92, 3, 'rgba(120,180,220,.7)') + rep(12, function (i) { return R(77 + i * 8, 71, 1, 6, '#3a444b'); }) +
+        R(20, 104, 70, 10, 'url(#' + pool + ')', 3) + R(20, 104, 70, 2, 'rgba(255,255,255,.55)') + palm(184, 76, 1) + palm(14, 82, .85) + bush(104, 106, .8);
     } else if (k === 5) { // قصر بمسبح
-      s = r(14, 34, 92, 36, col) + p('M10 36 L60 10 L110 36 Z', '#8a5a3a') + r(46, 36, 28, 34, '#f5ecd6');
-      for (var j = 0; j < 4; j++) s += r(48 + j * 7.5, 38, 3, 32, '#fff');
-      s += r(52, 54, 16, 16, '#5a3a24') + win(20, 42) + win(30, 42) + win(84, 42) + win(94, 42) + r(0, 71, 120, 9, '#4db6e6') + r(0, 71, 120, 2, 'rgba(255,255,255,.5)');
-    } else { // قصر ملكي ضخم
-      s = r(8, 38, 104, 32, col) + r(44, 20, 32, 50, col) + p('M40 22 L60 4 L80 22 Z', '#b88a2e') + c(60, 14, 5, '#e6c15a') +
-        r(10, 24, 18, 46, col) + p('M8 26 L19 8 L30 26 Z', '#b88a2e') + r(92, 24, 18, 46, col) + p('M90 26 L101 8 L112 26 Z', '#b88a2e') +
-        r(54, 52, 12, 18, '#5a3a24') + win(48, 28) + win(64, 28) + win(14, 34) + win(96, 34) + win(14, 50) + win(96, 50) + win(30, 46) + win(80, 46) + r(60, 0, 1.2, 8, '#444') + p('M61 0 L72 3 L61 6Z', '#e8453c');
+      s += E(100, 108, 94, 5, 'rgba(0,0,0,.2)') + R(18, 54, 164, 50, 'url(#' + wl + ')') + P('M12 56 L100 20 L188 56Z', '#8a5a3a') + P('M12 56 L100 20 L100 56Z', 'rgba(255,255,255,.12)') + L('M20 53 L100 24 L180 53', 'rgba(255,255,255,.3)', 1.5) +
+        R(68, 40, 64, 64, '#f5ecd6') + P('M64 42 L100 22 L136 42Z', '#c9a24a') + rep(5, function (i) { return R(72 + i * 12.5, 46, 5, 58, '#fffaf0') + R(70.5 + i * 12.5, 44, 8, 3, '#e4d8b8') + R(70.5 + i * 12.5, 100, 8, 4, '#e4d8b8'); }) +
+        door(92, 74, 16, 30, '#4a2f1d') + [26, 40, 144, 158].map(function (x) { return win(x, 66, 14, 20); }).join('') +
+        P('M30 56 L38 44 L46 56Z', '#8a5a3a') + win(33, 49, 8, 7, true) + P('M154 56 L162 44 L170 56Z', '#8a5a3a') + win(157, 49, 8, 7, true) + R(88, 104, 24, 6, '#d9d2bf') + bush(18, 104, 1) + bush(182, 104, 1) + tree(8, 86, .8) + tree(194, 86, .8) +
+        R(22, 112, 52, 12, 'url(#' + pool + ')', 3) + R(22, 112, 52, 2, 'rgba(255,255,255,.55)') + R(150, 112, 30, 8, '#3da556', 3);
+    } else { // قصر ملكي
+      s += E(100, 108, 98, 5, 'rgba(0,0,0,.22)') + R(10, 56, 180, 48, 'url(#' + wl + ')') + R(70, 38, 60, 66, shade(col, .08)) + R(14, 30, 40, 74, 'url(#' + wl + ')') + R(146, 30, 40, 74, 'url(#' + wl + ')') +
+        P('M8 32 L34 6 L60 32Z', 'url(#' + gld + ')') + P('M140 32 L166 6 L192 32Z', 'url(#' + gld + ')') + R(33, 0, 2, 8, '#444') + P('M35 0 L46 3 L35 6Z', '#e8453c') + R(165, 0, 2, 8, '#444') + P('M167 0 L178 3 L167 6Z', '#e8453c') +
+        P('M72 38 A28 28 0 0 1 128 38Z', 'url(#' + gld + ')') + R(98, 6, 4, 10, '#b98a2a') + C(100, 14, 4, '#f4d775') + L('M76 38 A24 24 0 0 1 124 38', 'rgba(255,255,255,.5)', 1.5) +
+        [22, 36, 150, 164].map(function (x) { return win(x, 40, 10, 16) + win(x, 66, 10, 16); }).join('') + [78, 92, 106, 120].map(function (x) { return win(x, 48, 8, 14); }).join('') + [78, 120].map(function (x) { return win(x, 70, 8, 14); }).join('') +
+        R(88, 72, 24, 32, '#3b2a1b', 12) + R(90, 74, 20, 30, '#5a3e26', 10) + R(99.5, 74, 1, 30, '#e8c25a') + R(60, 104, 80, 3, '#e4ddc8') + R(54, 107, 92, 3, '#d8d1bb') + R(48, 110, 104, 3, '#ccc5af') +
+        [60, 76, 124, 140].map(function (x) { return bush(x, 106, .7); }).join('') + P('M0 114 L40 114 L40 122 L0 122Z', '#357f47') + P('M160 114 L200 114 L200 122 L160 122Z', '#357f47');
     }
-    return svg(g + s);
+    return svg(200, 130, defs, s);
   }
 
-  function wheel(x, y, rr) { return c(x, y, rr, '#14181c') + c(x, y, rr * .5, '#cfd5d9') + c(x, y, rr * .18, '#14181c'); }
-  function car(t, col) {
-    var body, cab, glass = GLASS, w1 = 30, w2 = 92, wy = 56, wr = 9, extra = '';
-    if (t === 'hatch') { body = p('M8 52 L8 40 Q8 34 16 33 L30 31 L40 18 Q42 16 46 16 L78 16 Q82 16 85 20 L96 33 Q108 35 110 42 L110 52 Z', col); cab = p('M44 20 L40 31 L66 31 L66 20 Z', glass) + p('M69 20 L69 31 L90 31 L82 21 Z', glass); }
-    else if (t === 'sedan') { body = p('M6 52 L6 41 Q6 36 14 35 L34 32 L46 18 Q48 16 52 16 L76 16 Q80 16 84 20 L94 32 L108 36 Q114 38 114 44 L114 52 Z', col); cab = p('M50 20 L42 32 L66 32 L66 20 Z', glass) + p('M69 20 L69 32 L90 32 L81 21 Z', glass); }
-    else if (t === 'suv') { body = p('M6 54 L6 36 Q6 30 12 29 L26 28 L34 14 Q36 12 40 12 L88 12 Q92 12 94 15 L100 28 L110 30 Q114 32 114 38 L114 54 Z', col); cab = p('M38 16 L32 28 L62 28 L62 16 Z', glass) + p('M66 16 L66 28 L96 28 L90 16 Z', glass); wy = 56; wr = 10; extra = r(40, 12, 48, 2, 'rgba(0,0,0,.35)'); }
-    else if (t === 'coupe') { body = p('M6 52 L6 44 Q6 38 14 37 L36 35 L52 21 Q54 19 58 19 L78 19 Q82 19 86 23 L98 35 L108 38 Q114 40 114 46 L114 52 Z', col); cab = p('M58 23 L47 35 L70 35 L70 23 Z', glass) + p('M73 23 L73 35 L92 35 L82 24 Z', glass); }
-    else if (t === 'pickup') { body = p('M6 54 L6 40 Q6 35 12 34 L30 33 L40 18 L66 18 L70 33 L70 36 L112 36 L114 38 L114 54 Z', col) + r(72, 34, 42, 4, 'rgba(0,0,0,.35)'); cab = p('M43 21 L35 33 L62 33 L62 21 Z', glass) + p('M65 21 L65 33 L69 33 Z', glass); wr = 10; }
-    else { body = p('M4 52 L4 46 Q4 42 12 41 L40 38 L58 26 Q60 24 64 24 L82 25 Q86 26 90 30 L100 38 L112 42 Q116 44 116 48 L116 52 Z', col) + r(10, 47, 100, 2, 'rgba(0,0,0,.3)'); cab = p('M62 28 L50 38 L78 38 L78 28 Z', glass) + p('M80 28 L84 38 L96 38 L88 31 Z', glass); wr = 9; wy = 54; extra = p('M2 44 L10 43 L10 46 L2 46Z', '#e8e8e8'); }
-    return svg(r(0, 66, 120, 10, GROUND) + body + cab + extra + wheel(w1, wy + 2, wr) + wheel(w2, wy + 2, wr) + r(104, 40, 8, 4, '#ffe9a0', 1));
+  /* ======================= العربيات (200×96) ======================= */
+  var SH = {
+    hatch: { wx: [54, 150], wr: 13, wy: 66, body: 'M10 66 L10 54 Q10 47 19 45 L40 43 Q50 27 66 25 L112 25 Q128 25 138 35 L150 44 L176 48 Q192 50 192 58 L192 66 Z',
+      glass: ['M52 42 Q58 29 67 28 L84 28 L84 42 Z', 'M88 28 L111 28 Q122 28 130 37 L134 42 L88 42 Z'], door: 'M86 28 L86 61', sh: 'M16 50 L176 50', hl: [186, 53], tl: [12, 53] },
+    sedan: { wx: [52, 148], wr: 13, wy: 66, body: 'M8 66 L8 56 Q8 50 16 48 L42 45 L58 30 Q61 27 66 27 L110 27 Q120 27 126 33 L144 45 L178 49 Q194 51 194 58 L194 66 Z',
+      glass: ['M52 44 L62 31 L82 31 L82 44 Z', 'M86 31 L110 31 Q116 31 120 35 L130 44 L86 44 Z'], door: 'M84 31 L84 62', sh: 'M14 52 L180 52', hl: [188, 54], tl: [10, 54] },
+    suv: { wx: [54, 148], wr: 14.5, wy: 64, body: 'M10 66 L10 50 Q10 44 18 42 L34 40 L46 22 Q48 19 52 19 L128 19 Q134 19 138 24 L152 40 L178 44 Q192 46 192 54 L192 66 Z',
+      glass: ['M50 38 L56 24 L84 24 L84 38 Z', 'M88 24 L126 24 L136 38 L88 38 Z'], door: 'M86 24 L86 60', sh: 'M14 46 L178 46', hl: [186, 50], tl: [12, 50], rails: 'M56 16 L126 16' },
+    coupe: { wx: [52, 148], wr: 13, wy: 66, body: 'M8 66 L8 58 Q8 52 17 50 L44 46 Q62 28 80 27 L108 27 Q124 28 134 39 L146 47 L180 51 Q195 53 195 60 L195 66 Z',
+      glass: ['M70 44 Q80 31 90 31 L102 31 L102 44 Z', 'M106 31 Q114 31 120 37 L128 44 L106 44 Z'], door: 'M104 31 L104 61', sh: 'M14 53 L182 53', hl: [189, 56], tl: [10, 56] },
+    pickup: { wx: [52, 150], wr: 14, wy: 65, body: 'M8 66 L8 46 L72 46 L76 36 Q80 24 92 24 L124 24 Q132 24 138 32 L150 44 L180 48 Q194 50 194 58 L194 66 Z',
+      glass: ['M82 42 L88 29 L120 29 Q126 29 130 35 L136 42 Z'], door: 'M106 29 L106 60', sh: 'M76 47 L178 47', hl: [188, 54], tl: [10, 52], bed: true },
+    super: { wx: [54, 146], wr: 12.5, wy: 67, body: 'M6 68 L6 62 Q8 56 18 55 L58 50 L90 35 Q96 32 104 32 L124 33 Q134 35 142 43 L150 50 L184 55 Q198 58 198 64 L198 68 Z',
+      glass: ['M92 48 L100 37 L112 36 Q122 37 128 43 L134 48 Z'], door: 'M112 36 L112 62', sh: 'M12 57 L186 57', hl: [190, 58], tl: [8, 60], super: true }
+  };
+  function wheel(x, y, r, rim) {
+    var s = C(x, y, r + 3.2, '#0a0d10') + C(x, y, r, '#15191d') + C(x, y, r * .68, 'url(#' + rim + ')');
+    for (var i = 0; i < 5; i++) { var a = i * 72 * Math.PI / 180; s += L('M' + x + ' ' + y + ' L' + (x + Math.cos(a) * r * .62).toFixed(1) + ' ' + (y + Math.sin(a) * r * .62).toFixed(1), '#59646b', 1.6); }
+    return s + C(x, y, r * .2, '#3b4349') + C(x, y, r * .08, '#c9d1d6');
+  }
+  function car(t, col, id) {
+    var S = SH[t] || SH.sedan, bd = uid(), gl = uid(), rm = uid(), hlg = uid();
+    var defs = lg(bd, 0, 0, 0, 1, [[0, shade(col, .38)], [.42, col], [1, shade(col, -.38)]]) + lg(gl, 0, 0, 0, 1, [[0, '#e8f6ff'], [1, '#5a8cae']]) + lg(rm, 0, 0, 1, 1, [[0, '#f3f6f8'], [1, '#86929a']]) +
+      '<radialGradient id="' + hlg + '"><stop offset="0" stop-color="#fffbe0"/><stop offset="1" stop-color="#ffd86b" stop-opacity="0"/></radialGradient>';
+    var dark = '#12161a';
+    var s = E(100, 82, 92, 5, 'rgba(0,0,0,.3)');
+    if (S.bed) s += R(10, 40, 62, 8, shade(col, -.5)) + R(8, 38, 66, 4, shade(col, -.2), 2);
+    s += P(S.body, 'url(#' + bd + ')') + L(S.sh, shade(col, .55), 1.2, ' opacity=".6"') + R(S.wx[0] - 26, 60, S.wx[1] - S.wx[0] + 52, 4, shade(col, -.55), 2, ' opacity=".55"');
+    if (S.bed) s += L('M12 40 L72 40', shade(col, .4), 1.4);
+    S.glass.forEach(function (g) { s += P(g, 'url(#' + gl + ')', ' stroke="' + dark + '" stroke-width="1.4"'); });
+    s += L(S.door, dark, 1, ' opacity=".5"') + R(S.wx[0] + 40, 47, 7, 2, shade(col, -.6), 1);
+    if (S.rails) s += L(S.rails, '#9aa4a9', 2.2);
+    if (S.super) s += P('M4 52 L34 49 L34 52 L4 55Z', shade(col, -.4)) + R(14, 50, 2.5, 8, '#222') + P('M112 54 L134 54 L128 61 L112 61Z', '#0c0f12') + R(160, 60, 36, 3, '#101316');
+    if (t === 'coupe') s += P('M10 52 L28 50 L28 53 L10 55Z', shade(col, -.35));
+    if (id === 'c8' || id === 'c13') s += P('M8 49 L24 47 L24 50 L8 52Z', shade(col, -.45));
+    if (id === 'c20') s += L('M92 33 Q96 62 118 60', '#101316', 3) + L('M70 50 L180 56', '#0e1114', 2.2);
+    if (id === 'c16' || id === 'c14') s += R(182, 42, 5, 10, '#d9dee2', 1) + L('M179 42 L179 56', '#aab3b9', 1.6);
+    if (id === 'c19') s += L('M20 58 L170 58', '#ffd34a', 1.6);
+    S.wx.forEach(function (x) { s += wheel(x, S.wy, S.wr, rm); });
+    s += E(S.hl[0], S.hl[1], 9, 5, 'url(#' + hlg + ')') + P('M' + (S.hl[0] - 6) + ' ' + (S.hl[1] - 2.5) + ' L' + (S.hl[0] + 3) + ' ' + (S.hl[1] - 2) + ' L' + (S.hl[0] + 3) + ' ' + (S.hl[1] + 2) + ' L' + (S.hl[0] - 6) + ' ' + (S.hl[1] + 1.5) + 'Z', '#fff6c8') +
+      R(S.tl[0] - 2, S.tl[1] - 3, 6, 5, '#e11d2e', 1.5) + R(S.tl[0] - 1, S.tl[1] - 2, 3, 1.6, '#ff8a8a', 1);
+    return svg(200, 96, defs, s);
   }
 
+  /* ======================= الموتوسيكلات (200×110) ======================= */
+  function mWheel(x, y, r) {
+    var s = C(x, y, r, 'none', ' stroke="#12161a" stroke-width="6.5"') + C(x, y, r - 4.5, 'none', ' stroke="#b4bec4" stroke-width="1.6"');
+    for (var i = 0; i < 12; i++) { var a = i * 30 * Math.PI / 180; s += L('M' + x + ' ' + y + ' L' + (x + Math.cos(a) * (r - 4.5)).toFixed(1) + ' ' + (y + Math.sin(a) * (r - 4.5)).toFixed(1), '#8f9aa1', .8); }
+    return s + C(x, y, 4.5, '#3b4349') + C(x, y, 2, '#c9d1d6') + C(x, y, r * .45, 'none', ' stroke="#9aa4ab" stroke-width="1.4" opacity=".7"');
+  }
   function moto(t, col) {
-    var s = c(28, 56, 13, 'none', ' stroke="#14181c" stroke-width="5"') + c(94, 56, 13, 'none', ' stroke="#14181c" stroke-width="5"') + c(28, 56, 4, '#9aa4a9') + c(94, 56, 4, '#9aa4a9');
-    var line = ' stroke="' + DARK + '" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"';
-    if (t === 'scooter') { s += p('M20 54 Q22 34 40 34 L74 34 Q86 34 90 44 L94 54 L80 54 Q70 46 52 52 L36 56 Z', col) + p('M80 18 L84 18 L90 44 L86 44 Z', DARK) + r(76, 14, 14, 4, DARK, 2) + r(34, 28, 30, 6, '#2b2f33', 3) + p('M20 40 L36 40 L36 56 L22 56Z', col); }
-    else if (t === 'cruiser') { s += '<path d="M28 56 L50 56 L62 44 L88 44 L94 56"' + line + '/>' + p('M46 38 Q60 28 76 38 L72 46 L50 46 Z', col) + r(26, 36, 26, 7, '#2b2f33', 3) + '<path d="M88 44 L84 24 L100 20"' + line + '/>' + r(28, 52, 20, 3, '#b8c0c6'); }
-    else if (t === 'adv') { s += '<path d="M28 56 L50 54 L70 46 L90 48 L94 56"' + line + '/>' + p('M40 30 Q60 22 78 34 L74 48 L48 48 Z', col) + r(30, 28, 34, 6, '#2b2f33', 3) + p('M84 20 L98 16 L98 30 L88 34 Z', col) + '<path d="M90 48 L86 26"' + line + '/>' + r(24, 22, 14, 3, '#9aa4a9'); }
-    else { s += '<path d="M28 56 L50 52 L68 46 L90 50 L94 56"' + line + '/>' + p('M44 34 Q60 26 76 36 L72 48 L50 48 Z', col) + r(30, 34, 22, 6, '#2b2f33', 3) + '<path d="M88 50 L84 28 L96 24"' + line + '/>' + (t === 'sport' ? p('M80 22 L100 28 L92 40 L84 38Z', col) : r(94, 22, 6, 6, '#ffe9a0', 3)); }
-    return svg(r(0, 70, 120, 6, GROUND) + s);
+    var tk = uid(), mt = uid();
+    var defs = lg(tk, 0, 0, 0, 1, [[0, shade(col, .45)], [.5, col], [1, shade(col, -.4)]]) + lg(mt, 0, 0, 0, 1, [[0, '#d4dadd'], [1, '#6b767d']]);
+    var ry = 74, rr = t === 'adv' ? 21 : 19.5, fx = 152, bx = 46;
+    var s = E(100, 96, 84, 4, 'rgba(0,0,0,.28)'), dk = '#1a1f24', fr = '#2a3036';
+    if (t === 'scooter') {
+      rr = 16; ry = 78;
+      s += mWheel(bx + 8, ry, rr) + mWheel(fx - 6, ry, rr) + P('M30 70 Q28 46 52 42 L92 42 Q104 42 108 52 L112 66 L102 74 L70 76 Q56 74 52 66 Z', 'url(#' + tk + ')') +
+        P('M112 28 Q124 28 128 40 L136 74 L116 78 L108 56 Z', 'url(#' + tk + ')') + R(48, 36, 52, 8, dk, 4) + P('M96 44 L112 44 L112 52 L96 52Z', shade(col, -.45)) + L('M118 28 L116 16 L132 12', dk, 3.5) + R(126, 8, 14, 6, dk, 3) + E(137, 20, 6, 6, '#fff3c0', ' stroke="#8c969c" stroke-width="1.5"') +
+        R(40, 80, 34, 5, '#8a949a', 2.5) + L('M58 70 Q70 80 90 76', shade(col, .6), 1.5, ' opacity=".6"');
+    } else if (t === 'cruiser') {
+      rr = 20; fx = 158; bx = 44;
+      s += mWheel(bx, ry, rr) + mWheel(fx, ry, rr) + P('M22 62 Q24 50 48 50 L66 52 L66 60 Q44 62 22 66Z', 'url(#' + mt + ')') + P('M140 54 Q150 46 166 54 L164 64 L146 62Z', 'url(#' + mt + ')') +
+        L('M44 74 L74 74 L96 62 L132 62 L152 74', fr, 4) + L('M138 58 L152 40', '#aab3b9', 4) + L('M148 40 Q140 22 118 24 L108 30', '#bcc5ca', 3.5) + R(98, 56, 36, 20, 'url(#' + mt + ')', 3) + P('M104 56 L108 44 L118 44 L122 56Z', 'url(#' + mt + ')') + P('M112 56 L116 44 L126 44 L128 56Z', '#8d98a0') +
+        P('M62 52 Q80 38 112 42 Q124 46 122 56 L72 58Z', 'url(#' + tk + ')') + P('M46 52 Q60 46 76 50 L76 58 Q58 58 46 56Z', dk) + E(158, 40, 6, 6, '#fff3c0', ' stroke="#bcc5ca" stroke-width="2"') + L('M90 76 L28 82', '#c9d1d6', 4) + L('M96 80 L36 86', '#aab3b9', 3);
+    } else if (t === 'adv') {
+      s += mWheel(bx, ry, rr) + mWheel(fx, ry, rr) + P('M142 40 L162 32 L168 50 L150 54Z', 'url(#' + tk + ')') + P('M138 22 L152 30 L146 44 L134 36Z', 'rgba(150,200,230,.6)', ' stroke="#8c969c"') +
+        L('M46 74 L82 62 L120 60 L152 74', fr, 4) + L('M140 54 L152 74', '#aab3b9', 4.5) + P('M70 36 Q100 24 126 36 L120 56 L80 58Z', 'url(#' + tk + ')') + R(84, 52, 38, 20, 'url(#' + mt + ')', 3) + P('M30 50 L74 44 L82 34 L96 34 L96 44 L70 52 L34 58Z', dk) +
+        L('M130 34 L124 22 L108 20', dk, 3.5) + R(34, 36, 34, 4, '#9aa4a9', 2) + L('M40 40 L40 56', '#9aa4a9', 2) + L('M92 76 L40 80', '#c9d1d6', 4.5) + E(158, 38, 5, 6, '#fff3c0', ' stroke="#8c969c" stroke-width="1.5"');
+    } else if (t === 'sport') {
+      rr = 19;
+      s += mWheel(bx, ry, rr) + mWheel(fx, ry, rr) + L('M140 50 L152 74', '#aab3b9', 4.5) + P('M26 60 Q34 46 70 44 L96 40 Q118 36 132 44 Q148 52 160 62 L150 64 L132 66 L110 74 L84 76 L52 72 L32 70Z', 'url(#' + tk + ')') +
+        P('M122 40 L138 24 L148 38 L132 44Z', 'rgba(150,205,235,.7)', ' stroke="#8c969c" stroke-width="1"') + P('M26 58 Q22 52 34 48 L58 46 L58 56Z', 'url(#' + tk + ')') + R(70, 36, 34, 7, dk, 3.5) + R(82, 56, 30, 18, 'url(#' + mt + ')', 3) + L('M90 66 L36 62', '#aeb7bd', 4) +
+        L('M130 38 L120 26 L106 26', dk, 3.5) + E(150, 52, 5, 5, '#fff3c0') + L('M40 60 L120 54', shade(col, .65), 1.6, ' opacity=".6"') + P('M100 64 L146 64 L136 72 L100 72Z', shade(col, -.5));
+    } else { // naked
+      s += mWheel(bx, ry, rr) + mWheel(fx, ry, rr) + L('M140 50 L152 74', '#aab3b9', 4.5) + L('M46 74 L86 64 L128 50', fr, 4.5) + L('M86 64 L86 44 L128 44', shade(col, -.15), 4) + L('M86 44 L60 40', shade(col, -.15), 4) +
+        P('M80 38 Q104 28 130 40 L126 52 L86 50Z', 'url(#' + tk + ')') + P('M28 48 L64 42 L86 38 L86 46 L66 50 L34 56Z', dk) + P('M30 46 Q34 42 50 42 L50 48 L32 52Z', 'url(#' + tk + ')') + R(84, 52, 38, 22, 'url(#' + mt + ')', 3) +
+        rep(4, function (i) { return R(86 + i * 9, 56, 5, 14, '#aab3b9'); }) + L('M128 38 L120 24 L106 24', dk, 3.5) + E(150, 44, 6, 6, '#fff3c0', ' stroke="#8c969c" stroke-width="1.5"') + L('M92 76 L36 80', '#c9d1d6', 4.2) + R(26, 70, 10, 6, '#8d98a0', 3);
+    }
+    return svg(200, 110, defs, s);
   }
 
+  /* ======================= الدراجات (200×120) ======================= */
+  function bWheel(x, y, r, tire) {
+    var s = C(x, y, r, 'none', ' stroke="#14181c" stroke-width="' + tire + '"') + C(x, y, r - tire / 2, 'none', ' stroke="#c4ccd1" stroke-width="1.4"');
+    for (var i = 0; i < 18; i++) { var a = i * 20 * Math.PI / 180; s += L('M' + x + ' ' + y + ' L' + (x + Math.cos(a) * (r - tire / 2)).toFixed(1) + ' ' + (y + Math.sin(a) * (r - tire / 2)).toFixed(1), '#a9b3b9', .55); }
+    return s + C(x, y, 3, '#555e64');
+  }
   function bike(t, col) {
-    var rr = t === 'mtb' ? 17 : 16, tire = t === 'mtb' ? 6 : 3.5;
-    var s = c(28, 54, rr, 'none', ' stroke="#14181c" stroke-width="' + tire + '"') + c(94, 54, rr, 'none', ' stroke="#14181c" stroke-width="' + tire + '"') + c(28, 54, 2, '#9aa4a9') + c(94, 54, 2, '#9aa4a9');
-    var fr = ' stroke="' + col + '" stroke-width="' + (t === 'mtb' ? 4.5 : 3.5) + '" stroke-linecap="round" stroke-linejoin="round" fill="none"';
-    s += '<path d="M28 54 L52 28 L82 28 L94 54 M52 28 L62 54 L28 54 M62 54 L82 28"' + fr + '/>';
-    s += '<path d="M80 28 L76 20 L88 20" stroke="' + DARK + '" stroke-width="3.5" stroke-linecap="round" fill="none"/>' + r(46, 22, 16, 4, '#2b2f33', 2) + c(62, 54, 5, 'none', ' stroke="#555" stroke-width="2"');
-    if (t === 'road') s += '<path d="M76 20 Q88 18 88 26" stroke="' + DARK + '" stroke-width="3" fill="none" stroke-linecap="round"/>';
-    if (t === 'city') s += r(84, 14, 16, 10, '#b98a4d', 2) + '<path d="M84 14 Q92 6 100 14" stroke="#8a6334" stroke-width="2" fill="none"/>';
-    return svg(r(0, 72, 120, 5, GROUND) + s);
+    var fc = shade(col, -.05), dk = '#20262b', w = t === 'mtb' ? 4.8 : t === 'road' ? 3.4 : 4;
+    var tire = t === 'mtb' ? 6.5 : t === 'road' ? 2.8 : 4;
+    var s = E(100, 112, 84, 3.5, 'rgba(0,0,0,.25)') + bWheel(48, 82, 29, tire) + bWheel(152, 82, 29, tire);
+    if (t === 'city') s += P('M20 66 Q48 50 76 66 L76 70 Q48 56 20 70Z', col, ' opacity=".9"') + P('M126 62 Q152 48 178 62 L178 66 Q152 54 126 66Z', col, ' opacity=".9"');
+    s += L('M98 84 L84 46 L132 46 L98 84 M132 46 L152 82 M98 84 L48 82 M84 46 L48 82', fc, w) + L('M132 46 L128 36', fc, w);
+    if (t === 'mtb') s += L('M132 46 L152 82', '#aab3b9', 5.4) + R(120, 58, 10, 14, '#5a636a', 3);
+    else s += L('M132 46 L152 82', '#aab3b9', 3.2);
+    s += L('M84 46 L82 36', '#c9d1d6', 2.6) + R(72, 31, 20, 5, dk, 2.5);
+    if (t === 'road') s += L('M128 36 L134 30 Q146 26 146 38 Q146 46 138 46', dk, 3.2);
+    else if (t === 'mtb') s += L('M128 36 L120 30 L140 28', dk, 3.6) + R(112, 27, 8, 4, '#c9d1d6', 2) + R(138, 25, 10, 5, dk, 2.5);
+    else s += L('M128 36 L126 24 Q134 18 148 22', dk, 3.2) + R(142, 19, 12, 5, dk, 2.5);
+    s += C(98, 84, 9, 'none', ' stroke="#9aa4ab" stroke-width="2"') + C(98, 84, 4, '#55606a') + L('M98 84 L108 98', dk, 2.8) + R(104, 97, 12, 4, dk, 2) + L('M98 84 L88 70', dk, 2.8) + R(80, 66, 12, 4, dk, 2) + L('M98 76 L48 80', '#8f9aa1', 1.2) + L('M98 92 L48 84', '#8f9aa1', 1.2);
+    if (t === 'city') s += R(150, 8, 30, 18, '#b98a4d', 3) + L('M150 8 Q165 -2 180 8', '#8a6334', 2.4) + rep(4, function (i) { return L('M' + (153 + i * 7) + ' 10 L' + (153 + i * 7) + ' 24', '#8a6334', 1.2); }) + L('M152 26 L148 56', '#8a949a', 2);
+    if (t === 'road') s += L('M84 46 L132 46', shade(col, .5), 1.2, ' opacity=".7"');
+    return svg(200, 120, '', s);
   }
 
   root.KoraCMArt = { house: house, car: car, moto: moto, bike: bike };
