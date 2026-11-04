@@ -872,4 +872,170 @@
     const row = el('div', 'cm-row');
     const clear = el('button', 'cm-btn ghost', 'امسح'); clear.type = 'button';
     const ok = el('button', 'cm-btn', 'وقّع العقد'); ok.type = 'button'; ok.disabled = true;
-    r
+    row.append(clear, ok); card.appendChild(row);
+    cv.addEventListener('pointerdown', e => { e.preventDefault(); drawing = true; last = pos(e); try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } ctx.beginPath(); ctx.arc(last[0], last[1], 1.6, 0, 6.3); ctx.fillStyle = '#14213d'; ctx.fill(); hint.hidden = true; });
+    cv.addEventListener('pointermove', e => {
+      if (!drawing) return; e.preventDefault();
+      const p = pos(e); ctx.beginPath(); ctx.moveTo(last[0], last[1]); ctx.lineTo(p[0], p[1]); ctx.stroke();
+      ink += Math.hypot(p[0] - last[0], p[1] - last[1]); last = p; if (ink > 140) ok.disabled = false;
+    });
+    const end = () => { drawing = false; };
+    cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('pointerleave', end);
+    clear.addEventListener('click', () => { ctx.clearRect(0, 0, cv.width, cv.height); ink = 0; ok.disabled = true; hint.hidden = false; });
+    ok.addEventListener('click', () => {
+      const sig = cv.toDataURL('image/png');
+      E.signContract(S, sig, Math.random);
+      S.pointsGiven = false; tab = 'home'; tabLeague = S.league; fxFilter = 'all';
+      save(); render();
+    });
+
+    const cl = el('div', 'cm-clauses'); cl.appendChild(el('h3', '', 'اتفاقيات النادي معاك'));
+    [['كل هدف تسجله', d.perGoal], ['كل هدف تصنعه (أسيست)', d.perAssist], ['كل جايزة رجل المباراة', d.perMotm]].forEach((x, i) => {
+      const r = el('div', 'cm-clause'); r.append(el('span', 'n', String(i + 1)), el('span', '', x[0]), el('b', '', '+' + money(x[1]))); cl.appendChild(r);
+    });
+    cl.appendChild(el('div', 'cm-note', 'المكافآت دي بتنزل في رصيدك أول بأول مع كل مباراة.'));
+    card.appendChild(cl);
+    box.appendChild(card);
+  }
+
+  /* ====== الصيف: المنتخب وكأس العالم للأندية ====== */
+  function evSummary(e) {
+    const r = e.res; if (!r) return 'لسه ماحصلتش';
+    if (r.noQual) return 'منتخبك ماتأهلش • البطل: ' + club(r.champion).ar;
+    if (r.notSelected) return 'ماتختارتش في القايمة • البطل: ' + club(r.champion).ar;
+    return (r.out && r.out.placed) + ' • البطل: ' + club(r.champion).ar;
+  }
+  function showEventResult(e) {
+    const r = e.res, w = el('div'); w.appendChild(el('div', 'cm-sum-title', e.ar));
+    if (r.noQual) w.appendChild(el('div', 'cm-note down', 'منتخبك ماتأهلش للبطولة دي. البطل: ' + club(r.champion).ar));
+    else if (r.notSelected) w.appendChild(el('div', 'cm-note down', 'المدرب ماختارش اسمك في القايمة. حسّن مستواك واتسدعى أكتر مع المنتخب. البطل: ' + club(r.champion).ar));
+    else {
+      const o = r.out, win = o.placed === 'بطل';
+      w.appendChild(el('div', 'cm-euro-t ' + (win ? 'win' : 'out'), win ? 'مبروك! بطل ' + e.ar : 'نتيجتك: ' + o.placed));
+      if (o.groupPos) w.appendChild(el('div', 'cm-sub', 'ترتيبك في المجموعة: ' + o.groupPos));
+      o.my.forEach(m => {
+        const pm = m.pm, row = el('div', 'cm-tmatch');
+        row.append(el('span', 'st', m.stage), el('span', 'mt', club(m.h).ar + ' ' + m.hg + ' - ' + m.ag + ' ' + club(m.a).ar + (m.pens ? ' (ترجيح)' : '') + (pm.goals ? ' • ' + pm.goals + ' هدف' : '') + (pm.assists ? ' • ' + pm.assists + ' أسيست' : '')),
+          el('span', 'rt', pm.rating != null ? pm.rating.toFixed(1) : (pm.role === 'bench' ? 'دكة' : 'خارج')));
+        w.appendChild(row);
+      });
+      w.appendChild(el('div', 'cm-sub', 'البطل: ' + club(r.champion).ar));
+    }
+    if (r.prize) w.appendChild(el('div', 'cm-note up', 'مكافأة البطولة: +' + money(r.prize)));
+    openModal(w, 'تمام');
+  }
+  function renderSummer() {
+    const box = $('cmSummer'); box.textContent = '';
+    const head = el('div', 'cm-card'); head.append(el('div', 'cm-sub', 'صيف ' + (S.year + 1)), el('h2', 'cm-sum-title', 'بطولات الصيف'));
+    box.appendChild(head);
+    S.summer.forEach((e, i) => {
+      const c = el('div', 'cm-card cm-ev-card' + (e.status === 'done' ? ' done' : '')); const info = el('div', 'info');
+      info.append(el('b', '', e.ar), el('small', '', e.status === 'done' ? evSummary(e) : e.nat ? 'بطولة منتخبات' : 'بطولة أندية'));
+      c.appendChild(info);
+      const b = el('button', 'cm-btn' + (e.status === 'done' ? ' ghost' : ''), e.status === 'done' ? 'التفاصيل' : 'ابدأ البطولة'); b.type = 'button';
+      b.addEventListener('click', () => { if (e.status === 'done') showEventResult(e); else { const x = E.runSummerEvent(S, i, Math.random); save(); renderSummer(); showEventResult(x); } });
+      c.appendChild(b); box.appendChild(c);
+    });
+    const fin = el('button', 'cm-btn', 'كمّل لسوق الانتقالات'); fin.type = 'button'; fin.disabled = S.summer.some(e => e.status !== 'done');
+    fin.addEventListener('click', () => { E.finishSummer(S); save(); render(); });
+    box.appendChild(fin);
+  }
+
+  /* ====== القائمة (3 شرط) ====== */
+  function closeDrawer() { $('cmDrawer').hidden = true; }
+  function openDrawer() {
+    const pn = $('cmDrawerPanel'); pn.textContent = '';
+    const w = el('div', 'cm-wallet'); w.append(el('small', '', 'فلوس اللاعب'), el('b', '', money(S.money)), el('em', '', S.contract ? 'راتبك ' + money(S.contract.salary) + ' في السنة' : ''));
+    pn.appendChild(w);
+    [['trophies', '🏆', 'بطولاتي', 'البطولات والجوايز اللي كسبتها'], ['assets', '🏠', 'ممتلكاتي', 'بيوت وعربيات وموتوسيكلات ودراجات'], ['clubs', '📋', 'الأندية اللي لعبتلها', 'ومعدل إنجازك في كل نادي']].forEach(m => {
+      const b = el('button', 'cm-menu-item'); b.type = 'button';
+      const tx = el('div'); tx.append(el('div', '', m[2]), el('small', '', m[3]));
+      b.append(el('span', 'ic', m[1]), tx);
+      b.addEventListener('click', () => { tab = m[0]; closeDrawer(); renderPane(); window.scrollTo(0, 0); });
+      pn.appendChild(b);
+    });
+    pn.appendChild(el('div', 'cm-menu-sep'));
+    if (S.player.age >= 33) {
+      const rb = el('button', 'cm-menu-item'); rb.type = 'button';
+      const tx = el('div'); tx.append(el('div', '', 'اعتزل الكورة'), el('small', '', 'ابدأ مهنة المدرب بعد الاعتزال'));
+      rb.append(el('span', 'ic', '🎽'), tx);
+      rb.addEventListener('click', () => {
+        window.KoraDialog.confirm({ title: 'تعتزل دلوقتي؟', message: 'مسيرتك كلاعب هتخلص وهتتفتحلك مهنة المدرب.', okText: 'اعتزل', cancelText: 'لأ، كمّل' })
+          .then(ok => { if (ok) { closeDrawer(); E.retireNow(S); save(); render(); } });
+      });
+      pn.appendChild(rb);
+    }
+    const cb = el('button', 'cm-link', 'إغلاق'); cb.type = 'button'; cb.addEventListener('click', closeDrawer); pn.appendChild(cb);
+    $('cmDrawer').hidden = false;
+  }
+  $('cmDrawerBg').addEventListener('click', closeDrawer);
+
+
+  function renderRetire() {
+    try { localStorage.setItem('koraPlayerRetired', '1'); } catch (e) { /* ignore */ }
+    const box = $('cmRetire'); box.textContent = '';
+    const card = el('div', 'cm-card');
+    card.appendChild(el('h2', 'cm-sum-title', 'اعتزلت الكورة'));
+    card.appendChild(el('div', 'cm-sub', S.player.name + ' • ' + S.history.length + ' موسم'));
+    const g = el('div', 'cm-sum-grid');
+    [['مباريات', S.totals.apps], ['أهداف', S.totals.goals], ['أسيست', S.totals.assists]].forEach(x => {
+      const d = el('div', 'cm-stat'); d.append(el('small', '', x[0]), el('b', '', fmt(x[1]))); g.appendChild(d);
+    });
+    card.appendChild(g);
+    const best = S.history.length ? Math.max.apply(null, S.history.map(h => h.ovrAfter)) : S.player.ovr;
+    card.appendChild(el('div', 'cm-note', 'أعلى طاقة وصلتلها: ' + Math.floor(best) + ' • ثروتك: ' + money(S.money) + ' • عدد البطولات والجوايز: ' + (S.honors || []).length));
+    card.appendChild(el('div', 'cm-note up', 'مهنة المدرب اتفتحتلك!'));
+    const cb = el('a', 'cm-btn', 'ابدأ مهنة مدرب'); cb.href = 'coach.html'; cb.style.cssText = 'display:block;text-align:center;text-decoration:none;margin-bottom:8px';
+    const b = el('button', 'cm-btn ghost', 'ابدأ مسيرة لاعب جديدة'); b.type = 'button';
+    b.addEventListener('click', newCareer);
+    card.append(cb, b);
+    box.appendChild(card);
+  }
+
+  function newCareer() { S = null; try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } render(); }
+
+  /* ====== اختيار المهنة ====== */
+  function renderMode() {
+    let c = null; try { c = JSON.parse(localStorage.getItem('koraCoach') || 'null'); } catch (e) { /* ignore */ }
+    let open = false; try { open = localStorage.getItem('koraPlayerRetired') === '1'; } catch (e) { /* ignore */ }
+    const ca = $('cmModeCoach');
+    ca.classList.toggle('locked', !open); $('cmCoachLock').hidden = open;
+    if (open) { ca.setAttribute('href', 'coach.html'); ca.removeAttribute('aria-disabled'); } else { ca.removeAttribute('href'); ca.setAttribute('aria-disabled', 'true'); }
+    $('cmModeCoachNote').textContent = open && c && c.kind === 'coach' ? 'كمّل مسيرتك مع ' + (c.clubs && c.me && c.clubs[c.me.clubId] ? c.clubs[c.me.clubId].ar : '') : '';
+    $('cmModePlayerNote').textContent = S ? 'عندك مسيرة شغالة — كمّل' : '';
+  }
+  window.addEventListener('hashchange', render);
+  $('cmModeCoach').addEventListener('click', e => {
+    let open = false; try { open = localStorage.getItem('koraPlayerRetired') === '1'; } catch (x) { /* ignore */ }
+    if (!open) { e.preventDefault(); window.KoraDialog.confirm({ title: 'مهنة المدرب مقفولة', message: 'لازم تخلّص مهنة لاعب وتعتزل الأول عشان تتفتح.', okText: 'تمام', cancelText: 'إغلاق' }); }
+  });
+  $('cmChange').addEventListener('click', () => { location.hash = ''; render(); });
+
+  /* ====== التشغيل ====== */
+  function render() {
+    if (location.hash !== '#player') { renderMode(); show('cmMode'); return; }
+    if (!S) { show('cmCreate'); return; }
+    if (S.phase === 'retired') { renderRetire(); show('cmRetire'); return; }
+    if (S.phase === 'sign') { renderSign(); show('cmSign'); return; }
+    if (S.phase === 'summer') { renderSummer(); show('cmSummer'); return; }
+    if (S.phase === 'awards') { renderAwards(); show('cmAwards'); return; }
+    if (S.phase === 'offers') { renderSeason(); show('cmSeason'); return; }
+    renderPlayer(); renderPane(); show('cmGame');
+  }
+
+  $('cmTabs').addEventListener('click', e => {
+    const b = e.target.closest('.cm-tab'); if (!b) return;
+    tab = b.dataset.tab; renderPane();
+  });
+  $('cmReset').addEventListener('click', () => {
+    window.KoraDialog.confirm({ title: 'تبدأ مسيرة جديدة؟', message: 'مسيرتك الحالية هتتمسح ومش هترجع تاني.', okText: 'امسح وابدأ', cancelText: 'لأ، كمّل' })
+      .then(ok => { if (ok) newCareer(); });
+  });
+  $('cmModal').addEventListener('click', e => { if (e.target === $('cmModal')) $('cmModal').hidden = true; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('cmModal').hidden = true; closeDrawer(); } });
+
+  try { buildCreate(); } catch (e) { console.error(e); window.dispatchEvent(new ErrorEvent('error', { message: 'buildCreate: ' + e.message, filename: 'careermode.js', lineno: 0 })); }
+  S = load();
+  if (S) { tabLeague = S.league; }
+  render();
+})();
