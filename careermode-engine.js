@@ -960,7 +960,7 @@
   function natPool(state, conf) {
     return Object.keys(state.clubs).filter(function (id) { var c = state.clubs[id]; return c.league === 'nt' && (!conf || c.conf === conf); });
   }
-  function runSummerEvent(state, idx, rng) {
+  function runSummerEvent(state, idx, rng, skip) {
     var e = state.summer[idx]; if (!e || e.status === 'done') return e;
     var p = state.player, nt = ntOf(state), it = state.intl, res = { id: e.id, ar: e.ar };
     var share = clamp((state.stats.apps) / (rounds(state.league) * 0.4), 0.3, 1);
@@ -969,14 +969,14 @@
       var conf = e.id === 'euro' ? 'UEFA' : e.id === 'afcon' ? 'CAF' : null, pool = natPool(state, conf).filter(function (id) { return id !== nt.id; });
       var qprob = clamp(0.2 + (nt.str - 58) / 20, 0.05, 0.98);
       var qual = rng() < qprob;
-      var sel = it.caps > 0 ? p.ovr >= nt.str - 12 : p.ovr >= nt.str - 4;
+      var sel = skip ? false : (it.caps > 0 ? p.ovr >= nt.str - 12 : p.ovr >= nt.str - 4);
       var others = pool.map(function (id) { return { id: id, s: state.clubs[id].str + gauss(rng) * 3 }; }).sort(function (a, b) { return b.s - a.s; }).map(function (x) { return x.id; });
       if (!qual) { res.noQual = true; var f0 = others.slice(0, size); res.champion = tourney(state, { id: e.id, ar: e.ar, teams: f0, groups: groups, advance: adv, diff: 2 }, rng).champion; }
       else {
         var field = others.slice(0, size - 1).concat([nt.id]);
         var tr = tourney(state, { id: e.id, ar: e.ar, teams: field, groups: groups, advance: adv, meId: sel ? nt.id : null, diff: 2, counts: true }, rng);
         res.sel = sel; res.out = tr; res.champion = tr.champion;
-        if (!sel) res.notSelected = true;
+        if (!sel) { res.notSelected = !skip; }
         if (sel) {
           var placed = tr.placed, f = placed === 'بطل' ? 1 : /وصيف/.test(placed) ? 0.4 : placed === 'نصف النهائي' ? 0.2 : placed === 'ربع النهائي' ? 0.1 : 0.04;
           var amt = roundMoney(D.PRIZE[e.id] * 1e6 * f * (sel ? 1 : 0)); res.prize = amt; state.money += amt; state.earn.prizes += amt;
@@ -991,12 +991,14 @@
       } else {
         clubs = Object.keys(state.clubs).filter(function (id) { var l = state.clubs[id].league; return id !== me && (D.TOP15.indexOf(l) > -1 || l === 'afr'); }).sort(function (a, b) { return state.clubs[b].str - state.clubs[a].str; }).slice(0, 31).concat([me]);
       }
-      var tr2 = tourney(state, { id: e.id, ar: e.ar, teams: clubs, groups: 0, meId: me, diff: 2, club: true }, rng);
+      var tr2 = tourney(state, { id: e.id, ar: e.ar, teams: clubs, groups: 0, meId: skip ? null : me, diff: 2, club: true }, rng);
       res.out = tr2; res.champion = tr2.champion;
+      if (skip) { e.status = 'done'; res.skipped = true; e.res = res; return e; }
       var pl2 = tr2.placed, f2 = pl2 === 'بطل' ? 1 : /وصيف/.test(pl2) ? 0.4 : pl2 === 'نصف النهائي' ? 0.2 : pl2 === 'ربع النهائي' ? 0.1 : 0.04;
       var amt2 = roundMoney(D.PRIZE[e.id] * 1e6 * f2 * share); res.prize = amt2; state.money += amt2; state.earn.prizes += amt2;
       if (pl2 === 'بطل') state.honors.push({ year: e.year, type: e.id, text: 'بطل ' + e.ar, clubId: me });
     }
+    if (skip) res.skipped = true;
     e.status = 'done'; e.res = res;
     return e;
   }
@@ -1255,6 +1257,14 @@
       return;
     }
     state.transfer = null;
+    if (state.contract) {
+      state.contract.years--;
+      if (state.contract.years <= 0) {
+        state.deal = makeDeal(state, state.clubId, rng, 0, D.COUNTRIES[(LG[state.clubs[state.clubId].league] || { country: 'eng' }).country].cur);
+        state.signFor = 'renew'; state.phase = 'sign';
+        return;
+      }
+    }
     finishMove(state, rng);
   }
   function finishMove(state, rng) {
