@@ -342,3 +342,28 @@
 .cm-player .cm-ph{padding-inline-end:52px}.cm-mode.locked .cm-lock-note{display:block}
 
 .cm-sigbox .hint[hidden]{display:none}
+
+/* ===== v11 ===== */
+.cm-ic{width:1.1em;height:1.1em;vertical-align:-.2em;flex:none}
+.cm-menu-item span.ic{display:flex;width:44px;height:44px;align-items:center;justify-content:center;border-radius:12px;background:color-mix(in srgb,var(--green,#24e982) 14%,transparent);color:var(--green,#24e982)}
+.cm-menu-item span.ic svg{width:24px;height:24px}
+.cm-asset .own-tag{display:flex;align-items:center;justify-content:center;gap:5px}
+.cm-asset .own-tag svg{width:16px;height:16px}
+.cm-sigbox .x svg{width:18px;height:18px}
+.cm-world .row span svg{width:14px;height:14px;color:var(--unl-gold,#f6c445)}
+.cm-sticky{position:sticky;bottom:12px;z-index:60;box-shadow:0 10px 28px rgba(0,0,0,.55)}
+.cm-sticky-row{position:sticky;bottom:10px;z-index:60;padding:10px;margin:0 -6px;border-radius:16px;background:color-mix(in srgb,var(--surface,#101714) 92%,transparent);backdrop-filter:blur(6px);box-shadow:0 -6px 22px rgba(0,0,0,.35)}
+.cm-skip{flex:none;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#ff6b5e;background:rgba(255,80,64,.12);border:2px solid rgba(255,80,64,.55);border-radius:12px;transition:background .15s,transform .15s}
+.cm-skip svg{width:20px;height:20px}
+.cm-skip:hover{background:rgba(255,80,64,.24)}
+.cm-skip:active{transform:scale(.94)}
+.cm-fame{background:var(--surface-2,#17211d);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:7px}
+.cm-fame-t{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted,#8aa397)}
+.cm-fame-t b{color:var(--unl-gold,#f6c445)}
+.cm-prog{height:6px;margin-bottom:10px}
+#cmPane>*{animation:cmFade .3s ease both}
+@keyframes cmFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#cmPane>*{animation:none}}
+
+.cm-fixedbtn{position:fixed!important;left:16px;right:16px;bottom:14px;width:auto!important;max-width:608px;margin:0 auto!important;z-index:80;box-shadow:0 12px 32px rgba(0,0,0,.6)}
+#cmAwards,#cmSummer{padding-bottom:84px}
