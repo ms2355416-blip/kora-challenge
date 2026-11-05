@@ -367,3 +367,44 @@
 
 .cm-fixedbtn{position:fixed!important;left:16px;right:16px;bottom:14px;width:auto!important;max-width:608px;margin:0 auto!important;z-index:80;box-shadow:0 12px 32px rgba(0,0,0,.6)}
 #cmAwards,#cmSummer{padding-bottom:84px}
+
+/* ===== v12: إصابات وحالة اللاعب وتحسينات الشكل ===== */
+.cm-injury{border-color:rgba(255,80,64,.55);background:linear-gradient(135deg,rgba(255,80,64,.12),var(--surface,#101714) 70%);display:flex;flex-direction:column;gap:10px}
+.cm-inj-h{display:flex;align-items:center;gap:12px}
+.cm-inj-ic{flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#ff6b5e;background:rgba(255,80,64,.14)}
+.cm-inj-ic svg{width:24px;height:24px}
+.cm-injury .cm-bar i{background:linear-gradient(90deg,#ff7a59,#f6c445)}
+.cm-status{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.cm-statcard{display:flex;flex-direction:column;gap:10px}
+.cm-sc-row{display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted,#8aa397)}
+.cm-sc-row b{color:var(--text,#e8f3ee)}
+.cm-sc-row b.low{color:#ff7a59}
+.cm-bar.warn i{background:linear-gradient(90deg,#ff7a59,#f6c445)}
+.cm-sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cm-sc-grid div{background:var(--surface-2,#17211d);border-radius:12px;padding:9px;text-align:center}
+.cm-sc-grid small{display:block;font-size:.68rem;color:var(--muted,#8aa397)}
+.cm-sc-grid b{font-size:.86rem}
+.cm-form small{display:block;font-size:.72rem;color:var(--muted,#8aa397);margin-bottom:6px}
+.cm-dots{display:flex;gap:8px;justify-content:center}
+.cm-dot{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;color:#04110a;background:#2a3530}
+.cm-dot.gold{background:linear-gradient(135deg,#ffe38a,#f6b92f)}
+.cm-dot.green{background:#24e982}
+.cm-dot.amber{background:#f6c445}
+.cm-dot.red{background:#ff6b5e;color:#2a0905}
+.cm-dot.none{background:var(--surface-2,#17211d);color:var(--muted,#8aa397)}
+.cm-toasts{position:fixed;top:72px;left:12px;right:12px;max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:8px;z-index:9800;pointer-events:none}
+.cm-toast{padding:12px 14px;border-radius:14px;font-weight:700;font-size:.86rem;color:#04110a;background:#24e982;box-shadow:0 10px 28px rgba(0,0,0,.5);animation:cmToast .35s ease both;transition:opacity .4s,transform .4s}
+.cm-toast.down{background:#ff7a59;color:#2a0905}
+.cm-toast.out{opacity:0;transform:translateY(-10px)}
+@keyframes cmToast{from{opacity:0;transform:translateY(-14px) scale(.96)}to{opacity:1;transform:none}}
+.cm-screen:not([hidden]){animation:cmFade .35s ease both}
+.cm-player{border:2px solid var(--border,#1f2b26);transition:box-shadow .4s}
+.cm-player.cm-tier-silver{border-color:#aab4bb;box-shadow:0 0 22px rgba(170,180,187,.14)}
+.cm-player.cm-tier-gold{border-color:#f6c445;box-shadow:0 0 26px rgba(246,196,69,.2)}
+.cm-player.cm-tier-bronze{border-color:#a8703a}
+.cm-player.cm-tier-elite{border-color:transparent;background:linear-gradient(var(--surface,#101714),var(--surface,#101714)) padding-box,linear-gradient(120deg,#24e982,#f6c445,#ff7a59,#8b5cf6,#24e982) border-box;background-size:100% 100%,300% 300%;animation:cmElite 6s linear infinite;box-shadow:0 0 30px rgba(36,233,130,.25)}
+@keyframes cmElite{to{background-position:0 0,300% 0}}
+@media (prefers-reduced-motion:reduce){.cm-player.cm-tier-elite,.cm-screen:not([hidden]),.cm-toast{animation:none}}
+
+.cm-inj-h>div{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+.cm-status{margin-top:12px}
