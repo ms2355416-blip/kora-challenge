@@ -109,6 +109,8 @@
 
   function decideRole(state, teamStr, rng) {
     var p = state.player, diff = p.ovr - teamStr;
+    if (state.injury && state.injury.games > 0) return { role: 'out', a: 0, b: 0, pStart: 0, why: 'inj' };
+    if (state.susp > 0) return { role: 'out', a: 0, b: 0, pStart: 0, why: 'susp' };
     var pStart = clamp(0.70 - (p.age <= 19 ? 0.1 : 0) + diff * 0.045 + avgForm(state) * 0.06, 0.03, 0.97);
     if (rng() < pStart) {
       var off = rng() < (pStart < 0.5 ? 0.5 : 0.32) ? 55 + Math.floor(rng() * 32) : 90;
@@ -144,7 +146,7 @@
     for (i = 0; i < nOur; i++) our.push(1 + Math.floor(rng() * 90));
     for (i = 0; i < nOpp; i++) oppG.push(1 + Math.floor(rng() * 90));
 
-    var res = { role: dec.role, a: a, b: b, goals: 0, assists: 0, yellow: 0, red: 0, pw: 0, pc: 0, pm: 0, ourEvents: [], events: events };
+    var res = { role: dec.role, why: dec.why || null, a: a, b: b, goals: 0, assists: 0, yellow: 0, red: 0, pw: 0, pc: 0, pm: 0, ourEvents: [], events: events };
     var inPlay = dec.role === 'start' || dec.role === 'sub';
 
     if (inPlay) {
@@ -240,7 +242,7 @@
           var pm = playerMatch(state, m[0], m[1], rng);
           out[i] = [pm.hg, pm.ag];
           report.my = pm; pm.home = m[0]; pm.away = m[1]; pm.round = r + 1;
-          recordMatch(state, pm);
+          recordMatch(state, pm, rng);
         } else out[i] = quickMatch(state, m[0], m[1], rng);
       });
       L.results[r] = out;
@@ -264,12 +266,44 @@
     state.seasonOver = true;
   }
 
-  function recordMatch(state, pm) {
-    var s = state.stats;
+  var INJ = [
+    { max: 0.55, names: ['شد عضلي بسيط', 'إجهاد في الفخذ', 'ارتجاج خفيف'], g: [1, 2], loss: 0 },
+    { max: 0.85, names: ['التواء في الكاحل', 'تمزق عضلي في السمانة', 'إصابة في الفخذ'], g: [3, 6], loss: 0 },
+    { max: 0.97, names: ['إصابة في الركبة', 'تمزق في الرباط الجانبي', 'كسر في مشط القدم'], g: [8, 14], loss: 0.6 },
+    { max: 1.01, names: ['قطع في الرباط الصليبي'], g: [20, 30], loss: 1.5 }
+  ];
+  function recordMatch(state, pm, rng) {
+    rng = rng || Math.random;
+    var s = state.stats, pl = state.player, played = pm.role === 'start' || pm.role === 'sub';
+    s.injuries = s.injuries || 0; s.missed = s.missed || 0;
+    var fat = state.fatigue || 0; pm.news = [];
+    if (played && pm.rating != null && fat > 75) pm.rating = round1(clamp(pm.rating - (fat - 75) / 25 * 0.4, 1.5, 5));
+    if (pm.role === 'out' && pm.why === 'inj' && state.injury) {
+      s.missed++; state.injury.games--; fat -= 20;
+      if (state.injury.games <= 0) { pl.ovr = Math.max(40, Math.round((pl.ovr - state.injury.loss) * 10) / 10); state.injury = null; state.injCool = 6; pm.news.push({ k: 'up', x: 'رجعت من الإصابة وجاهز للعب' }); }
+    } else if (pm.role === 'out' && pm.why === 'susp') { s.missed++; state.susp--; fat -= 10; }
+    else if (!played) fat -= 14;
+    if (played) {
+      fat += (pm.role === 'start' && pm.minutes >= 60) ? 9 : 3;
+      var yPrev = s.yellow || 0;
+      if (pm.red) { var sg = 1 + (pm.round % 3); state.susp = (state.susp || 0) + sg; pm.news.push({ k: 'down', x: 'كرت أحمر: إيقاف ' + sg + (sg === 1 ? ' مباراة' : ' مباريات') }); }
+      else if (pm.yellow && Math.floor((yPrev + pm.yellow) / 5) > Math.floor(yPrev / 5)) { state.susp = (state.susp || 0) + 1; pm.news.push({ k: 'down', x: 'إيقاف مباراة بسبب تراكم الكروت الصفراء' }); }
+      if (!state.injury && !(state.injCool > 0)) {
+        var pI = 0.012 * (1 + Math.max(0, pl.age - 29) * 0.06) * (1 + Math.max(0, fat - 60) / 60) * (pm.minutes / 90);
+        if (rng() < pI) {
+          var r = rng(), t = INJ.filter(function (z) { return r < z.max; })[0], g = t.g[0] + Math.floor(rng() * (t.g[1] - t.g[0] + 1));
+          state.injury = { n: pick(t.names, rng), games: g, total: g, loss: t.loss };
+          s.injuries++; fat += 10; pm.injury = state.injury;
+          pm.news.push({ k: 'down', x: 'اتصبت: ' + state.injury.n + ' • هتغيب ' + g + (g === 1 ? ' مباراة' : ' مباريات') });
+        }
+      }
+    }
+    if (state.injCool > 0 && !pm.injury) state.injCool--;
+    state.fatigue = clamp(Math.round(fat), 0, 100);
     payBonus(state, pm);
     pm.yr = state.year;
     pm.fm = [formationFor(pm.home, state.year + '|' + pm.round + (pm.comp || '')), formationFor(pm.away, state.year + '|' + pm.round + (pm.comp || ''))];
-    state.log.push({ comp: pm.comp || null, stage: pm.stage || null, st: pm.stageText || null, cn: pm.cupName || null, bonus: pm.bonus || 0, motm: !!pm.motm, pens: pm.pens || null, yr: pm.yr, fm: pm.fm, round: pm.round, home: pm.home, away: pm.away, hg: pm.hg, ag: pm.ag, role: pm.role, minutes: pm.minutes,
+    state.log.push({ why: pm.why || null, news: pm.news, comp: pm.comp || null, stage: pm.stage || null, st: pm.stageText || null, cn: pm.cupName || null, bonus: pm.bonus || 0, motm: !!pm.motm, pens: pm.pens || null, yr: pm.yr, fm: pm.fm, round: pm.round, home: pm.home, away: pm.away, hg: pm.hg, ag: pm.ag, role: pm.role, minutes: pm.minutes,
       goals: pm.goals, assists: pm.assists, rating: pm.rating, y: pm.yellow, r: pm.red, pw: pm.pw, pc: pm.pc, pm: pm.pm, a: pm.a, b: pm.b, events: pm.events });
     if (pm.role === 'start' || pm.role === 'sub') {
       s.apps++; if (pm.role === 'start') s.starts++;
@@ -486,7 +520,7 @@
       won = rng() < clamp(0.5 + (state.clubs[me].str - state.clubs[nx.opp].str) / 200, 0.3, 0.7);
       pm.pens = won ? [5, 4] : [4, 5];
     }
-    recordMatch(state, pm);
+    recordMatch(state, pm, rng);
     e.history.push({ stage: nx.stage, md: nx.md || null, home: home, away: away, hg: pm.hg, ag: pm.ag, pens: pm.pens || null, won: won });
     if (nx.stage === 'league') { e.lp.played++; e.lp.gf += ours; e.lp.ga += theirs; e.lp.pts += ours > theirs ? 3 : ours === theirs ? 1 : 0; }
     advanceEuro(state, nx, knock ? won : null, rng);
@@ -539,7 +573,10 @@
     state.contracts = state.contracts || [];
     state.earn = state.earn || { salary: 0, bonus: 0, prizes: 0, sponsor: 0 };
     state.fame = state.fame || 0;
+    state.fatigue = state.fatigue || 0; state.susp = state.susp || 0; state.injCool = state.injCool || 0;
   }
+  function squadRole(state) { var d = state.player.ovr - state.clubs[state.clubId].str; return d >= 4 ? 'نجم الفريق' : d >= -2 ? 'لاعب أساسي' : d >= -8 ? 'بديل مهم' : 'لاعب بالتناوب'; }
+  function marketValue(state) { return feeM(state.player.ovr, state.player.age); }
   function ntOf(state) { return state.clubs['nt_' + state.player.natCode]; }
 
   function markStarters(list) {
@@ -847,7 +884,7 @@
     pm.home = home; pm.away = away; pm.round = state.round; pm.comp = 'cup'; pm.stage = 'cup'; pm.stageText = nx.label; pm.cupName = cup.ar;
     var ours = nx.home ? pm.hg : pm.ag, theirs = nx.home ? pm.ag : pm.hg, won = ours > theirs;
     if (ours === theirs) { won = rng() < clamp(0.5 + (state.clubs[me].str - state.clubs[nx.opp].str) / 200, 0.3, 0.7); pm.pens = won ? [5, 4] : [4, 5]; }
-    recordMatch(state, pm);
+    recordMatch(state, pm, rng);
     cup.history.push({ label: nx.label, home: home, away: away, hg: pm.hg, ag: pm.ag, pens: pm.pens || null, won: won });
     advanceCup(state, cup, won, rng);
     return { round: state.round, my: pm, others: 0, cup: true };
@@ -869,6 +906,7 @@
   function natNorm(c) { return NAT_FIX[c] || c; }
   function checkCallup(state, rng) {
     var s = state.stats, p = state.player, nt = ntOf(state), it = state.intl; if (!nt) return null;
+    if (state.injury && state.injury.games > 0) return null;
     var avg = s.rated ? s.ratingSum / s.rated : 0, need = nt.str - 14, chance = 0;
     if (s.apps >= 6 && avg >= 3.3 && p.ovr >= need) chance = clamp(0.2 + (avg - 3.3) * 0.6 + (p.ovr - need) * 0.025 + (it.caps > 0 ? 0.25 : 0), 0, 0.95);
     if (rng() >= chance) return null;
@@ -1180,12 +1218,17 @@
     else if (ee && ee.phase === 'final' && ee.status === 'out') prize('وصافة دوري أبطال أوروبا', D.PRIZE.cl * 0.3);
     else if (ee && ee.phase === 'sf' && ee.status === 'out') prize('نصف نهائي دوري الأبطال', D.PRIZE.cl * 0.12);
 
+    var upkeep = 0, UP = { house: 0.012, car: 0.06, moto: 0.06, bike: 0.03 };
+    (state.owned || []).forEach(function (oid) { Object.keys(UP).forEach(function (k) { D.ASSETS[k].forEach(function (it) { if (it.id === oid) upkeep += it.p * UP[k]; }); }); });
+    var gross = state.earn.salary + state.earn.bonus + state.earn.prizes + state.earn.sponsor;
+    var expenses = roundMoney(upkeep + gross * 0.1 + 6000);
+    state.money = Math.max(0, state.money - expenses);
     var pts = Math.round(s.goals * 2 + s.assists + Math.max(0, avg - 3) * 10) + (mine('ballon') ? 60 : 0) + (mine('boot') ? 30 : 0) + (mine('glove') ? 30 : 0) + (mine('kopa') ? 40 : 0) + (mine('club') ? 20 : 0);
     var summary = {
       year: state.year, league: lk, clubId: state.clubId, pos: pos, teams: tab.length,
       apps: s.apps, starts: s.starts, goals: s.goals, assists: s.assists, yellow: s.yellow, red: s.red, motm: s.motm || 0,
       euro: euroReach(state), champion0: champion, avg: round1(avg), ovrBefore: Math.round(before * 10) / 10, ovrAfter: p.ovr, age: p.age, points: pts, champion: champion,
-      salary: Math.round(state.earn.salary), bonus: Math.round(state.earn.bonus), prizes: prizes, cups: (state.cups || []).map(function (c) { return { ar: c.ar, status: c.status, result: c.result }; }),
+      injuries: s.injuries || 0, missed: s.missed || 0, expenses: expenses, salary: Math.round(state.earn.salary), bonus: Math.round(state.earn.bonus), prizes: prizes, cups: (state.cups || []).map(function (c) { return { ar: c.ar, status: c.status, result: c.result }; }),
       worldChamps: glob.worldChamps
     };
     var offerInfo = makeOffers(state, avg, appsRate, rng);
@@ -1235,6 +1278,8 @@
     state.callupChecked = false; state.pendingCallup = null; state.summer = null; state.sponsorOffers = [];
     state.earn = { salary: 0, bonus: 0, prizes: 0, sponsor: 0 };
     initClubs(state); initExtras(state);
+    if (state.injury) { state.injury.games = Math.max(0, state.injury.games - 8); if (!state.injury.games) state.injury = null; }
+    state.fatigue = 10; state.injCool = 0;
     simMarket(state, rng);
     refreshContract(state, rng);
     initCups(state, rng);
@@ -1321,7 +1366,8 @@
   var API = { mulberry: mulberry, newCareer: newCareer, playRound: playRound, finishSeason: finishSeason, chooseOffer: chooseOffer,
     table: table, rounds: rounds, myPosition: myPosition, myFixtures: myFixtures, continueAfterAwards: continueAfterAwards, matchLineups: matchLineups, euroDue: euroDue, startEuro: startEuro, STAGE_AR: STAGE_AR, feeM: feeM, ageBase: ageBase, finishOthers: finishOthers, simMarket: simMarket,
     nextExtra: nextExtra, nextExtraInfo: nextExtraInfo, signContract: signContract, buyAsset: buyAsset, takeSponsor: takeSponsor, runSummerEvent: runSummerEvent,
-    finishSummer: finishSummer, retireNow: retireNow, salaryFor: salaryFor, ntOf: ntOf, natNorm: natNorm, checkCallup: checkCallup };
+    finishSummer: finishSummer, squadRole: squadRole, marketValue: marketValue,
+    finishSummer2: finishSummer, retireNow: retireNow, salaryFor: salaryFor, ntOf: ntOf, natNorm: natNorm, checkCallup: checkCallup };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.KoraCMEngine = API;
 })(typeof window !== 'undefined' ? window : globalThis);
