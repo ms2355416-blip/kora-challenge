@@ -2,14 +2,13 @@
 <html lang="ar" dir="rtl" class="auth-pending">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://www.gstatic.com https://crests.football-data.org https://commons.wikimedia.org https://flagcdn.com https://www.wikidata.org https://en.wikipedia.org; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#080d0b">
 <title>تحدي رسم اللاعبين | Kora Challenge</title>
 <link rel="stylesheet" href="myteem.css">
 <link rel="stylesheet" href="buttons.css">
-<link rel="stylesheet" href="draw.css?v=1">
+<link rel="stylesheet" href="draw.css?v=2">
 <style>html.auth-pending body{visibility:hidden}</style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -46,7 +45,7 @@
 <body>
 <header class="navbar">
   <a class="logo" href="index.html"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="4"/><path d="m32 20 10 7-4 12H26l-4-12z" fill="currentColor"/></svg>Kora <b>Challenge</b></a>
-  <div style="display:flex;gap:8px;align-items:center"><span class="chip hidden" id="roomChip"></span></div>
+  <div style="display:flex;gap:8px;align-items:center"><span class="chip" id="connChip" title="حالة الاتصال بالسيرفر">...</span><span class="chip hidden" id="roomChip"></span></div>
 </header>
 
 <main class="wrap">
@@ -146,6 +145,6 @@
   </section>
 </main>
 <div class="toast" id="toast"></div>
-<script src="draw.js?v=1"></script>
+<script src="draw.js?v=2"></script>
 </body>
 </html>

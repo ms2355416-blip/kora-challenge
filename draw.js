@@ -15,7 +15,7 @@
   const other = r => r === 'A' ? 'B' : 'A';
 
   let db, uid = null, code = null, role = null, ref = null, last = null, clockOffset = 0, conn = null;
-  let strokeRef = null, strokeN = -1, pointsGiven = {};
+  let strokeRef = null, strokeN = -1, pointsGiven = {}, online = false;
   const mine = new Set();
 
   /* ---------- بدء التشغيل ---------- */
@@ -30,6 +30,9 @@
   function init(user) {
     uid = user.uid;
     try { db = firebase.database(); db.ref('.info/serverTimeOffset').on('value', s => { clockOffset = s.val() || 0; }); } catch (e) { toast('Firebase مش متحمّل'); return; }
+    db.ref('.info/connected').on('value', s => {
+      online = !!s.val(); const c = $('connChip'); c.textContent = online ? 'متصل' : 'مش متصل'; c.style.color = online ? '#24e982' : '#ff7a59';
+    });
     $('createBtn').addEventListener('click', createRoom);
     $('joinBtn').addEventListener('click', joinRoom);
     $('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
@@ -53,7 +56,8 @@
   function genCode() { let c = ''; const a = new Uint32Array(5); crypto.getRandomValues(a); for (let i = 0; i < 5; i++) c += CODE_CH[a[i] % CODE_CH.length]; return c; }
   const isDenied = e => /permission/i.test(String((e && (e.code || e.message)) || ''));
   async function createRoom() {
-    if (window.KoraSec.limit('draw:create', 5, 60000)) return toast('استنى شوية قبل ما تعمل غرفة تانية');
+    if (!online) { await new Promise(r => setTimeout(r, 1500)); if (!online) return toast('مفيش اتصال بسيرفر Firebase. جرّب نت تاني أو اقفل أي حاجة بتحجب الاتصال (VPN / مانع إعلانات).'); }
+    if (window.KoraSec.limit('draw:create', 8, 60000)) return toast('استنى شوية قبل ما تعمل غرفة تانية');
     $('createBtn').disabled = true;
     try {
       for (let i = 0; i < 5; i++) {
@@ -190,7 +194,7 @@
     last = v; const s = v.state || {}, pl = v.players || {}, pres = v.presence || {};
     if (s.phase === 'lobby') {
       show('waiting');
-      const both = !!(pl.A && pl.B && pres.A && pres.B);
+      const both = !!(pl.A && pl.B);
       $('presLine').textContent = both ? 'الاتنين موجودين، جاهزين!' : 'مستني اللاعب التاني...';
       $('startBtn').disabled = !(both && role === 'A'); $('startBtn').textContent = role === 'A' ? 'ابدأ اللعب' : 'مستني صاحب الغرفة يبدأ';
       return;
