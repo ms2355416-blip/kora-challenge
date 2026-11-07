@@ -11,7 +11,7 @@
   const $ = id => document.getElementById(id);
   const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2600); };
   const show = s => ['lobby', 'waiting', 'game'].forEach(x => $(x).classList.toggle('hidden', x !== s));
-  const net = p => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))]);
+  const net = p => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 12000))]);
   const other = r => r === 'A' ? 'B' : 'A';
 
   let db, uid = null, code = null, role = null, ref = null, last = null, clockOffset = 0, conn = null;
@@ -51,16 +51,25 @@
 
   /* ---------- الغرف ---------- */
   function genCode() { let c = ''; const a = new Uint32Array(5); crypto.getRandomValues(a); for (let i = 0; i < 5; i++) c += CODE_CH[a[i] % CODE_CH.length]; return c; }
+  const isDenied = e => /permission/i.test(String((e && (e.code || e.message)) || ''));
   async function createRoom() {
     if (window.KoraSec.limit('draw:create', 5, 60000)) return toast('استنى شوية قبل ما تعمل غرفة تانية');
+    $('createBtn').disabled = true;
     try {
       for (let i = 0; i < 5; i++) {
         const c = genCode(), rf = db.ref('drawrooms/' + c);
-        const res = await net(rf.transaction(cur => cur ? undefined : { createdAt: firebase.database.ServerValue.TIMESTAMP, players: { A: uid }, state: { n: 0, phase: 'lobby' } }));
-        if (res.committed) { enter(c, 'A'); return; }
+        try {
+          await net(rf.set({ createdAt: firebase.database.ServerValue.TIMESTAMP, players: { A: uid }, state: { n: 0, phase: 'lobby' } }));
+          enter(c, 'A'); return;
+        } catch (e) {
+          if (!isDenied(e)) throw e;
+          let exists = false;
+          try { exists = (await net(rf.get())).exists(); } catch (e2) { throw e; }
+          if (!exists) throw e;   // مرفوض ومش تكرار كود = القواعد مش بتسمح
+        }
       }
       toast('حصلت مشكلة، جرب تاني');
-    } catch (e) { fail(e); }
+    } catch (e) { fail(e); } finally { $('createBtn').disabled = false; }
   }
   async function joinRoom() {
     const c = window.KoraSec.roomCode($('codeInput').value);
@@ -73,12 +82,22 @@
       if (pl.A === uid) return enter(c, 'A');
       if (pl.B === uid) return enter(c, 'B');
       if (pl.B) return toast('الغرفة ممتلئة (اتنين لاعبين)');
-      const r = await net(db.ref('drawrooms/' + c + '/players/B').transaction(cur => cur ? undefined : uid));
-      if (!r.committed) return toast('الغرفة ممتلئة (اتنين لاعبين)');
+      try { await net(db.ref('drawrooms/' + c + '/players/B').set(uid)); }
+      catch (e) {
+        if (!isDenied(e)) throw e;
+        const again = (await net(db.ref('drawrooms/' + c + '/players/B').get())).val();
+        if (again !== uid) return toast('الغرفة ممتلئة (اتنين لاعبين)');
+      }
       enter(c, 'B');
     } catch (e) { fail(e); }
   }
-  function fail(e) { console.error(e); toast(e && e.message === 'timeout' ? 'مفيش رد من السيرفر، جرب تاني' : 'خطأ: ' + ((e && e.code) || (e && e.message) || '')); }
+  function fail(e) {
+    console.error(e);
+    const m = String((e && (e.code || e.message)) || '');
+    if (/permission/i.test(m)) toast('قواعد Firebase رافضة. انشر قواعد drawrooms من ملف database.rules.json');
+    else if (m === 'timeout') toast('مفيش رد من السيرفر. اتأكد من النت، ومن إنك نشرت قواعد Firebase الجديدة');
+    else toast('خطأ: ' + m);
+  }
   function enter(c, r) {
     code = c; role = r; last = null; strokeN = -1; mine.clear(); pointsGiven = {};
     $('roomChip').textContent = c; $('roomChip').classList.remove('hidden'); $('bigCode').textContent = c;
