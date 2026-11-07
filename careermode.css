@@ -408,3 +408,8 @@
 
 .cm-inj-h>div{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
 .cm-status{margin-top:12px}
+
+.cm-gtab{display:flex;flex-direction:column;gap:5px;margin:10px 0}
+.cm-gr{display:flex;align-items:center;gap:10px;background:var(--surface-2,#17211d);border-radius:10px;padding:8px 10px;font-size:.82rem}
+.cm-gr .n{flex:1}
+.cm-gr.me{border:1px solid var(--green,#24e982)}
