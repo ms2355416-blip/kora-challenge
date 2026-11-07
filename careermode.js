@@ -10,6 +10,7 @@
     if (!window.KoraCMRosters) miss.push('careermode-rosters.js');
     if (!(window.KoraCMData && window.KoraCMData.TOP15)) miss.push('careermode-world.js');
     if (!window.KoraCMArt) miss.push('careermode-art.js');
+    if (!window.KoraCinema) miss.push('careermode-cinema.js');
     if (!(window.KoraCMEngine && window.KoraCMEngine.nextExtra)) miss.push('careermode-engine.js (النسخة الجديدة)');
     if (miss.length) {
       const m = document.querySelector('main') || document.body, d = document.createElement('div');
@@ -47,6 +48,8 @@
   };
   const ic = n => '<svg class="cm-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC_P[n] + '</svg>';
   const icon = n => { const sp = el('span', 'ic'); sp.innerHTML = ic(n); return sp; };
+  const FIXCSS = 'position:fixed;left:16px;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9000;max-width:608px;width:auto;margin:0 auto;box-shadow:0 12px 32px rgba(0,0,0,.6)';
+  const fixBtn = b => { b.style.cssText = FIXCSS; return b; };
   const outTxt = pm => pm.role === 'bench' ? 'دكة' : pm.why === 'inj' ? 'مصاب' : pm.why === 'susp' ? 'موقوف' : 'خارج';
   const ratingCls = r => r >= 4.6 ? 'gold' : r >= 3.8 ? 'green' : r >= 3.0 ? 'amber' : 'red';
   function toast(text, kind) {
@@ -95,7 +98,7 @@
   /* تصغير الصورة المرفوعة لمربع 192px عشان تتخزن خفيفة */
   function readPhoto(file) {
     return new Promise((res, rej) => {
-      if (!file || !/^image\//.test(file.type)) { rej(new Error('type')); return; }
+      if (!file || file.size > 8 * 1024 * 1024 || !/^image\/(png|jpe?g|webp|gif)$/i.test(file.type)) { rej(new Error('type')); return; }
       const fr = new FileReader();
       fr.onerror = () => rej(new Error('read'));
       fr.onload = () => {
@@ -200,7 +203,7 @@
 
     $('cmForm').addEventListener('submit', e => {
       e.preventDefault();
-      const name = $('cmName').value.trim();
+      const name = window.KoraSec ? window.KoraSec.name($('cmName').value, 22) : $('cmName').value.trim();
       if (!name) return;
       S = E.newCareer({ name, nat: sel.nat[0], natCode: sel.nat[1], pos: sel.pos, color: sel.color, start: sel.start, photo: sel.photo }, Math.random);
       S.pointsGiven = false;
@@ -829,9 +832,16 @@
       wrap.appendChild(card); box.appendChild(wrap); items.push(wrap);
     });
     const tail = el('div'); tail.hidden = true; box.appendChild(tail);
-    const skip = el('button', 'cm-link', 'تخطي العرض'); skip.type = 'button'; skip.style.cssText = 'display:block;margin:10px auto'; box.insertBefore(skip, tail);
+    const skip = el('button', 'cm-btn', 'تخطي العرض'); skip.type = 'button'; fixBtn(skip); box.appendChild(skip);
+    let finished = false, cinDone = false;
+    const needCin = () => !!(aw.ballon && aw.ballon.mine && !cinDone && window.KoraCinema);
+    const runCin = after => {
+      cinDone = true; clearTimeout(awTimer);
+      window.KoraCinema.ballon({ name: S.player.name, club: club(S.clubId).ar, goals: sm.goals, assists: sm.assists, avg: sm.avg, year: sm.year, avatar: avatarHTML(S.player),
+        cands: (aw.ballon.cands || []).map(c => c.name) }, after);
+    };
     function finish() {
-      clearTimeout(awTimer); skip.remove();
+      clearTimeout(awTimer); finished = true; skip.textContent = 'كمّل';
       items.forEach(it => { it.hidden = false; it.classList.add('in'); });
       tail.hidden = false;
       if (tail.childNodes.length) return;
@@ -845,13 +855,14 @@
       });
       wc.appendChild(wl); tail.appendChild(wc);
       tail.appendChild(el('div', 'cm-note', won ? 'مبروك! كسبت ' + won + (won === 1 ? ' جايزة' : ' جوايز') + ' وفيه نقاط زيادة اتضافت لرصيدك.' : 'ماكسبتش جوايز الموسم ده. الجوايز بتتحسم بالأرقام (أهداف وأسيست وتقييم وبطولات) قدام كل لاعيبة العالم، فكمّل وحسّن مستواك.'));
-      const b = el('button', 'cm-btn cm-fixedbtn', 'كمّل'); b.type = 'button';
-      b.addEventListener('click', () => { E.continueAfterAwards(S); save(); render(); });
-      tail.appendChild(b);
     }
-    skip.addEventListener('click', finish);
+    skip.addEventListener('click', () => {
+      if (finished) { E.continueAfterAwards(S); save(); render(); return; }
+      if (needCin()) runCin(finish); else finish();
+    });
     function reveal(i) {
       if (i >= items.length) { awTimer = setTimeout(finish, 600); return; }
+      if (defs[i][0] === 'ballon' && needCin()) { runCin(() => reveal(i)); return; }
       const it = items[i]; it.hidden = false; void it.offsetWidth; it.classList.add('in');
       try { it.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
       if (it.classList.contains('mine')) { confetti(it); buzz([60, 40, 90]); }
@@ -993,6 +1004,7 @@
   function evSummary(e) {
     const r = e.res; if (!r) return 'لسه ماحصلتش';
     if (r.skipped) return 'اتخطيتها • البطل: ' + club(r.champion).ar;
+    if (r.injured) return 'إصابتك منعتك من المشاركة • البطل: ' + club(r.champion).ar;
     if (r.noQual) return 'منتخبك ماتأهلش • البطل: ' + club(r.champion).ar;
     if (r.notSelected) return 'ماتختارتش في القايمة • البطل: ' + club(r.champion).ar;
     return (r.out && r.out.placed) + ' • البطل: ' + club(r.champion).ar;
@@ -1016,18 +1028,39 @@
     if (r.prize) w.appendChild(el('div', 'cm-note up', 'مكافأة البطولة: +' + money(r.prize)));
     openModal(w, 'تمام');
   }
+  function liveCard(e, i) {
+    const L = S.live, nx = L.next, card = el('div', 'cm-card cm-next');
+    card.appendChild(el('h3', '', e.ar + ' • ' + nx.label));
+    const home = nx.home ? L.meId : nx.opp, away = nx.home ? nx.opp : L.meId;
+    const vs = el('div', 'cm-vs'); vs.append(teamBlock(home, 'أرض'), el('span', 'cm-sub', 'ضد'), teamBlock(away, 'ضيف')); card.appendChild(vs);
+    if (L.phase === 'group' && L.rows) {
+      const tb = el('div', 'cm-gtab');
+      Object.keys(L.rows).map(k => L.rows[k]).sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga)).forEach(r => {
+        const row = el('div', 'cm-gr' + (r.id === L.meId ? ' me' : '')); row.append(el('span', 'n', club(r.id).ar), el('span', '', String(r.gf - r.ga > 0 ? '+' + (r.gf - r.ga) : r.gf - r.ga)), el('b', '', r.pts + ' نقطة')); tb.appendChild(row);
+      });
+      card.appendChild(tb);
+    }
+    L.hist.forEach(m => { const r = el('div', 'cm-tmatch'); r.append(el('span', 'st', m.stage.replace('مرحلة المجموعات • ', '')), el('span', 'mt', club(m.h).ar + ' ' + m.hg + ' - ' + m.ag + ' ' + club(m.a).ar + (m.pens ? ' (ترجيح)' : '')), el('span', 'rt', m.pm.rating != null ? m.pm.rating.toFixed(1) : outTxt(m.pm))); card.appendChild(r); });
+    const b = el('button', 'cm-btn', 'العب المباراة'); b.type = 'button';
+    b.addEventListener('click', () => {
+      const pm = E.playLive(S, Math.random); buzz(30); save();
+      openModal(reportNode(pm), 'تمام', () => { renderSummer(); });
+    });
+    card.appendChild(b); return card;
+  }
   function renderSummer() {
     const box = $('cmSummer'); box.textContent = '';
     const head = el('div', 'cm-card'); head.append(el('div', 'cm-sub', 'صيف ' + (S.year + 1)), el('h2', 'cm-sum-title', 'بطولات الصيف'));
     box.appendChild(head);
     S.summer.forEach((e, i) => {
+      if (e.status === 'active' && S.live) { box.appendChild(liveCard(e, i)); return; }
       const c = el('div', 'cm-card cm-ev-card' + (e.status === 'done' ? ' done' : '')); const info = el('div', 'info');
       info.append(el('b', '', e.ar), el('small', '', e.status === 'done' ? evSummary(e) : e.nat ? 'بطولة منتخبات' : 'بطولة أندية'));
       c.appendChild(info);
       const skipped = e.status === 'done' && e.res && e.res.skipped;
       if (!skipped) {
         const b = el('button', 'cm-btn' + (e.status === 'done' ? ' ghost' : ''), e.status === 'done' ? 'التفاصيل' : 'ابدأ البطولة'); b.type = 'button';
-        b.addEventListener('click', () => { if (e.status === 'done') showEventResult(e); else { const x = E.runSummerEvent(S, i, Math.random); buzz(30); save(); renderSummer(); showEventResult(x); } });
+        b.addEventListener('click', () => { if (e.status === 'done') showEventResult(e); else { const x = E.runSummerEvent(S, i, Math.random); buzz(30); save(); renderSummer(); if (x.status === 'done') showEventResult(x); } });
         c.appendChild(b);
       }
       if (e.status !== 'done') {
@@ -1040,7 +1073,7 @@
       }
       box.appendChild(c);
     });
-    const fin = el('button', 'cm-btn cm-fixedbtn', 'كمّل لسوق الانتقالات'); fin.type = 'button'; fin.disabled = S.summer.some(e => e.status !== 'done');
+    const fin = el('button', 'cm-btn', 'كمّل لسوق الانتقالات'); fin.type = 'button'; fixBtn(fin); fin.disabled = S.summer.some(e => e.status !== 'done');
     fin.addEventListener('click', () => { E.finishSummer(S); save(); render(); });
     box.appendChild(fin);
   }
