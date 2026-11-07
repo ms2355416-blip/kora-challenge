@@ -123,7 +123,7 @@
     const file = els.file.files && els.file.files[0];
     els.file.value = '';
     if (!file) return;
-    if (!/^image\//.test(file.type)) return toast('اختار ملف صورة بس', true);
+    if (!/^image\/(png|jpe?g|webp|gif)$/i.test(file.type)) return toast('اختار ملف صورة بس', true);
     if (file.size > MAX_FILE_MB * 1024 * 1024) return toast('الصورة كبيرة، اختار صورة أقل من ' + MAX_FILE_MB + ' ميجا', true);
 
     try {
@@ -168,7 +168,7 @@
 
   async function saveName(event) {
     event.preventDefault();
-    const name = els.input.value.replace(/\s+/g, ' ').trim();
+    const name = window.KoraSec ? window.KoraSec.name(els.input.value, NAME_MAX) : els.input.value.replace(/\s+/g, ' ').trim();
     if (name.length < NAME_MIN || name.length > NAME_MAX) {
       return toast('الاسم لازم يكون من ' + NAME_MIN + ' إلى ' + NAME_MAX + ' حرف', true);
     }
