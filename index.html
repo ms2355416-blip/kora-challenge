@@ -2,6 +2,8 @@
 <html lang="ar" dir="rtl" class="auth-pending">
 <head>
   <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://www.gstatic.com https://crests.football-data.org https://commons.wikimedia.org https://flagcdn.com https://www.wikidata.org https://en.wikipedia.org; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#080d0b">
   <meta name="description" content="Kora Challenge - اختبر معلوماتك الكروية وتحدى نفسك!">
@@ -10,7 +12,7 @@
   <link rel="stylesheet" href="account.css">
   <link rel="stylesheet" href="unlocks.css">
   <link rel="stylesheet" href="buttons.css">
-  <link rel="stylesheet" href="chat.css">
+  <link rel="stylesheet" href="chat.css?v=2">
   <style>
     .stat-link { color: inherit; text-decoration: none; cursor: pointer; border-radius: 12px; transition: background .2s, transform .2s; }
     .stat-link:hover { background: rgba(36,233,130,.08); transform: translateY(-2px); }
@@ -604,6 +606,36 @@
           </button>
         </div>
       </article>
+      <!-- تحدي رسم اللاعبين -->
+      <article class="game-card">
+        <div class="game-art career-art">
+          <span class="art-emoji">
+            <svg class="art-svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M8 50c6-22 14-30 20-14s10 8 16-10" fill="none" stroke="#24e982" stroke-width="5" stroke-linecap="round"/><circle cx="48" cy="14" r="6" fill="#f6c445"/></svg>
+          </span>
+          <span class="art-number">08</span>
+        </div>
+
+        <div class="game-info">
+          <span class="game-category">تحدي أونلاين</span>
+          <h3>تحدي رسم اللاعبين</h3>
+          <p>
+            ادخل غرفة بكود مع صاحبك: واحد يرسم لاعب والتاني يخمّن اسمه،
+            والرسّام هو اللي يحكم صح ولا غلط. 4 جولات بتبدّلوا فيها الأدوار،
+            والمخمّن الصح ياخد 60 نقطة.
+          </p>
+
+          <div class="game-meta">
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-list"></use></svg> 4 جولات</span>
+            <span><svg class="svg-icon meta-icon" aria-hidden="true"><use href="#icon-trophy"></use></svg> +60 نقطة</span>
+          </div>
+
+          <a href="draw.html" class="game-btn" style="text-decoration: none; display: inline-flex; justify-content: center; align-items: center;">
+            العب دلوقتي
+            <svg class="svg-icon small-icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+          </a>
+        </div>
+      </article>
+
 
 
     </div>
@@ -654,7 +686,8 @@
 <script src="unlocks.js"></script>
 <script src="account.js" defer></script>
 <script src="points-sync.js" defer></script>
-<script src="chat.js" defer></script>
+<script src="kora-security.js"></script>
+<script src="chat.js?v=2" defer></script>
 <script>
 (function(){try{var d=JSON.parse(localStorage.getItem('koraDaily')||'null'),t=document.getElementById('dailyTag');
 var k=window.KoraStreak?window.KoraStreak.dateKey():null;
