@@ -161,7 +161,10 @@
       upd['chat/global/' + key] = Object.assign({ uid: u.uid, name: Sec.name(myName(), 30), t: firebase.database.ServerValue.TIMESTAMP }, msg);
       upd['chat/meta/' + u.uid + '/last'] = firebase.database.ServerValue.TIMESTAMP;
       if (audioUrl) upd['chat/audio/' + key] = audioUrl;
-      return db.ref().update(upd).then(() => true).catch(() => { say('مقدرناش نبعت الرسالة. اتأكد من النت أو من قواعد Firebase.'); return false; });
+      return db.ref().update(upd).then(() => true).catch(err => {
+        if (audioUrl) { say('مقدرناش نبعت الرسالة الصوتية (' + ((err && err.code) || 'error') + ').'); return false; }
+        return ref.child(key).set(upd['chat/global/' + key]).then(() => true).catch(e2 => { console.warn('[chat]', e2); say('مقدرناش نبعت الرسالة (' + ((e2 && e2.code) || 'error') + '). راجع قواعد Firebase.'); return false; });
+      });
     }
     form.addEventListener('submit', e => {
       e.preventDefault();
