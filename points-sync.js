@@ -21,7 +21,7 @@
   function displayName() {
     if (!user) return 'لاعب';
     const name = user.displayName || (user.email ? user.email.split('@')[0] : '') || 'لاعب';
-    return name.slice(0, 30);
+    return (window.KoraSec ? window.KoraSec.name(name, 30) : name.slice(0, 30)) || 'لاعب';
   }
 
   function cosmetics() {
