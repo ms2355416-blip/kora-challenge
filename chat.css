@@ -41,3 +41,23 @@ body.chat-lock{overflow:hidden;position:fixed;width:100%}
   .header-actions{margin-left:40px !important}
   .header-actions>*{transform-origin:center}
 }
+
+/* ===== v2: صوت، توقيت، تسجيل ===== */
+.chat-mic{flex:none;width:46px;height:46px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--green,#24e982);background:var(--surface-2,#151f19);border:1px solid var(--border,#25352b);border-radius:12px}
+.chat-mic svg{width:22px;height:22px}
+.chat-mic:hover{border-color:var(--green,#24e982)}
+.chat-rec{flex:1;display:flex;align-items:center;gap:12px;height:46px;padding:0 6px}
+.chat-rec[hidden]{display:none}
+.chat-rec-x{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,90,95,.5);background:rgba(255,90,95,.12);color:#ff5a5f;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.chat-rec-x svg{width:18px;height:18px}
+.chat-rec-dot{width:11px;height:11px;border-radius:50%;background:#ff5a5f;animation:chatRec 1s infinite}
+@keyframes chatRec{50%{opacity:.25;transform:scale(.8)}}
+.chat-rec-t{flex:1;font-variant-numeric:tabular-nums;direction:ltr;text-align:start}
+.chat-form.recording .chat-input,.chat-form.recording .chat-mic{display:none}
+.chat-audio{display:flex;align-items:center;gap:10px;min-width:170px}
+.chat-play{flex:none;width:38px;height:38px;border-radius:50%;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;background:var(--green,#24e982);color:#06140b}
+.chat-msg.mine .chat-play{background:#06140b;color:var(--green,#24e982)}
+.chat-play svg{width:18px;height:18px}
+.chat-wave{flex:1;height:5px;border-radius:99px;background:rgba(127,127,127,.3);overflow:hidden}
+.chat-wave i{display:block;height:100%;width:0;background:currentColor;opacity:.85;transition:width .2s linear}
+.chat-dur{font-size:11px;opacity:.7;direction:ltr}
