@@ -262,6 +262,23 @@
     return t;
   }
 
+  function pressBox(press) {
+    const box = el('div', 'cm-press');
+    box.appendChild(el('b', 'cm-press-h', 'مؤتمر صحفي بعد المباراة'));
+    box.appendChild(el('div', 'cm-press-q', press.q));
+    const draw = () => {
+      box.querySelectorAll('.cm-press-opt,.cm-press-r').forEach(n => n.remove());
+      if (press.done != null) { box.appendChild(el('div', 'cm-press-r', 'قلت: ' + press.opts[press.done].t + (press.reply ? ' — ' + press.reply : ''))); return; }
+      press.opts.forEach((o, i) => {
+        const b = el('button', 'cm-btn ghost cm-press-opt', o.t); b.type = 'button';
+        b.addEventListener('click', () => { press.reply = E.answerPress(S, press, i); save(); draw(); });
+        box.appendChild(b);
+      });
+    };
+    draw();
+    return box;
+  }
+
   function paneHome() {
     const pane = $('cmPane'); pane.textContent = '';
     const myRounds = E.rounds(S.league);
@@ -289,6 +306,8 @@
       if (!due) { const pbar = el('div', 'cm-bar cm-prog'); const pf = el('i'); pf.style.width = clampPct(S.round / myRounds * 100) + '%'; pbar.appendChild(pf); card.appendChild(pbar); }
       const vs = el('div', 'cm-vs');
       vs.append(teamBlock(fx.home, 'أرض'), el('span', 'cm-vs-mid', 'ضد'), teamBlock(fx.away, 'ضيف'));
+      const dby = !due && fx ? E.derbyOf(fx.home, fx.away) : null;
+      if (dby) card.appendChild(el('div', 'cm-derby', '🔥 ' + dby + ' • مباراة بحماس خاص ومكافآت مضاعفة'));
       card.appendChild(vs);
       const row = el('div', 'cm-row');
       const b1 = el('button', 'cm-btn', due ? 'العب المباراة' : 'العب الجولة'); b1.type = 'button'; b1.addEventListener('click', () => playRounds(1));
@@ -302,6 +321,12 @@
     }
 
     pane.appendChild(statusCard());
+    if (S.coach) {
+      const cc = el('div', 'cm-card cm-coachcard');
+      cc.append(el('b', '', 'المدرب: ' + S.coach.name), el('small', 'cm-sub', E.coachNote(S) + ' • ده بيأثر على فرصتك في التشكيلة'));
+      if (S.coachNews) cc.appendChild(el('div', 'cm-note', S.coachNews));
+      pane.appendChild(cc);
+    }
     if (S.euro) pane.appendChild(euroCard());
     (S.cups || []).forEach(c => pane.appendChild(cupCard(c)));
     if (S.intl && S.intl.caps > 0) {
@@ -611,6 +636,82 @@
     pane.appendChild(card);
   }
 
+  /* ====== أرشيف المسيرة ====== */
+  function lineChart(vals, labels) {
+    const W = 320, H = 130, pad = 22, n = vals.length;
+    const lo = Math.floor(Math.min.apply(null, vals) - 2), hi = Math.ceil(Math.max.apply(null, vals) + 2);
+    const x = i => n === 1 ? W / 2 : pad + i * (W - pad * 2) / (n - 1), y = v => H - pad - (v - lo) / Math.max(1, hi - lo) * (H - pad * 2);
+    let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="cm-chart" role="img" aria-label="مستواك عبر المواسم">';
+    svg += '<line x1="' + pad + '" y1="' + (H - pad) + '" x2="' + (W - pad) + '" y2="' + (H - pad) + '" stroke="currentColor" opacity=".25"/>';
+    svg += '<polyline fill="none" stroke="#ffcc3d" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" points="' + vals.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ') + '"/>';
+    vals.forEach((v, i) => {
+      svg += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="3.6" fill="#ffcc3d"/>';
+      if (n <= 9 || i === 0 || i === n - 1) svg += '<text x="' + x(i).toFixed(1) + '" y="' + (y(v) - 8).toFixed(1) + '" font-size="10" text-anchor="middle" fill="currentColor">' + Math.floor(v) + '</text>';
+    });
+    svg += '<text x="' + pad + '" y="' + (H - 6) + '" font-size="9" fill="currentColor" opacity=".7">' + labels[0] + '</text>';
+    if (n > 1) svg += '<text x="' + (W - pad) + '" y="' + (H - 6) + '" font-size="9" text-anchor="end" fill="currentColor" opacity=".7">' + labels[n - 1] + '</text>';
+    return svg + '</svg>';
+  }
+
+  function shareArchive() {
+    const H = S.history || [], p = S.player, tt = S.totals || { apps: 0, goals: 0, assists: 0 };
+    const cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1350;
+    const g = cv.getContext('2d'); g.direction = 'rtl'; g.textAlign = 'center';
+    const bg = g.createLinearGradient(0, 0, 0, 1350); bg.addColorStop(0, '#14213d'); bg.addColorStop(1, '#0b1224');
+    g.fillStyle = bg; g.fillRect(0, 0, 1080, 1350);
+    g.fillStyle = '#ffcc3d'; g.font = '700 40px sans-serif'; g.fillText('KORA CHALLENGE', 540, 90);
+    g.fillStyle = '#fff'; g.font = '800 84px sans-serif'; g.fillText(p.name, 540, 220);
+    g.fillStyle = '#9fb0d0'; g.font = '600 36px sans-serif'; g.fillText(p.nat + ' • ' + p.pos + ' • ' + Math.floor(p.ovr) + ' OVR • ' + p.age + ' سنة', 540, 285);
+    [['مباريات', tt.apps], ['أهداف', tt.goals], ['أسيست', tt.assists], ['بطولات', (S.honors || []).length]].forEach((x, i) => {
+      const cx = 855 - i * 210; g.fillStyle = '#ffcc3d'; g.font = '800 78px sans-serif'; g.fillText(String(x[1]), cx, 440);
+      g.fillStyle = '#9fb0d0'; g.font = '600 32px sans-serif'; g.fillText(x[0], cx, 490);
+    });
+    if (H.length) {
+      const vals = H.map(h => h.ovrAfter), lo = Math.min.apply(null, vals) - 2, hi = Math.max.apply(null, vals) + 2;
+      const X = i => H.length === 1 ? 540 : 120 + i * 840 / (H.length - 1), Y = v => 1000 - (v - lo) / Math.max(1, hi - lo) * 380;
+      g.strokeStyle = '#ffcc3d'; g.lineWidth = 7; g.lineJoin = 'round'; g.beginPath();
+      vals.forEach((v, i) => { if (i) g.lineTo(X(i), Y(v)); else g.moveTo(X(i), Y(v)); }); g.stroke();
+      g.fillStyle = '#ffcc3d'; g.font = '700 30px sans-serif';
+      vals.forEach((v, i) => { g.beginPath(); g.arc(X(i), Y(v), 10, 0, 6.3); g.fill(); if (H.length <= 12 || i % 2 === 0) g.fillText(String(Math.floor(v)), X(i), Y(v) - 22); });
+      g.fillStyle = '#9fb0d0'; g.font = '600 30px sans-serif'; g.fillText('مستواك من ' + H[0].year + ' لحد ' + H[H.length - 1].year, 540, 1090);
+    }
+    g.fillStyle = '#6f7f9f'; g.font = '600 28px sans-serif'; g.fillText('مسيرتي في Kora Challenge', 540, 1280);
+    cv.toBlob(blob => {
+      if (!blob) return;
+      const file = new File([blob], 'my-career.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: 'مسيرتي في Kora Challenge' }).catch(() => {}); return; }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'my-career.png';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }, 'image/png');
+  }
+
+  function paneArchive() {
+    const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('أرشيف مسيرتي'));
+    const H = S.history || [];
+    if (!H.length) { const c = el('div', 'cm-card cm-soon'); c.append(el('b', '', 'لسه مخلصتش موسم'), el('div', '', 'إحصائياتك ورسم مستواك هيظهروا هنا بعد أول موسم.')); pane.appendChild(c); return; }
+    const tt = S.totals || { apps: 0, goals: 0, assists: 0 };
+    const top = el('div', 'cm-card'); const g = el('div', 'cm-sum-grid');
+    [['مواسم', H.length], ['مباريات', tt.apps], ['أهداف', tt.goals], ['أسيست', tt.assists], ['بطولات', (S.honors || []).length], ['مستواك', Math.floor(S.player.ovr)]].forEach(x => {
+      const d = el('div', 'cm-stat'); d.append(el('small', '', x[0]), el('b', '', String(x[1]))); g.appendChild(d);
+    });
+    top.appendChild(g); pane.appendChild(top);
+
+    const ch = el('div', 'cm-card'); ch.appendChild(el('b', '', 'مستواك عبر المواسم'));
+    const box = el('div'); box.innerHTML = lineChart(H.map(h => h.ovrAfter), H.map(h => String(h.year))); ch.appendChild(box); pane.appendChild(ch);
+
+    const tb = el('div', 'cm-card cm-arch');
+    H.slice().reverse().forEach(h => {
+      const c = S.clubs[h.clubId], r = el('div', 'cm-arch-row');
+      const head = el('div', 'cm-arch-head'); head.append(el('b', '', h.year + '/' + String(h.year + 1).slice(2)), el('span', '', (c ? c.ar : '') + (h.champion ? ' 🏆' : '')));
+      const st = el('small', 'cm-sub', 'المركز ' + h.pos + ' • ' + h.apps + ' مباراة • ' + h.goals + ' هدف • ' + h.assists + ' أسيست • تقييم ' + (h.avg ? h.avg.toFixed(1) : '-') + ' • مستوى ' + Math.floor(h.ovrAfter));
+      r.append(head, st);
+      if (h.exit) r.appendChild(el('small', 'cm-arch-exit', h.exit.type === 'fired' ? 'اتفسخ عقدك' : 'رفض التجديد'));
+      tb.appendChild(r);
+    });
+    pane.appendChild(tb);
+    const sh = el('button', 'cm-btn', 'شارك مسيرتك كصورة'); sh.type = 'button'; sh.addEventListener('click', shareArchive); pane.appendChild(sh);
+  }
+
   function paneSoon(title) {
     const pane = $('cmPane'); pane.textContent = '';
     const c = el('div', 'cm-card cm-soon');
@@ -628,6 +729,7 @@
     else if (tab === 'assets') paneAssets();
     else if (tab === 'clubs') paneClubs();
     else if (tab === 'market') paneMarket();
+    else if (tab === 'archive') paneArchive();
     else paneClubTrophies();
   }
 
@@ -671,6 +773,7 @@
     }
     if (pm.bonus > 0 || pm.motm) wrap.appendChild(el('div', 'cm-note up', (pm.motm ? 'رجل المباراة! ' : '') + (pm.bonus > 0 ? 'مكافآت عقدك: +' + money(pm.bonus) : '')));
     (pm.news || []).forEach(n => wrap.appendChild(el('div', 'cm-note ' + n.k, n.x)));
+    if (pm.press) wrap.appendChild(pressBox(pm.press));
     const evs = el('div', 'cm-events');
     (pm.events || []).forEach(e => {
       const t = evText(e); if (!t[0]) return;
@@ -886,6 +989,18 @@
     const d = Math.round((sm.ovrAfter - sm.ovrBefore) * 10) / 10;
     card.appendChild(el('div', 'cm-note', 'طاقتك: ' + Math.floor(sm.ovrBefore) + ' ← ' + Math.floor(sm.ovrAfter) + (d >= 0 ? ' (+' + d + ')' : ' (' + d + ')') + ' • عمرك ' + sm.age));
     if (sm.euro && sm.euro.text) card.appendChild(el('div', 'cm-note' + (sm.euro.status === 'champ' ? ' up' : ''), 'دوري الأبطال: ' + sm.euro.text));
+    if (sm.exit) {
+      const ex = el('div', 'cm-card cm-exit');
+      if (sm.exit.type === 'fired') {
+        ex.append(el('h3', 'cm-sum-title', 'النادي فسخ عقدك!'),
+          el('div', 'cm-note', 'أداءك الموسم ده كان وحش جدًا فـ' + c.ar + ' قرر ينهي العقد قبل ميعاده (فاضل ' + sm.exit.yearsLeft + ' سنة).'),
+          el('div', 'cm-prize', 'الشرط الجزائي اللي النادي دفعهولك'), el('b', 'cm-note up', '+' + money(sm.exit.severance)));
+      } else {
+        ex.append(el('h3', 'cm-sum-title', 'النادي رفض يجدد عقدك'),
+          el('div', 'cm-note', 'عقدك خلص وأداءك مقنعش إدارة ' + c.ar + '، فمش هيجددولك. لازم تدوّر على نادي جديد.'));
+      }
+      card.appendChild(ex);
+    }
     const qk = S.euroQual && S.euroQual[S.clubId];
     if (qk) card.appendChild(el('div', 'cm-note up', qk === 'cl' ? 'ناديك اتأهل لدوري أبطال أوروبا الموسم الجاي!' : 'ناديك هيلعب تصفيات دوري الأبطال الموسم الجاي.'));
     if (sm.moved === 'up') card.appendChild(el('div', 'cm-note up', 'ناديك طلع للدرجة الأعلى في الموسم الجاي!'));
@@ -925,20 +1040,22 @@
         const oc = club(o.clubId), row = el('div', 'cm-card cm-offer');
         row.appendChild(badge(oc));
         const info = el('div', 'info');
-        info.append(el('b', '', oc.ar), el('small', '', LG[o.league].ar), el('span', 'cm-fee', 'عرض بـ ' + fmt(o.fee) + ' مليون ' + o.cur));
+        info.append(el('b', '', oc.ar), el('small', '', LG[o.league].ar), el('span', 'cm-fee', o.free ? 'انتقال حر (من غير مقابل)' : 'عرض بـ ' + fmt(o.fee) + ' مليون ' + o.cur));
         row.appendChild(info);
         const b = el('button', 'cm-btn', 'اقبل'); b.type = 'button';
         b.addEventListener('click', () => {
-          window.KoraDialog.confirm({ title: 'تنتقل لـ ' + oc.ar + '؟', message: 'الصفقة بـ ' + fmt(o.fee) + ' مليون ' + o.cur + '. هتروح تتفاوض وتوقّع العقد.', okText: 'أنتقل', cancelText: 'لأ', danger: false })
+          window.KoraDialog.confirm({ title: 'تنتقل لـ ' + oc.ar + '؟', message: (o.free ? 'انتقال حر من غير مقابل' : 'الصفقة بـ ' + fmt(o.fee) + ' مليون ' + o.cur) + '. هتروح تتفاوض وتوقّع العقد.', okText: 'أنتقل', cancelText: 'لأ', danger: false })
             .then(ok => { if (ok) choose(i); });
         });
         row.appendChild(b);
         box.appendChild(row);
       });
     }
-    const stay = el('button', 'cm-btn ghost', 'ابقى مع ' + c.ar); stay.type = 'button';
-    stay.addEventListener('click', () => choose(-1));
-    box.appendChild(stay);
+    if (!S.fired && !S.noRenew) {
+      const stay = el('button', 'cm-btn ghost', 'ابقى مع ' + c.ar); stay.type = 'button';
+      stay.addEventListener('click', () => choose(-1));
+      box.appendChild(stay);
+    }
   }
 
   function choose(i) {
@@ -946,6 +1063,7 @@
     S.pointsGiven = false;
     tab = 'home'; tabLeague = S.league; fxFilter = 'all';
     save(); render();
+    if (S.phase === 'play') backupNow(true);
   }
 
   /* ====== شاشة التوقيع ====== */
@@ -956,11 +1074,36 @@
     card.appendChild(el('h2', 'cm-sum-title', 'توقيع العقد'));
     const cc = el('div', 'cm-ct-club'); cc.append(badge(c), el('b', '', c.ar), el('small', 'cm-sub', LG[c.league] ? LG[c.league].ar : ''));
     card.appendChild(cc);
+    E.applyTerms(S, d.sel || { years: 3, release: false, agent: !!S.agent });
     const t = el('div', 'cm-ct-terms');
-    [['مدة العقد', d.years + ' سنين'], ['الراتب السنوي', money(d.salary)], ['مكافأة التوقيع', money(d.signing)], [d.fee ? 'قيمة الصفقة' : 'نوع العقد', d.fee ? fmt(d.fee) + ' مليون ' + d.cur : S.signFor === 'renew' ? 'تجديد' : 'عقد ناشئ']].forEach(x => {
-      const e = el('div'); e.append(el('small', '', x[0]), el('b', '', x[1])); t.appendChild(e);
-    });
-    card.appendChild(t);
+    const ctl = el('div', 'cm-terms-ctl');
+    const clausesBox = el('div', 'cm-clauses');
+    function drawTerms() {
+      t.textContent = '';
+      [['مدة العقد', d.years + ' سنين'], ['الراتب السنوي', money(d.salary)], ['مكافأة التوقيع', money(d.signing)], [d.fee ? 'قيمة الصفقة' : 'نوع العقد', d.fee ? (d.free ? 'انتقال حر' : fmt(d.fee) + ' مليون ' + d.cur) : S.signFor === 'renew' ? 'تجديد' : 'عقد ناشئ']].forEach(x => {
+        const e = el('div'); e.append(el('small', '', x[0]), el('b', '', x[1])); t.appendChild(e);
+      });
+      clausesBox.textContent = ''; clausesBox.appendChild(el('h3', '', 'اتفاقيات النادي معاك'));
+      [['كل هدف تسجله', d.perGoal], ['كل هدف تصنعه (أسيست)', d.perAssist], ['كل جايزة رجل المباراة', d.perMotm]].forEach((x, i) => {
+        const r = el('div', 'cm-clause'); r.append(el('span', 'n', String(i + 1)), el('span', '', x[0]), el('b', '', '+' + money(x[1]))); clausesBox.appendChild(r);
+      });
+      clausesBox.appendChild(el('div', 'cm-note', 'المكافآت دي بتنزل في رصيدك أول بأول مع كل مباراة.'));
+    }
+    function setSel(patch) { E.applyTerms(S, Object.assign({}, d.sel, patch)); drawTerms(); drawCtl(); }
+    function drawCtl() {
+      ctl.textContent = '';
+      ctl.appendChild(el('small', 'cm-sub', 'مدة العقد: الأطول أمان أكتر بس راتب سنوي أقل'));
+      const yr = el('div', 'cm-chips');
+      [2, 3, 4, 5].forEach(y => { const b = el('button', 'cm-chip' + (d.sel.years === y ? ' active' : ''), y + ' سنين'); b.type = 'button'; b.addEventListener('click', () => setSel({ years: y })); yr.appendChild(b); });
+      ctl.appendChild(yr);
+      const rel = el('button', 'cm-btn ghost cm-opt' + (d.sel.release ? ' on' : ''), (d.sel.release ? '✓ ' : '') + 'بند فسخ: لو النادي طردك يدفعلك 100% من باقي العقد (الراتب -5%)'); rel.type = 'button';
+      rel.addEventListener('click', () => setSel({ release: !d.sel.release }));
+      const ag = el('button', 'cm-btn ghost cm-opt' + (d.sel.agent ? ' on' : ''), (d.sel.agent ? '✓ ' : '') + 'وكيل أعمال: راتب +12% ومكافأة توقيع +25% (عمولته 8% من دخلك كل موسم)'); ag.type = 'button';
+      ag.addEventListener('click', () => setSel({ agent: !d.sel.agent }));
+      ctl.append(rel, ag);
+    }
+    drawCtl(); drawTerms();
+    card.append(ctl, t);
     card.appendChild(el('div', 'cm-sub', 'دورك المتوقع في الفريق: ' + E.squadRole(S)));
     card.appendChild(el('div', 'cm-sub', 'وقّع بصباعك جوه المربع'));
     const sb = el('div', 'cm-sigbox'), cv = document.createElement('canvas'); cv.width = 480; cv.height = 180;
@@ -990,12 +1133,7 @@
       buzz([40, 30, 40]); save(); render();
     });
 
-    const cl = el('div', 'cm-clauses'); cl.appendChild(el('h3', '', 'اتفاقيات النادي معاك'));
-    [['كل هدف تسجله', d.perGoal], ['كل هدف تصنعه (أسيست)', d.perAssist], ['كل جايزة رجل المباراة', d.perMotm]].forEach((x, i) => {
-      const r = el('div', 'cm-clause'); r.append(el('span', 'n', String(i + 1)), el('span', '', x[0]), el('b', '', '+' + money(x[1]))); cl.appendChild(r);
-    });
-    cl.appendChild(el('div', 'cm-note', 'المكافآت دي بتنزل في رصيدك أول بأول مع كل مباراة.'));
-    card.appendChild(cl);
+    card.appendChild(clausesBox);
     box.appendChild(card);
     setTimeout(() => { try { sb.scrollIntoView({ block: 'center' }); } catch (e) { /* ignore */ } }, 80);
   }
@@ -1149,6 +1287,54 @@
     let open = false; try { open = localStorage.getItem('koraPlayerRetired') === '1'; } catch (x) { /* ignore */ }
     if (!open) { e.preventDefault(); window.KoraDialog.confirm({ title: 'مهنة المدرب مقفولة', message: 'لازم تخلّص مهنة لاعب وتعتزل الأول عشان تتفتح.', okText: 'تمام', cancelText: 'إغلاق' }); }
   });
+  /* ====== نسخة احتياطية على الحساب ====== */
+  const BK_MAX = 9 * 1024 * 1024;
+  async function pack(str) {
+    if (!window.CompressionStream) return 'j:' + str;
+    const buf = new Uint8Array(await new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+    return 'g:' + btoa(bin);
+  }
+  async function unpack(v) {
+    if (v.slice(0, 2) === 'j:') return v.slice(2);
+    const bin = atob(v.slice(2)), u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  }
+  function bkRef() {
+    const u = window.KoraAuth && window.KoraAuth.user;
+    return u && window.firebase && firebase.database ? firebase.database().ref('careerBackup/' + u.uid) : null;
+  }
+  async function backupNow(silent) {
+    const ref = bkRef();
+    if (!ref || !S) { if (!silent) toast('سجّل دخول الأول عشان تحفظ نسخة احتياطية', 'bad'); return; }
+    try {
+      const c = JSON.parse(JSON.stringify(S));
+      if (c.contract) delete c.contract.sig;
+      (c.contracts || []).forEach(x => { delete x.sig; });
+      const data = await pack(JSON.stringify(c));
+      if (data.length > BK_MAX) throw new Error('big');
+      await ref.set({ data: data, t: firebase.database.ServerValue.TIMESTAMP, name: String(S.player.name).slice(0, 30), year: S.year, age: S.player.age });
+      if (!silent) toast('اتحفظت نسخة احتياطية من مسيرتك', 'up');
+    } catch (e) { if (!silent) toast('معرفتش أحفظ النسخة (اتأكد من قواعد Firebase: careerBackup)', 'bad'); }
+  }
+  async function restoreBackup() {
+    const ref = bkRef();
+    if (!ref) { toast('سجّل دخول الأول', 'bad'); return; }
+    try {
+      const snap = await ref.once('value'), v = snap.val();
+      if (!v || !v.data) { toast('مفيش نسخة احتياطية على حسابك', 'bad'); return; }
+      const ok = await window.KoraDialog.confirm({ title: 'استرجاع المسيرة؟', message: 'هتسترجع مسيرة ' + v.name + ' (موسم ' + v.year + ') وهتحل محل المسيرة الحالية على الجهاز ده.', okText: 'استرجع', cancelText: 'لأ', danger: true });
+      if (!ok) return;
+      const st = JSON.parse(await unpack(String(v.data)));
+      if (!st || st.v !== 2 || !st.player || !st.world) throw new Error('bad');
+      S = st; save(); tab = 'home'; tabLeague = S.league; render();
+      toast('اتسترجعت مسيرتك', 'up');
+    } catch (e) { toast('النسخة مش سليمة أو حصل خطأ في القراءة', 'bad'); }
+  }
+  $('cmBackup').addEventListener('click', () => backupNow(false));
+  $('cmRestore').addEventListener('click', restoreBackup);
+
   $('cmChange').addEventListener('click', () => { location.hash = ''; render(); });
 
   /* ====== التشغيل ====== */
