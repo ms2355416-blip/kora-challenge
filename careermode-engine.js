@@ -111,7 +111,7 @@
     var p = state.player, diff = p.ovr - teamStr;
     if (state.injury && state.injury.games > 0) return { role: 'out', a: 0, b: 0, pStart: 0, why: 'inj' };
     if (state.susp > 0) return { role: 'out', a: 0, b: 0, pStart: 0, why: 'susp' };
-    var pStart = clamp(0.70 - (p.age <= 19 ? 0.1 : 0) + diff * 0.045 + avgForm(state) * 0.06, 0.03, 0.97);
+    var pStart = clamp(0.70 - (p.age <= 19 ? 0.1 : 0) + diff * 0.045 + avgForm(state) * 0.06 + (state.coach ? state.coach.favor * 0.1 : 0), 0.03, 0.97);
     if (rng() < pStart) {
       var off = rng() < (pStart < 0.5 ? 0.5 : 0.32) ? 55 + Math.floor(rng() * 32) : 90;
       return { role: 'start', a: 0, b: off, pStart: pStart };
@@ -124,6 +124,56 @@
       return { role: 'sub', a: on, b: 90, pStart: pStart };
     }
     return { role: 'bench', a: 0, b: 0, pStart: pStart };
+  }
+
+  /* ====== الديربي والمدرب والصحافة ====== */
+  var DERBIES = [['liv','eve','ديربي ميرسيسايد'],['liv','mun','القمة الإنجليزية'],['mun','mci','ديربي مانشستر'],['ars','tot','ديربي شمال لندن'],['che','tot','ديربي لندن'],['che','ars','ديربي لندن'],
+    ['rma','atm','ديربي مدريد'],['rma','fcb','الكلاسيكو'],['fcb','esp','ديربي كتالونيا'],['acm','int','ديربي ميلانو'],['rom','laz','ديربي العاصمة'],['juv','tor','ديربي تورينو'],['juv','int','ديربي إيطاليا'],
+    ['ahl','zam','قمة الكرة المصرية'],['hil','nas','ديربي الرياض'],['e_dor','e_bay','دير كلاسيكر'],['e_ajx','e_fey','دي كلاسيكر'],['e_ben','e_por','كلاسيكو البرتغال'],['e_mar','e_psg','لو كلاسيك'],
+    ['sev','bet','ديربي إشبيلية'],['new','sun','ديربي التاين وير'],['avl','bir','ديربي ميدلاندز']];
+  function derbyOf(a, b) {
+    for (var i = 0; i < DERBIES.length; i++) { var d = DERBIES[i]; if ((d[0] === a && d[1] === b) || (d[0] === b && d[1] === a)) return d[2]; }
+    return null;
+  }
+
+  function newCoach(state, rng, why) {
+    var favor = Math.round(clamp(gauss(rng) * 0.45, -1, 1) * 100) / 100;
+    state.coach = { name: nameFor(state, state.clubId, 'coach' + state.year + (why || '') + Math.floor(rng() * 999)), favor: favor, year: state.year };
+    return state.coach;
+  }
+  function coachNote(state) {
+    var c = state.coach; if (!c) return '';
+    return c.favor >= 0.35 ? 'بيثق فيك جدًا' : c.favor >= -0.2 ? 'رأيه فيك عادي' : 'مش مقتنع بيك';
+  }
+  function adjustFavor(state, d) { if (state.coach) state.coach.favor = Math.round(clamp(state.coach.favor + d, -1, 1) * 100) / 100; }
+
+  // تغيير مدرب في نص الموسم (النادي بيتعثر)
+  function maybeMidCoachChange(state, rng, pm) {
+    if (state.round < 8 || state.round > rounds(state.league) - 6 || state.coachChangedYear === state.year) return;
+    var pos = myPosition(state), n = table(state, state.league).length;
+    if (pos < n - 3 || rng() > 0.05) return;
+    var old = state.coach ? state.coach.name : 'المدرب';
+    newCoach(state, rng, 'mid'); state.coachChangedYear = state.year;
+    pm.news.push({ k: state.coach.favor >= 0 ? 'up' : 'down', x: 'النادي أقال ' + old + ' وجاب ' + state.coach.name + ' (' + coachNote(state) + ')' });
+  }
+
+  function makePress(state, pm, derby, rng) {
+    if (pm.role !== 'start' && pm.role !== 'sub') return null;
+    var r = pm.rating, q, o, ctx;
+    if (pm.red) { ctx = 'red'; q = 'اتطردت وفريقك اتأثر، الصحافة منتظراك. هتقول إيه؟'; o = [['أعتذر للنادي والجماهير', 1, 0.12], ['الحكم ظلمني', 0, -0.15], ['مفيش تصريحات', 0, 0]]; }
+    else if (derby && r >= 4) { ctx = 'derbyUp'; q = 'نجم ' + derby + '! الجماهير بتغنيلك. تعليقك؟'; o = [['كان ممتع ودي لحظة للجماهير', 3, 0.05], ['الكل اشتغل صح وأنا بس خلصت', 1, 0.12], ['ده جزء من شغلي', 0, 0]]; }
+    else if (derby && r < 2.6) { ctx = 'derbyDown'; q = 'ديربي مخيب للأمال، الجماهير غاضبة منك. هترد إزاي؟'; o = [['أعتذر وهعوّضهم', 1, 0.1], ['الضغط كان كبير', 0, -0.05], ['أتجاهل الهجوم', -1, 0]]; }
+    else if (r >= 4.2 || pm.goals >= 2) { ctx = 'good'; q = 'أداء رائع! الصحافة بتسألك عن سر مستواك.'; o = [['ده شغل الفريق كله', 1, 0.12], ['أنا جاهز أكون نجم الفريق', 3, -0.08], ['مفيش تعليق', 0, 0]]; }
+    else if (r <= 2.3) { ctx = 'bad'; q = 'مستواك نازل والنقد زاد. بترد إزاي؟'; o = [['أعترف بغلطي وهشتغل', 0, 0.12], ['ألوم المدرب والتشكيل', 1, -0.25], ['أتجاهل', -1, 0]]; }
+    else if (rng() < 0.1) { ctx = 'mate'; q = 'زميلك قال إنك محتاج تلعب جماعي أكتر. تعليقك؟'; o = [['كلامه صح وهتحسن', 0, 0.08], ['اللعب بيتحدد في الملعب بس', 1, -0.05], ['أحترم رأيه', 0, 0.03]]; }
+    else return null;
+    return { ctx: ctx, q: q, done: null, opts: o.map(function (x) { return { t: x[0], fame: x[1], favor: x[2] }; }) };
+  }
+  function answerPress(state, press, idx) {
+    if (!press || press.done != null || !press.opts[idx]) return null;
+    var o = press.opts[idx]; press.done = idx;
+    state.pressFame = (state.pressFame || 0) + o.fame; adjustFavor(state, o.favor);
+    return (o.fame > 0 ? 'الجماهير اتحمّست لتصريحك' : o.fame < 0 ? 'تصريحك أغضب الجماهير' : 'تصريحك عدّى هادي') + (o.favor > 0.05 ? ' والمدرب ارتاح لكلامك' : o.favor < -0.05 ? ' والمدرب مش مبسوط منك' : '');
   }
 
   function playerMatch(state, home, away, rng, opt) {
@@ -300,10 +350,22 @@
     }
     if (state.injCool > 0 && !pm.injury) state.injCool--;
     state.fatigue = clamp(Math.round(fat), 0, 100);
+    var derby = !pm.comp ? derbyOf(pm.home, pm.away) : null;
+    if (played && derby) {
+      pm.derby = derby;
+      if (pm.rating != null) pm.rating = round1(clamp(3 + (pm.rating - 3) * 1.25, 1, 5));
+      pm.news.push({ k: 'up', x: derby + ': مباراة بحماس خاص ومكافآتها مضاعفة 50%' });
+    }
+    if (played && pm.rating != null) {
+      adjustFavor(state, pm.rating >= 4 ? 0.04 : pm.rating <= 2.5 ? -0.05 : 0);
+      pm.press = makePress(state, pm, derby, rng);
+    }
+    if (!pm.comp) maybeMidCoachChange(state, rng, pm);
     payBonus(state, pm);
+    if (pm.derby && pm.bonus) { var extra = pm.bonus * 0.5; pm.bonus += extra; state.money += extra; state.earn.bonus += extra; }
     pm.yr = state.year;
     pm.fm = [formationFor(pm.home, state.year + '|' + pm.round + (pm.comp || '')), formationFor(pm.away, state.year + '|' + pm.round + (pm.comp || ''))];
-    state.log.push({ why: pm.why || null, news: pm.news, comp: pm.comp || null, stage: pm.stage || null, st: pm.stageText || null, cn: pm.cupName || null, bonus: pm.bonus || 0, motm: !!pm.motm, pens: pm.pens || null, yr: pm.yr, fm: pm.fm, round: pm.round, home: pm.home, away: pm.away, hg: pm.hg, ag: pm.ag, role: pm.role, minutes: pm.minutes,
+    state.log.push({ derby: pm.derby || null, press: pm.press || null, why: pm.why || null, news: pm.news, comp: pm.comp || null, stage: pm.stage || null, st: pm.stageText || null, cn: pm.cupName || null, bonus: pm.bonus || 0, motm: !!pm.motm, pens: pm.pens || null, yr: pm.yr, fm: pm.fm, round: pm.round, home: pm.home, away: pm.away, hg: pm.hg, ag: pm.ag, role: pm.role, minutes: pm.minutes,
       goals: pm.goals, assists: pm.assists, rating: pm.rating, y: pm.yellow, r: pm.red, pw: pm.pw, pc: pm.pc, pm: pm.pm, a: pm.a, b: pm.b, events: pm.events });
     if (pm.role === 'start' || pm.role === 'sub') {
       s.apps++; if (pm.role === 'start') s.starts++;
@@ -805,16 +867,31 @@
   function makeDeal(state, clubId, rng, fee, cur) {
     var sal = salaryFor(state, clubId, state.player.ovr), cl = clauses(sal, rng), c = state.clubs[clubId];
     var l = LG[c.league], country = l ? l.country : 'eng';
-    return { clubId: clubId, years: 3, salary: sal, perGoal: cl.perGoal, perAssist: cl.perAssist, perMotm: cl.perMotm, signing: roundMoney(sal * 0.1), fee: fee || 0, cur: cur || D.COUNTRIES[country].cur };
+    return { baseSalary: sal, sel: { years: 3, release: false, agent: !!state.agent }, clubId: clubId, years: 3, salary: sal, perGoal: cl.perGoal, perAssist: cl.perAssist, perMotm: cl.perMotm, signing: roundMoney(sal * 0.1), fee: fee || 0, cur: cur || D.COUNTRIES[country].cur };
+  }
+  /* شروط العقد: المدة (2-5 سنين) وبند الفسخ ووكيل الأعمال */
+  var YMULT = { 2: 1.06, 3: 1, 4: 0.95, 5: 0.9 };
+  function termsMult(sel) { return (YMULT[sel.years] || 1) * (sel.release ? 0.95 : 1) * (sel.agent ? 1.12 : 1); }
+  function applyTerms(state, sel) {
+    var d = state.deal; if (!d) return;
+    var base = d.baseSalary || d.salary;
+    d.baseSalary = base;
+    sel = { years: clamp(Math.round(sel.years || 3), 2, 5), release: !!sel.release, agent: !!sel.agent };
+    d.sel = sel; d.years = sel.years; d.release = sel.release; d.agent = sel.agent; d.mult = termsMult(sel);
+    d.salary = roundMoney(base * d.mult);
+    var cl = clauses(d.salary, function () { return 0.5; });
+    d.perGoal = cl.perGoal; d.perAssist = cl.perAssist; d.perMotm = cl.perMotm;
+    d.signing = roundMoney(d.salary * 0.1 * (sel.agent ? 1.25 : 1));
   }
   function refreshContract(state, rng) {
     if (!state.contract) return;
-    var sal = salaryFor(state, state.clubId, state.player.ovr), cl = clauses(sal, rng);
+    var sal = roundMoney(salaryFor(state, state.clubId, state.player.ovr) * (state.contract.mult || 1)), cl = clauses(sal, rng);
     state.contract.salary = sal; state.contract.perGoal = cl.perGoal; state.contract.perAssist = cl.perAssist; state.contract.perMotm = cl.perMotm;
   }
   function signContract(state, sig, rng) {
     var d = state.deal; if (!d) return;
-    state.contract = { clubId: d.clubId, years: d.years, salary: d.salary, perGoal: d.perGoal, perAssist: d.perAssist, perMotm: d.perMotm, sig: sig, year: state.year };
+    state.agent = !!d.agent;
+    state.contract = { release: !!d.release, mult: d.mult || 1, clubId: d.clubId, years: d.years, salary: d.salary, perGoal: d.perGoal, perAssist: d.perAssist, perMotm: d.perMotm, sig: sig, year: state.year };
     state.contracts.push({ clubId: d.clubId, year: state.year, salary: d.salary, sig: sig });
     state.money += d.signing; state.earn.sponsor += 0; state.lastSigning = d.signing;
     var f = state.signFor; state.deal = null; state.signFor = null;
@@ -1214,6 +1291,39 @@
     return { offers: offers, reason: offers.length ? '' : 'مفيش عروض الموسم ده.' };
   }
 
+  /* ---- الطرد وعدم التجديد: لو أداءك وحش جدًا النادي بيفسخ معاك ويدفع الشرط الجزائي،
+         ولو عقدك بيخلص وأداءك ضعيف النادي بيرفض يجدد ---- */
+  function evalExit(state, avg, appsRate, rng) {
+    var s = state.stats, c = state.contract, p = state.player;
+    state.fired = null; state.noRenew = false;
+    if (!c || s.apps < 8) return null;
+    var perfScore = (avg - 3) + (s.apps ? (s.goals + s.assists * 0.7) / s.apps * 0.8 : 0) + appsRate * 0.5;
+    var remaining = c.years - 1;
+    var veryBad = avg < 2.6 || perfScore < -0.5, poor = avg < 2.9 || perfScore < 0.15;
+    var kind = null, info = null;
+    if (remaining > 0 && veryBad) {
+      var sev = roundMoney(c.salary * remaining * (c.release ? 1 : 0.6));
+      state.money += sev; state.fame = clamp((state.fame || 0) - 6, 0, 100);
+      state.fired = { clubId: state.clubId, year: state.year, severance: sev, yearsLeft: remaining };
+      kind = 'fired'; info = { type: 'fired', severance: sev, yearsLeft: remaining };
+    } else if (remaining <= 0 && poor) {
+      state.noRenew = true; kind = 'noRenew'; info = { type: 'noRenew' };
+    }
+    if (!kind) return null;
+    // عروض انتقال حر من أندية أضعف شوية عشان متفضلش من غير نادي
+    var cand = Object.keys(state.clubs).filter(function (id) {
+      var cl = state.clubs[id]; return id !== state.clubId && LG[cl.league] && LG[cl.league].tier <= 3;
+    }).sort(function (a, b) { return state.clubs[a].str - state.clubs[b].str; });
+    var good = cand.filter(function (id) { var st = state.clubs[id].str; return st <= p.ovr - 2 && st >= p.ovr - 16; });
+    var pool = good.length >= 2 ? good : cand.slice(0, 6);
+    var picked = shuffle(pool, rng).slice(0, 3);
+    var offers = picked.map(function (id) {
+      var cl = state.clubs[id], country = LG[cl.league].country;
+      return { clubId: id, league: cl.league, fee: 0, cur: D.COUNTRIES[country].cur, free: true };
+    }).sort(function (x, y) { return state.clubs[y.clubId].str - state.clubs[x.clubId].str; });
+    return { info: info, offerInfo: { offers: offers, reason: '' } };
+  }
+
   function applyPromotions(state, rng) {
     var world = state.world, keys = D.COUNTRIES[world.country].leagues, moves = {};
     var tabs = {};
@@ -1285,7 +1395,8 @@
     var upkeep = 0, UP = { house: 0.012, car: 0.06, moto: 0.06, bike: 0.03 };
     (state.owned || []).forEach(function (oid) { Object.keys(UP).forEach(function (k) { D.ASSETS[k].forEach(function (it) { if (it.id === oid) upkeep += it.p * UP[k]; }); }); });
     var gross = state.earn.salary + state.earn.bonus + state.earn.prizes + state.earn.sponsor;
-    var expenses = roundMoney(upkeep + gross * 0.1 + 6000);
+    var agentFee = state.agent ? (state.earn.salary + state.earn.bonus) * 0.08 : 0;
+    var expenses = roundMoney(upkeep + gross * 0.1 + 6000 + agentFee);
     state.money = Math.max(0, state.money - expenses);
     var pts = Math.round(s.goals * 2 + s.assists + Math.max(0, avg - 3) * 10) + (mine('ballon') ? 60 : 0) + (mine('boot') ? 30 : 0) + (mine('glove') ? 30 : 0) + (mine('kopa') ? 40 : 0) + (mine('club') ? 20 : 0);
     var summary = {
@@ -1296,9 +1407,12 @@
       worldChamps: glob.worldChamps
     };
     var offerInfo = makeOffers(state, avg, appsRate, rng);
+    var exitRes = evalExit(state, avg, appsRate, rng);
+    if (exitRes) offerInfo = exitRes.offerInfo;
     var promo = applyPromotions(state, rng);
     var mv = promo.moves[state.clubId];
     summary.moved = mv || null;
+    summary.exit = exitRes ? exitRes.info : null;
     summary.clubLeagueNext = state.clubs[state.clubId].league;
     state.history = (state.history || []).concat([summary]);
     state.totals = state.totals || { apps: 0, goals: 0, assists: 0 };
@@ -1316,8 +1430,9 @@
     if (mine('boot')) state.honors.push({ year: state.year, type: 'boot', text: 'الحذاء الذهبي (' + LG[lk].ar + ')', clubId: cid });
     if (mine('glove')) state.honors.push({ year: state.year, type: 'glove', text: 'القفاز الذهبي (' + LG[lk].ar + ')', clubId: cid });
 
-    var fameNow = (p.ovr - 66) * 2.2 + s.goals * 0.5 + s.assists * 0.25 + (mine('ballon') ? 30 : 0) + (mine('boot') ? 10 : 0) + (mine('kopa') ? 10 : 0) + (champion ? 5 : 0) + (state.euro && state.euro.status === 'champ' ? 12 : 0) + state.intl.caps * 0.4;
+    var fameNow = (state.pressFame || 0) * 2 + (p.ovr - 66) * 2.2 + s.goals * 0.5 + s.assists * 0.25 + (mine('ballon') ? 30 : 0) + (mine('boot') ? 10 : 0) + (mine('kopa') ? 10 : 0) + (champion ? 5 : 0) + (state.euro && state.euro.status === 'champ' ? 12 : 0) + state.intl.caps * 0.4;
     makeSponsors(state, rng, fameNow);
+    state.pressFame = 0;
     state.summer = buildSummer(state, glob);
     agePlayers(state, rng);
 
@@ -1340,6 +1455,7 @@
     buildWorld(state, country, rng);
     state.phase = 'play'; state.offers = null; state.summary = null; state.awards = null; state.euro = null;
     state.callupChecked = false; state.pendingCallup = null; state.summer = null; state.sponsorOffers = [];
+    if (!state.coach || state.coachClub !== state.clubId || rng() < 0.3) { var oc = state.coach && state.coachClub === state.clubId ? state.coach.name : null; newCoach(state, rng, 'ns'); state.coachClub = state.clubId; state.coachNews = oc ? 'المدرب الجديد ' + state.coach.name + ' خلف ' + oc + ' (' + coachNote(state) + ')' : 'مدربك الجديد ' + state.coach.name + ' (' + coachNote(state) + ')'; } else state.coachNews = null;
     state.earn = { salary: 0, bonus: 0, prizes: 0, sponsor: 0 };
     initClubs(state); initExtras(state);
     if (state.injury) { state.injury.games = Math.max(0, state.injury.games - 8); if (!state.injury.games) state.injury = null; }
@@ -1356,6 +1472,9 @@
 
   /* قبول عرض (بيروح لشاشة التوقيع) أو البقاء (offerIndex = -1) */
   function chooseOffer(state, idx, rng) {
+    if (idx < 0 && (state.fired || state.noRenew)) return; // مفيش بقاء: النادي فسخ أو رفض التجديد
+    var wasExit = !!(state.fired || state.noRenew);
+    state.fired = null; state.noRenew = false;
     if (idx >= 0 && state.offers && state.offers[idx]) {
       var o = state.offers[idx];
       state.clubId = o.clubId;
@@ -1398,6 +1517,7 @@
     st.clubId = pick(cand.slice(0, Math.ceil(cand.length * 0.7)), rng);
     buildWorld(st, country, rng);
     initExtras(st);
+    newCoach(st, rng, 'start'); st.coachClub = st.clubId;
     simMarket(st, rng);
     initCups(st, rng);
     var cc = st.clubs[st.clubId], lg = LG[cc.league];
@@ -1431,7 +1551,7 @@
     table: table, rounds: rounds, myPosition: myPosition, myFixtures: myFixtures, continueAfterAwards: continueAfterAwards, matchLineups: matchLineups, euroDue: euroDue, startEuro: startEuro, STAGE_AR: STAGE_AR, feeM: feeM, ageBase: ageBase, finishOthers: finishOthers, simMarket: simMarket,
     nextExtra: nextExtra, nextExtraInfo: nextExtraInfo, signContract: signContract, buyAsset: buyAsset, takeSponsor: takeSponsor, runSummerEvent: runSummerEvent,
     finishSummer: finishSummer, squadRole: squadRole, marketValue: marketValue,
-    finishSummer2: finishSummer, playLive: playLive, retireNow: retireNow, salaryFor: salaryFor, ntOf: ntOf, natNorm: natNorm, checkCallup: checkCallup };
+    finishSummer2: finishSummer, playLive: playLive, retireNow: retireNow, salaryFor: salaryFor, applyTerms: applyTerms, derbyOf: derbyOf, answerPress: answerPress, coachNote: coachNote, ntOf: ntOf, natNorm: natNorm, checkCallup: checkCallup };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.KoraCMEngine = API;
 })(typeof window !== 'undefined' ? window : globalThis);
