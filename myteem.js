@@ -544,6 +544,12 @@ $('createBtn').onclick = createRoom;
 $('joinBtn').onclick = joinRoom;
 $('codeInput').onkeydown = e => e.key === 'Enter' && joinRoom();$('buyBtn').onclick = () => act(true);
 $('passBtn').onclick = () => act(false);$('startBtn').onclick = startGame;
+$('linkBtn').onclick = async () => {
+  const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('room', code);
+  const url = u.toString(), text = 'تعالى نتحدى بعض في Kora Challenge! الكود: ' + code;
+  try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); toast('اتنسخ رابط التحدي، ابعته لصاحبك'); } catch (e) { toast('معرفتش أنسخ الرابط'); }
+};
 $('copyBtn').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(code); toast('تم نسخ الكود'); };
 
 $('roomChip').title = 'اخرج من الغرفة';
@@ -577,5 +583,15 @@ window.addEventListener('popstate', () => leave(true));
 const last = sessionStorage.getItem('kc-last');
 if (db && last && sessionStorage.getItem('kc-' + last)) enter(last, sessionStorage.getItem('kc-' + last));
 
-if (configured) { const p = new URLSearchParams(location.search).get('room'); if (p) $('codeInput').value = p.toUpperCase(); }
+if (configured) {
+  const p = new URLSearchParams(location.search).get('room');
+  if (p) {
+    const c = p.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+    $('codeInput').value = c;
+    // الرابط بيدخّل صاحبك مباشرة بعد ما تسجيل الدخول يخلص
+    if (db && c.length === 5 && !(last && sessionStorage.getItem('kc-' + last))) {
+      const un = firebase.auth().onAuthStateChanged(u => { if (u) { un(); joinRoom(); } });
+    }
+  }
+}
 })();
