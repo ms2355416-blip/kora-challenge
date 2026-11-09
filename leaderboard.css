@@ -187,3 +187,19 @@
 }
 
 :root[data-theme="light"] .lb-row.rank-1 .lb-points { color: #a37400; }
+
+/* تبويبات عالمي / أسبوعي */
+.lb-tabs { display: flex; gap: 6px; padding: 4px; margin: 0 0 12px; border-radius: 14px;
+  background: rgba(127,127,127,.14); }
+.lb-tab { flex: 1; border: 0; border-radius: 11px; padding: 10px 8px; font: inherit; font-weight: 800;
+  color: inherit; background: transparent; cursor: pointer; opacity: .7; transition: background .2s, opacity .2s; }
+.lb-tab.active { opacity: 1; background: var(--accent, #ffcc3d); color: #14213d; }
+.lb-week-info { text-align: center; font-size: .82rem; opacity: .8; margin: 0 0 10px; }
+.lb-week-info[hidden], .lb-prev[hidden] { display: none; }
+.lb-prev { margin-top: 18px; padding: 12px; border-radius: 14px; background: rgba(127,127,127,.12); }
+.lb-prev h2 { font-size: .95rem; margin: 0 0 8px; }
+.lb-prev-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.lb-prev-row span { font-size: 1.3rem; }
+.lb-prev-row b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-prev-row small { opacity: .75; }
+.lb-prev-row.me b { color: var(--accent, #ffcc3d); }
