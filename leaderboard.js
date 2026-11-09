@@ -14,6 +14,17 @@
   let db = null;
   let uid = null;
   let rows = [];
+  let mode = 'global';          // global | weekly
+  let activeRef = null;
+  const tabBtns = document.querySelectorAll('.lb-tab');
+  const weekInfo = document.getElementById('lbWeekInfo');
+  const meLabel = document.getElementById('lbMeLabel');
+  const prevBox = document.getElementById('lbPrev');
+  const prevList = document.getElementById('lbPrevList');
+  const PRIZES = { 1: '🥇', 2: '🥈', 3: '🥉' };
+  const DAY = 86400000;
+  const weekId = (t) => Math.floor((Math.floor((t || Date.now()) / DAY) - 2) / 7);
+  const basePath = (wid) => (mode === 'weekly' ? 'leaderboard_weekly/' + wid : 'leaderboard');
 
   const fmt = n => Number(n).toLocaleString('en-US');
 
@@ -43,7 +54,7 @@
   }
 
   function render() {
-    if (!rows.length) return state('لسه مفيش لاعبين في الترتيب. العب أي لعبة وكون أول واحد! ⚽');
+    if (!rows.length) return state(mode === 'weekly' ? 'لسه محدش لعب الأسبوع ده. كون أول واحد في الترتيب الأسبوعي! ⚽' : 'لسه مفيش لاعبين في الترتيب. العب أي لعبة وكون أول واحد! ⚽');
 
     listEl.innerHTML = '';
 
@@ -108,14 +119,19 @@
   // ترتيب اللاعب الحالي (حتى لو برة أول 10)
   function updateMyRank() {
     if (!uid) return;
+    const path = basePath(weekId());
+    const m = mode;
+    meLabel.textContent = m === 'weekly' ? 'ترتيبك الأسبوعي' : 'ترتيبك العالمي';
 
-    db.ref('leaderboard/' + uid).once('value').then(snap => {
+    db.ref(path + '/' + uid).once('value').then(snap => {
       const mine = snap.val();
+      if (m !== mode) return null;
       if (!mine || !Number(mine.points)) { meBox.hidden = true; return null; }
 
       const points = Number(mine.points);
-      return db.ref('leaderboard').orderByChild('points').startAt(points + 1).once('value')
+      return db.ref(path).orderByChild('points').startAt(points + 1).once('value')
         .then(higher => {
+          if (m !== mode) return;
           meRank.textContent = '#' + (higher.numChildren() + 1);
           mePoints.textContent = fmt(points);
           meBox.hidden = false;
@@ -123,31 +139,91 @@
     }).catch(() => { meBox.hidden = true; });
   }
 
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function updateWeekInfo() {
+    if (mode !== 'weekly') { weekInfo.hidden = true; return; }
+    const endsAt = ((weekId() + 1) * 7 + 2) * DAY;
+    const left = Math.max(0, endsAt - Date.now());
+    const d = Math.floor(left / DAY), h = Math.floor(left % DAY / 3600000), m = Math.floor(left % 3600000 / 60000);
+    weekInfo.textContent = 'الترتيب بيتصفّر بعد ' + d + ' يوم و' + pad(h) + ' ساعة و' + pad(m) + ' دقيقة • التلاتة الأوائل ياخدوا ميداليات';
+    weekInfo.hidden = false;
+  }
+
+  function readRows(snap) {
+    const out = [];
+    snap.forEach(child => {
+      const v = child.val() || {};
+      out.push({
+        uid: child.key,
+        name: String(v.name || 'لاعب').slice(0, 30),
+        points: Number(v.points) || 0,
+        title: String(v.title || ''),
+        frame: String(v.frame || ''),
+        avatar: String(v.avatar || '')
+      });
+    });
+    return out.sort((a, b) => b.points - a.points);
+  }
+
+  // جوايز رمزية: ميداليات أول 3 في الأسبوع اللي فات
+  function loadPrev() {
+    prevBox.hidden = true;
+    if (mode !== 'weekly' || !db) return;
+    db.ref('leaderboard_weekly/' + (weekId() - 1)).orderByChild('points').limitToLast(3).once('value').then(snap => {
+      const top = readRows(snap);
+      if (!top.length || mode !== 'weekly') return;
+      prevList.innerHTML = '';
+      top.forEach((r, i) => {
+        const d = document.createElement('div');
+        d.className = 'lb-prev-row' + (r.uid === uid ? ' me' : '');
+        const medal = document.createElement('span'); medal.textContent = PRIZES[i + 1];
+        const nm = document.createElement('b'); nm.textContent = r.name;
+        const pt = document.createElement('small'); pt.textContent = fmt(r.points) + ' نقطة';
+        d.append(medal, nm, pt);
+        prevList.appendChild(d);
+      });
+      prevBox.hidden = false;
+    }).catch(() => {});
+  }
+
+  function attach() {
+    if (!db) return;
+    if (activeRef) activeRef.off();
+    state('بحمّل الترتيب…');
+    rows = [];
+    activeRef = db.ref(basePath(weekId())).orderByChild('points').limitToLast(TOP);
+    activeRef.on('value', snap => {
+      rows = readRows(snap);
+      render();
+      updateMyRank();
+    }, () => state('مش قادر أقرأ الترتيب. اتأكد من قواعد Firebase (leaderboard).'));
+    updateMyRank();
+    updateWeekInfo();
+    loadPrev();
+  }
+
+  function setMode(next) {
+    if (next === mode) return;
+    mode = next;
+    tabBtns.forEach(b => {
+      const on = b.dataset.tab === mode;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    meBox.hidden = true;
+    attach();
+  }
+
   function start() {
     if (typeof firebase === 'undefined') return state('تعذّر تحميل الترتيب.');
+    tabBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.tab)));
+    setInterval(updateWeekInfo, 30000);
 
     firebase.auth().onAuthStateChanged(user => {
       if (!user) return;
       uid = user.uid;
       db = firebase.database();
-
-      db.ref('leaderboard').orderByChild('points').limitToLast(TOP).on('value', snap => {
-        rows = [];
-        snap.forEach(child => {
-          const v = child.val() || {};
-          rows.push({
-            uid: child.key,
-            name: String(v.name || 'لاعب').slice(0, 30),
-            points: Number(v.points) || 0,
-            title: String(v.title || ''),
-            frame: String(v.frame || ''),
-            avatar: String(v.avatar || '')
-          });
-        });
-        rows.sort((a, b) => b.points - a.points);
-        render();
-        updateMyRank();
-      }, () => state('مش قادر أقرأ الترتيب. اتأكد من قواعد Firebase (leaderboard).'));
+      attach();
     });
   }
 
