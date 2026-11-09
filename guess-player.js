@@ -741,7 +741,9 @@
 
   function startGame() {
     clearTimeout(roundTimer);
-    roundPlayers = shuffle(playersByLevel[currentLevel] || playersByLevel.easy);
+    roundPlayers = window.KoraChallenge
+      ? window.KoraChallenge.run(currentLevel, () => shuffle(playersByLevel[currentLevel] || playersByLevel.easy))
+      : shuffle(playersByLevel[currentLevel] || playersByLevel.easy);
     playerIndex = 0;
     currentHints = 0;
     wrongAttempts = 0;
@@ -1195,6 +1197,7 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
     }
 
     showScreen("resultScreen");
+    if (window.KoraChallenge) window.KoraChallenge.result(document.querySelector("#resultScreen .panel"), roundPoints);
   }
 
   function askQuit() {
@@ -1371,6 +1374,22 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
     });
   }
 
+  /* تحدي صاحب: نختار المستوى من الرابط ونظهر شريط التحدي */
+  function setupChallenge() {
+    const C = window.KoraChallenge, inf = C && C.info;
+    if (!inf) return;
+    const btn = document.querySelector('[data-level="' + inf.mode + '"]');
+    const note = document.createElement("small");
+    if (btn && !btn.disabled) {
+      currentLevel = inf.mode;
+      document.querySelectorAll("[data-level]").forEach((item) => item.classList.toggle("active", item === btn));
+      note.textContent = "المستوى اتحدد تلقائي. دوس ابدأ.";
+    } else {
+      note.textContent = "المستوى ده لسه مقفول عندك، افتحه الأول وارجع للرابط.";
+    }
+    C.banner(document.querySelector(".screen.active") || document.body, note);
+  }
+
   function setupEvents() {
     if ($("startBtn")) $("startBtn").addEventListener("click", startGame);
     if ($("hintBtn")) $("hintBtn").addEventListener("click", showHint);
@@ -1384,6 +1403,7 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
     }
 
     setupLevelButtons();
+    setupChallenge();
     setupAutocomplete();
     setupSettings();
   }
