@@ -3,6 +3,12 @@
   'use strict';
   const MAX_LEN = 200, KEEP = 60, GAP_MS = 2000, SEEN_KEY = 'koraChatSeen', MAX_REC_S = 30;
   const Sec = window.KoraSec || { clean: s => String(s || '').trim(), name: s => String(s || '').trim(), limit: () => 0, isAudioDataUrl: s => typeof s === 'string' && s.indexOf('data:audio/') === 0 };
+  const CLUBS = [['liv', 'ليفربول'], ['mun', 'مانشستر يونايتد'], ['mci', 'مانشستر سيتي'], ['ars', 'أرسنال'], ['che', 'تشيلسي'], ['tot', 'توتنهام'], ['rma', 'ريال مدريد'], ['fcb', 'برشلونة'], ['atm', 'أتلتيكو مدريد'], ['acm', 'ميلان'], ['int', 'إنتر'], ['juv', 'يوفنتوس'], ['rom', 'روما'], ['bay', 'بايرن ميونخ'], ['dor', 'دورتموند'], ['psg', 'باريس سان جيرمان'], ['ahl', 'الأهلي المصري'], ['zam', 'الزمالك'], ['hil', 'الهلال'], ['nas', 'النصر'], ['ben', 'بنفيكا'], ['por', 'بورتو'], ['ajx', 'أياكس'], ['nt', 'منتخب مصر']];
+  const ROOM_KEY = 'koraChatGroup', CLUB_KEY = 'koraChatClub', BLOCK_KEY = 'koraChatBlocked';
+  const store = { get: k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }, set: (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { /* ignore */ } } };
+  const getBlocked = () => { try { const b = JSON.parse(store.get(BLOCK_KEY) || '[]'); return Array.isArray(b) ? b : []; } catch (e) { return []; } };
+  const genCode = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.random() * 32 | 0]).join('');
+  const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 5);
   const el = (t, c, x) => { const n = document.createElement(t); if (c) n.className = c; if (x != null) n.textContent = x; return n; };
 
   function init() {
@@ -23,7 +29,7 @@
     const overlay = el('div', 'chat-overlay');
     const panel = el('section', 'chat-panel'); panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); panel.setAttribute('aria-label', 'الشات العالمي');
     const head = el('div', 'chat-head');
-    const title = el('div', 'chat-title'); title.append(el('b', '', 'الشات العالمي'), el('small', '', 'كل اللاعبين بيتكلموا هنا'));
+    const title = el('div', 'chat-title'); const titleB = el('b', '', 'الشات العالمي'), titleS = el('small', '', 'كل اللاعبين بيتكلموا هنا'); title.append(titleB, titleS);
     const close = el('button', 'chat-close'); close.type = 'button'; close.setAttribute('aria-label', 'إغلاق'); close.textContent = '×';
     head.append(title, close);
     const list = el('div', 'chat-list'); list.setAttribute('aria-live', 'polite');
@@ -40,17 +46,28 @@
     const recDot = el('i', 'chat-rec-dot'), recTime = el('b', 'chat-rec-t', '0:00'), recGo = el('button', 'chat-send', 'إرسال'); recGo.type = 'button';
     recBar.append(recCancel, recDot, recTime, recGo);
     form.append(input, mic, send, recBar);
-    panel.append(head, list, note, form);
+    const roomBar = el('div', 'chat-rooms'), subBar = el('div', 'chat-sub'), picker = el('div', 'chat-picker');
+    subBar.hidden = true; picker.hidden = true;
+    const chips = {};
+    [['global', 'العالمي'], ['group', 'الشلة'], ['club', 'ناديي']].forEach(x => {
+      const b = el('button', 'chat-chip', x[1]); b.type = 'button'; chips[x[0]] = b; roomBar.appendChild(b);
+    });
+    panel.append(head, roomBar, subBar, picker, list, note, form);
     document.body.append(overlay, panel);
 
     /* ---- الحالة ---- */
-    let open = false, loaded = false, unread = 0, lastSend = 0;
+    let open = false, loaded = false, unread = 0, lastSend = 0, q = null;
+    let room = { type: 'global', id: '' };
+    const isGlobal = () => room.type === 'global';
+    const roomPath = () => room.type === 'club' ? 'chat/club/' + room.id : room.type === 'group' ? 'chat/rooms/' + room.id : 'chat/global';
+    const roomLabel = () => room.type === 'club' ? 'club:' + room.id : room.type === 'group' ? 'group:' + room.id : 'global';
+    const clubName = id => (CLUBS.find(c => c[0] === id) || [0, 'النادي'])[1];
     const seen = new Set(), rows = {};
     const me = () => (window.KoraAuth && window.KoraAuth.user) || (firebase.auth && firebase.auth().currentUser) || null;
     const myName = () => { const u = me(); return u ? (u.displayName || (u.email ? u.email.split('@')[0] : '') || 'لاعب') : 'لاعب'; };
     const seenKey = () => SEEN_KEY + ':' + ((me() && me().uid) || 'x');
     const lastSeen = () => { try { return Number(localStorage.getItem(seenKey())) || 0; } catch (e) { return 0; } };
-    const markSeen = t => { try { localStorage.setItem(seenKey(), String(t || Date.now())); } catch (e) { /* ignore */ } };
+    const markSeen = t => { if (!isGlobal()) return; try { localStorage.setItem(seenKey(), String(t || Date.now())); } catch (e) { /* ignore */ } };
     const all = {};
     let newest = 0;
 
@@ -103,11 +120,22 @@
     function addMessage(key, m) {
       if (seen.has(key) || !m || (typeof m.text !== 'string' && m.aud !== 1)) return;
       seen.add(key); all[key] = m;
+      if (m.uid && getBlocked().indexOf(m.uid) > -1) return;
       if (empty.parentNode) empty.remove();
       const u = me(), mine = u && m.uid === u.uid;
       const row = el('div', 'chat-msg' + (mine ? ' mine' : ''));
       const bub = el('div', 'chat-bubble');
-      if (!mine) bub.appendChild(el('b', 'chat-name', Sec.name(m.name || 'لاعب', 30)));
+      if (!mine) {
+        const top = el('div', 'chat-top'), more = el('button', 'chat-more', '⋯'); more.type = 'button'; more.setAttribute('aria-label', 'خيارات الرسالة');
+        const menu = el('div', 'chat-menu'); menu.hidden = true;
+        const rb = el('button', '', 'إبلاغ عن الرسالة'), bb = el('button', '', 'حظر ' + Sec.name(m.name || 'لاعب', 30)); rb.type = bb.type = 'button';
+        rb.addEventListener('click', () => { menu.hidden = true; reportMsg(key, m); });
+        bb.addEventListener('click', () => { menu.hidden = true; blockUser(m.uid, Sec.name(m.name || 'لاعب', 30)); });
+        more.addEventListener('click', () => { menu.hidden = !menu.hidden; });
+        menu.append(rb, bb);
+        top.append(el('b', 'chat-name', Sec.name(m.name || 'لاعب', 30)), more);
+        bub.append(top, menu);
+      }
       if (m.aud === 1) bub.appendChild(audioNode(key, m)); else bub.appendChild(el('span', 'chat-text', Sec.clean(m.text, MAX_LEN)));
       const tm = el('small', 'chat-time', when(m.t)); if (m.t) tm.dataset.t = String(m.t); tm.title = m.t ? new Date(m.t).toLocaleString('ar-EG') : '';
       bub.appendChild(tm);
@@ -117,7 +145,7 @@
       while (list.children.length > KEEP + 20) list.firstChild.remove();
       if (m.t > newest) newest = m.t;
       if (open) { if (stick) toBottom(); markSeen(newest); }
-      else if (loaded && !mine && m.t > lastSeen()) { unread++; setBadge(); }
+      else if (loaded && isGlobal() && !mine && m.t > lastSeen()) { unread++; setBadge(); }
     }
 
     function fit() {
@@ -158,12 +186,12 @@
       if (lim) { say('بتبعت بسرعة! استنى ' + Math.ceil(lim / 1000) + ' ثانية.'); return Promise.resolve(false); }
       lastSend = Date.now();
       const key = ref.push().key, upd = {};
-      upd['chat/global/' + key] = Object.assign({ uid: u.uid, name: Sec.name(myName(), 30), t: firebase.database.ServerValue.TIMESTAMP }, msg);
+      upd[roomPath() + '/' + key] = Object.assign({ uid: u.uid, name: Sec.name(myName(), 30), t: firebase.database.ServerValue.TIMESTAMP }, msg);
       upd['chat/meta/' + u.uid + '/last'] = firebase.database.ServerValue.TIMESTAMP;
       if (audioUrl) upd['chat/audio/' + key] = audioUrl;
       return db.ref().update(upd).then(() => true).catch(err => {
         if (audioUrl) { say('مقدرناش نبعت الرسالة الصوتية (' + ((err && err.code) || 'error') + ').'); return false; }
-        return ref.child(key).set(upd['chat/global/' + key]).then(() => true).catch(e2 => { console.warn('[chat]', e2); say('مقدرناش نبعت الرسالة (' + ((e2 && e2.code) || 'error') + '). راجع قواعد Firebase.'); return false; });
+        return ref.child(key).set(upd[roomPath() + '/' + key]).then(() => true).catch(e2 => { console.warn('[chat]', e2); say('مقدرناش نبعت الرسالة (' + ((e2 && e2.code) || 'error') + '). راجع قواعد Firebase.'); return false; });
       });
     }
     form.addEventListener('submit', e => {
@@ -209,16 +237,105 @@
     recGo.addEventListener('click', () => { if (rec && rec.state === 'recording') rec.stop(); });
     recCancel.addEventListener('click', () => { canceled = true; if (rec && rec.state === 'recording') rec.stop(); else cleanup(); });
 
+    /* ---- الإبلاغ والحظر ---- */
+    function hideRow(key) { const r = rows[key]; if (r) { r.remove(); delete rows[key]; } }
+    function reportMsg(key, m) {
+      const u = me(); if (!u) { say('لازم تسجل دخول الأول.'); return; }
+      const lim = Sec.limit('chat:report:' + u.uid, 3, 60000);
+      if (lim) { say('بلّغت كتير، استنى شوية.'); return; }
+      db.ref('chat/reports').push({ room: roomLabel(), key: key, uid: String(m.uid || ''), by: u.uid, text: Sec.clean(m.text || '', 200), aud: m.aud === 1 ? 1 : 0, t: firebase.database.ServerValue.TIMESTAMP })
+        .then(() => { hideRow(key); say('اتبعت البلاغ، شكرًا ليك.'); })
+        .catch(() => say('معرفتش أبعت البلاغ (راجع قواعد Firebase: chat/reports).'));
+    }
+    function blockUser(uid, name) {
+      if (!uid) return;
+      const b = getBlocked(); if (b.indexOf(uid) < 0) b.push(uid);
+      store.set(BLOCK_KEY, JSON.stringify(b.slice(-200)));
+      Object.keys(all).forEach(k => { if (all[k].uid === uid) hideRow(k); });
+      say('اتحظر ' + name + '، مش هتشوف رسايله.'); renderBars();
+    }
+
+    /* ---- الغرف ---- */
+    function inviteLink() { const u = new URL(location.href); u.search = ''; u.hash = ''; u.searchParams.set('chat', room.id); return u.toString(); }
+    function renderBars() {
+      Object.keys(chips).forEach(k => chips[k].classList.toggle('active', room.type === k));
+      titleB.textContent = room.type === 'club' ? 'غرفة ' + clubName(room.id) : room.type === 'group' ? 'غرفة الشلة ' + room.id : 'الشات العالمي';
+      titleS.textContent = room.type === 'global' ? 'كل اللاعبين بيتكلموا هنا' : room.type === 'club' ? 'مشجعين النادي' : 'اللي معاه الكود بس بيدخل';
+      subBar.textContent = '';
+      const nb = getBlocked().length;
+      if (room.type === 'group') {
+        const cp = el('button', 'chat-link', 'نسخ رابط الدعوة'); cp.type = 'button';
+        cp.addEventListener('click', async () => {
+          try { if (navigator.share) { await navigator.share({ text: 'تعالى شات الشلة في Kora Challenge', url: inviteLink() }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+          try { await navigator.clipboard.writeText(inviteLink()); say('اتنسخ رابط الدعوة'); } catch (e) { say('الكود: ' + room.id); }
+        });
+        const lv = el('button', 'chat-link', 'خروج من الغرفة'); lv.type = 'button';
+        lv.addEventListener('click', () => { store.set(ROOM_KEY, ''); switchRoom('global'); });
+        subBar.append(cp, lv);
+      } else if (room.type === 'club') {
+        const ch = el('button', 'chat-link', 'تغيير النادي'); ch.type = 'button'; ch.addEventListener('click', () => showPicker('club'));
+        subBar.appendChild(ch);
+      }
+      if (nb) {
+        const ub = el('button', 'chat-link', 'المحظورين (' + nb + ') - إلغاء الكل'); ub.type = 'button';
+        ub.addEventListener('click', () => { store.set(BLOCK_KEY, ''); say('اتلغى الحظر. اعمل ريفريش للغرفة.'); renderBars(); switchRoom(room.type, room.id, true); });
+        subBar.appendChild(ub);
+      }
+      subBar.hidden = !subBar.children.length;
+    }
+    function showPicker(kind) {
+      picker.textContent = ''; picker.hidden = false;
+      if (kind === 'club') {
+        const sel = el('select', 'chat-select');
+        CLUBS.forEach(c => { const o = el('option', '', c[1]); o.value = c[0]; sel.appendChild(o); });
+        sel.value = store.get(CLUB_KEY) || CLUBS[0][0];
+        const go = el('button', 'chat-send', 'ادخل'); go.type = 'button';
+        go.addEventListener('click', () => { store.set(CLUB_KEY, sel.value); picker.hidden = true; switchRoom('club', sel.value); });
+        picker.append(el('small', '', 'اختار ناديك'), sel, go);
+      } else {
+        const inp = el('input', 'chat-input'); inp.maxLength = 5; inp.placeholder = 'كود الغرفة'; inp.setAttribute('aria-label', 'كود الغرفة');
+        const go = el('button', 'chat-send', 'ادخل'); go.type = 'button';
+        const nw = el('button', 'chat-link', 'اعمل غرفة جديدة'); nw.type = 'button';
+        const enter = c => { c = cleanCode(c); if (c.length !== 5) { say('الكود 5 حروف/أرقام.'); return; } store.set(ROOM_KEY, c); picker.hidden = true; switchRoom('group', c); };
+        go.addEventListener('click', () => enter(inp.value));
+        nw.addEventListener('click', () => enter(genCode()));
+        picker.append(el('small', '', 'ادخل كود غرفة صاحبك أو اعمل غرفة جديدة'), inp, go, nw);
+        setTimeout(() => inp.focus(), 50);
+      }
+    }
+    chips.global.addEventListener('click', () => { picker.hidden = true; switchRoom('global'); });
+    chips.group.addEventListener('click', () => { const c = store.get(ROOM_KEY); if (c) { picker.hidden = true; switchRoom('group', c); } else showPicker('group'); });
+    chips.club.addEventListener('click', () => { const c = store.get(CLUB_KEY); if (c) { picker.hidden = true; switchRoom('club', c); } else showPicker('club'); });
+
     /* ---- الاستماع للرسايل ---- */
-    const q = ref.limitToLast(KEEP);
-    q.on('child_removed', s => { const r = rows[s.key]; if (r) { r.remove(); delete rows[s.key]; seen.delete(s.key); } });
-    q.on('child_added', s => addMessage(s.key, s.val()), () => { empty.textContent = 'الشات مش متاح دلوقتي (راجع قواعد Firebase).'; });
-    q.once('value').then(() => {
-      loaded = true;
-      const ls = lastSeen(); if (!ls) { markSeen(newest || Date.now()); return; }
-      unread = Object.keys(all).filter(k => { const m = all[k]; return m.t > ls && !(me() && m.uid === me().uid); }).length;
-      setBadge();
-    }).catch(() => { loaded = true; });
+    function listen() {
+      loaded = false;
+      q = ref.limitToLast(KEEP);
+      q.on('child_removed', s => { const r = rows[s.key]; if (r) { r.remove(); delete rows[s.key]; seen.delete(s.key); } });
+      q.on('child_added', s => addMessage(s.key, s.val()), () => { empty.textContent = 'الغرفة مش متاحة دلوقتي (راجع قواعد Firebase).'; if (!empty.parentNode) list.appendChild(empty); });
+      q.once('value').then(() => {
+        loaded = true;
+        if (!isGlobal()) return;
+        const ls = lastSeen(); if (!ls) { markSeen(newest || Date.now()); return; }
+        unread = Object.keys(all).filter(k => { const m = all[k]; return m.t > ls && !(me() && m.uid === me().uid); }).length;
+        setBadge();
+      }).catch(() => { loaded = true; });
+    }
+    function switchRoom(type, id, force) {
+      if (!force && room.type === type && room.id === (id || '')) { renderBars(); return; }
+      if (q) q.off();
+      list.textContent = ''; empty.textContent = 'لسه مفيش رسايل. ابدأ الكلام!'; list.appendChild(empty);
+      seen.clear(); Object.keys(rows).forEach(k => delete rows[k]); Object.keys(all).forEach(k => delete all[k]);
+      if (type !== 'global') { unread = 0; setBadge(); }
+      room = { type: type, id: id || '' };
+      try { ref = db.ref(roomPath()); } catch (e) { return; }
+      renderBars(); listen();
+    }
+    renderBars(); listen();
+
+    /* رابط دعوة: ?chat=CODE بيفتح الشات على الغرفة مباشرة */
+    const inv = cleanCode(new URLSearchParams(location.search).get('chat'));
+    if (inv.length === 5) { store.set(ROOM_KEY, inv); switchRoom('group', inv); openPanel(); }
   }
 
   /* ننتظر تسجيل الدخول (الحارس بيظهر الصفحة بعد ما يتأكد) */
