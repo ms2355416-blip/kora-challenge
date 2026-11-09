@@ -89,8 +89,14 @@
     <p>أعلى 10 لاعبين من حيث مجموع النقاط في كل الألعاب</p>
   </div>
 
+  <div class="lb-tabs" role="tablist">
+    <button type="button" class="lb-tab active" id="lbTabGlobal" role="tab" aria-selected="true" data-tab="global">ترتيبك العالمي</button>
+    <button type="button" class="lb-tab" id="lbTabWeekly" role="tab" aria-selected="false" data-tab="weekly">ترتيبك الأسبوعي</button>
+  </div>
+  <div class="lb-week-info" id="lbWeekInfo" hidden></div>
+
   <section class="lb-me" id="lbMe" hidden>
-    <span>ترتيبك</span>
+    <span id="lbMeLabel">ترتيبك</span>
     <strong id="lbMeRank">-</strong>
     <span class="lb-me-points"><b id="lbMePoints">0</b> نقطة</span>
   </section>
@@ -98,6 +104,11 @@
   <ol class="lb-list" id="lbList" aria-live="polite">
     <li class="lb-state">بحمّل الترتيب…</li>
   </ol>
+
+  <section class="lb-prev" id="lbPrev" hidden>
+    <h2>أبطال الأسبوع اللي فات</h2>
+    <div class="lb-prev-list" id="lbPrevList"></div>
+  </section>
 </main>
 
 <script src="points-sync.js" defer></script>
