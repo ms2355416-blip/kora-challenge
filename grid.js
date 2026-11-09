@@ -64,7 +64,7 @@
   /* ---------- بدء لعبة ---------- */
   function start(modeId) {
     if (!isModeOpen(modeId)) return;
-    const grid = D.makeGrid(modeId);
+    const grid = window.KoraChallenge ? window.KoraChallenge.run(modeId, () => D.makeGrid(modeId)) : D.makeGrid(modeId);
     if (!grid) { hint('حصلت مشكلة في تجهيز الشبكة، جرب تاني.', true); return; }
     const m = MODES[modeId];
     game = {
@@ -359,6 +359,7 @@
 
     show('result');
     renderMenu();
+    if (window.KoraChallenge) window.KoraChallenge.result(document.querySelector('#gResult .g-result'), pts);
   }
 
   $('rAgain').addEventListener('click', () => start(game ? game.mode : 'classic'));
@@ -382,4 +383,15 @@
   if (U) U.onChange(() => { if (!screens.menu.hidden) renderMenu(); if (game && !screens.play.hidden) renderPowers(); });
   renderMenu();
   show('menu');
+
+  /* تحدي صاحب: زرار يبدأ نفس الشبكة */
+  (function () {
+    const C = window.KoraChallenge, inf = C && C.info;
+    if (!inf || !MODES[inf.mode]) return;
+    const go = document.createElement('button');
+    go.type = 'button'; go.textContent = isModeOpen(inf.mode) ? 'ابدأ التحدي' : 'الطور ده لسه مقفول عندك';
+    go.disabled = !isModeOpen(inf.mode);
+    go.addEventListener('click', () => start(inf.mode));
+    C.banner(document.querySelector('main') || document.body, go);
+  })();
 })();
