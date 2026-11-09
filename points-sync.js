@@ -34,6 +34,28 @@
     return null;
   }
 
+  /* رقم الأسبوع (بيبدأ السبت 00:00 UTC) */
+  function weekId(d) { return Math.floor((Math.floor((d || Date.now()) / 86400000) - 2) / 7); }
+  const WK_KEY = 'koraWeeklySync';
+  function readWk() { try { return JSON.parse(localStorage.getItem(WK_KEY) || '{}'); } catch (e) { return {}; } }
+
+  // بنضيف على نقاط الأسبوع الفرق بس من آخر مزامنة، فمفيش حد بياخد نقاط قديمة
+  function syncWeekly(points, name, cos) {
+    const wk = readWk(), wid = weekId();
+    if (wk.uid !== user.uid) { localStorage.setItem(WK_KEY, JSON.stringify({ uid: user.uid, last: points })); return; }
+    const delta = Math.min(Math.max(0, points - (Number(wk.last) || 0)), 3000);
+    if (!delta && wk.week === wid) return;
+    const ref = firebase.database().ref('leaderboard_weekly/' + wid + '/' + user.uid);
+    ref.transaction(cur => {
+      if (!cur && !delta) return;
+      const out = { name, points: (Number(cur && cur.points) || 0) + delta, t: firebase.database.ServerValue.TIMESTAMP };
+      if (cos) Object.assign(out, cos);
+      return out;
+    }).then(() => {
+      try { localStorage.setItem(WK_KEY, JSON.stringify({ uid: user.uid, last: points, week: wid })); } catch (e) { /* ignore */ }
+    }).catch(() => { /* هنحاول تاني */ });
+  }
+
   function sync() {
     if (!user || busy) return;
     if (typeof firebase === 'undefined' || !firebase.database) return;
@@ -43,6 +65,7 @@
     const cos = cosmetics();
     const key = points + '|' + name + '|' + (cos ? cos.title + cos.frame + cos.avatar : '');
     if (key === lastKey) return;
+    try { syncWeekly(points, name, cos); } catch (e) { /* ignore */ }
 
     const ref = firebase.database().ref('leaderboard/' + user.uid);
     const build = withCos => current => {
