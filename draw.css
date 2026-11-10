@@ -44,3 +44,14 @@
 .dr-result h2{margin-bottom:8px}
 .dr-result p{color:var(--muted);margin-bottom:14px}
 .dr-result .win{color:var(--green)}
+
+/* الوضع الجماعي */
+.dr-party{max-width:640px;margin:8px auto 0;display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.dr-party.hidden,.dr-pj.hidden{display:none}
+.dr-pc{font-size:12px;padding:4px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--border,#2a3a33);color:var(--muted)}
+.dr-pc.me{color:var(--text);border-color:var(--green)}
+.dr-pc.dw{background:rgba(255,204,61,.16)}
+.dr-pj{max-width:640px;margin:14px auto 0;display:grid;gap:8px}
+.dr-pj-row{display:flex;align-items:center;gap:8px;background:var(--surface);border:2px solid var(--green);border-radius:14px;padding:10px 12px;animation:drPop .3s ease}
+.dr-pj-row span{flex:1;font-weight:700;overflow-wrap:anywhere}
+.dr-pj-row button{width:44px;height:40px;border-radius:10px;border:0;font-size:1.2rem;font-weight:900;cursor:pointer}
