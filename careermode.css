@@ -437,3 +437,15 @@
 .cm-press-q { font-size: .9rem; line-height: 1.6; }
 .cm-press-opt { text-align: start; font-size: .85rem; }
 .cm-press-r { font-size: .85rem; opacity: .9; }
+
+/* إجابة أخرى + لوحة الأدمن */
+.cm-press-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cm-press-other { border: 0; border-radius: 999px; padding: 4px 12px; font: inherit; font-size: .75rem; font-weight: 800;
+  cursor: pointer; color: #14213d; background: #ffcc3d; }
+.cm-press-other[hidden] { display: none; }
+.cm-press-ta { width: 100%; box-sizing: border-box; border-radius: 10px; padding: 10px; font: inherit; resize: vertical; min-height: 72px; }
+.cm-admin { border: 1px dashed #ffcc3d; display: grid; gap: 8px; }
+.cm-adm-h { font-size: .88rem; margin-top: 6px; }
+.cm-adm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cm-adm-chk { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(127,127,127,.14); font-size: .85rem; cursor: pointer; }
+.cm-adm-in { flex: 1; min-width: 0; padding: 10px; border-radius: 10px; font: inherit; }
