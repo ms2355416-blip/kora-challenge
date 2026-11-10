@@ -79,7 +79,9 @@
   D.ROSTERS = R;
 
   /* ---- المنتخبات ---- */
-  D.NATIONAL = CD.NATIONAL;
+  /* منتخبات آسيوية إضافية عشان كأس آسيا يبقى 16 فريق */
+  var AFC_EXTRA = [['الإمارات', 'ae', 57, 'AFC'], ['الأردن', 'jo', 58, 'AFC'], ['عُمان', 'om', 55, 'AFC'], ['البحرين', 'bh', 53, 'AFC'], ['سوريا', 'sy', 54, 'AFC'], ['الصين', 'cn', 56, 'AFC'], ['الكويت', 'kw', 52, 'AFC'], ['إندونيسيا', 'id', 54, 'AFC']];
+  D.NATIONAL = CD.NATIONAL.concat(AFC_EXTRA.filter(function (x) { return !CD.NATIONAL.some(function (n) { return n[1] === x[1]; }); }));
   D.NATIONS = [['مصر', 'eg'], ['السعودية', 'sa'], ['المغرب', 'ma'], ['العراق', 'iq'], ['إنجلترا', 'gb-eng'], ['فرنسا', 'fr'], ['ألمانيا', 'de'], ['البرازيل', 'br'], ['الأرجنتين', 'ar'], ['البرتغال', 'pt'], ['أمريكا', 'us']];
 
   /* ---- الممتلكات (الأسعار باليورو) ---- */
@@ -121,7 +123,7 @@
   ];
 
   /* ---- مكافآت البطولات (مليون €) ---- */
-  D.PRIZE = { cl: 6, caf: 1.5, cwc: 4, wc: 8, euro: 4, afcon: 2, cupBase: 0.4 };
+  D.PRIZE = { cl: 6, caf: 1.5, afc: 1.5, cwc: 4, wc: 8, euro: 4, afcon: 2, copa: 4, asian: 2, cupBase: 0.4 };
 
   if (isNode) module.exports = D;
 })(typeof window !== 'undefined' ? window : globalThis);
