@@ -1546,4 +1546,190 @@
     state.earn = { salary: 0, bonus: 0, prizes: 0, sponsor: 0 };
     initClubs(state); initExtras(state);
     if (state.injury) { state.injury.games = Math.max(0, state.injury.games - 8); if (!state.injury.games) state.injury = null; }
-    state.fatigue = 10; sta
+        state.fatigue = 10; state.susp = 0; state.injCool = 0;
+    state.expelled = null; state.abuse = null; state.noRenew = false; state.fired = null;
+    state.coachChangedYear = null;
+    state.euro = null;
+    state.cups = [];
+
+    /* تأهيل دوري الأبطال: بناءً على جدول الموسم اللي فات */
+    var eq = euroQualForClub(state, state.clubId);
+    if (eq) startEuro(state, eq, rng);
+
+    /* الكؤوس المحلية والقارية */
+    initCups(state, rng);
+    initCaf(state, rng);
+    initAfc(state, rng);
+
+    /* سوق الانتقالات في الخلفية */
+    simMarket(state, rng);
+  }
+
+  /* ====== تأهيل الأندية لدوري الأبطال بناءً على ترتيب الموسم اللي فات ====== */
+  function euroQualForClub(state, clubId) {
+    var c = state.clubs[clubId];
+    if (!c) return null;
+    var lk = c.league, qn = D.EUROQ[lk];
+    if (!qn || !LG[lk] || LG[lk].tier !== 1) return null;
+    var tab = state.tabs && state.tabs[lk];
+    if (!tab) return null;
+    var pos = tab.indexOf(clubId);
+    if (pos < 0 || pos >= qn) return null;
+    return qn >= 4 ? (pos < 3 ? 'cl' : 'qual') : qn === 2 ? (pos === 0 ? 'cl' : 'qual') : 'qual';
+  }
+
+  /* ====== بداية مسيرة جديدة ====== */
+  function newCareer(cfg, rng) {
+    var state = {
+      v: 2,
+      year: 2025,
+      phase: 'sign',
+      clubId: null,
+      league: null,
+      player: {
+        name: cfg.name,
+        nat: cfg.nat,
+        natCode: cfg.natCode,
+        pos: cfg.pos,
+        color: cfg.color,
+        photo: cfg.photo || null,
+        ovr: 62,
+        age: 17
+      },
+      money: 20000,
+      fame: 0,
+      fatigue: 0,
+      susp: 0,
+      injCool: 0,
+      owned: [],
+      sponsors: [],
+      contracts: [],
+      earn: { salary: 0, bonus: 0, prizes: 0, sponsor: 0 },
+      history: [],
+      honors: [],
+      totals: { apps: 0, goals: 0, assists: 0 },
+      stats: { apps: 0, starts: 0, goals: 0, assists: 0, ratingSum: 0, rated: 0, yellow: 0, red: 0, minutes: 0 },
+      log: [],
+      pl: [],
+      ps: {},
+      intl: { caps: 0, goals: 0, assists: 0, log: [] },
+      clubs: {},
+      world: null,
+      adminAwards: [],
+      form: [],
+      agent: false
+    };
+
+    initClubs(state);
+    initExtras(state);
+
+    /* اختيار أضعف نادي في الدوري المختار */
+    var lk = cfg.start || 'eng3';
+    var teams = Object.keys(state.clubs).filter(function (id) { return state.clubs[id].league === lk; });
+    teams.sort(function (a, b) { return state.clubs[a].str - state.clubs[b].str; });
+    state.clubId = teams[0];
+    state.league = lk;
+
+    buildWorld(state, LG[lk].country, rng);
+
+    newCoach(state, rng, 'start');
+    state.coachClub = state.clubId;
+
+    initCups(state, rng);
+    simMarket(state, rng);
+
+    state.deal = makeDeal(state, state.clubId, rng, 0, null);
+    state.signFor = 'start';
+
+    return state;
+  }
+
+  /* ====== مباريات اللاعب في الدوري ====== */
+  function myFixtures(state) {
+    var L = state.world && state.world.leagues[state.league];
+    if (!L) return [];
+    var me = state.clubId, out = [];
+    L.fixtures.forEach(function (rd, r) {
+      rd.forEach(function (m, i) {
+        if (m[0] === me || m[1] === me) {
+          var res = L.results[r] && L.results[r][i];
+          var log = null;
+          if (res) {
+            for (var k = 0; k < state.log.length; k++) {
+              if (!state.log[k].comp && state.log[k].round === r + 1) { log = state.log[k]; break; }
+            }
+          }
+          out.push({ round: r + 1, home: m[0], away: m[1], res: res || null, log: log });
+        }
+      });
+    });
+    return out;
+  }
+
+  /* ====== مركز الفريق في الدوري ====== */
+  function myPosition(state) {
+    var t = table(state, state.league);
+    return t.findIndex(function (r) { return r.id === state.clubId; }) + 1;
+  }
+
+  /* ====== اختيار عرض (أو البقاء) ====== */
+  function chooseOffer(state, idx, rng) {
+    if (idx === -1) {
+      state.deal = makeDeal(state, state.clubId, rng, 0, null);
+      state.signFor = 'renew';
+      state.phase = 'sign';
+      return;
+    }
+    var o = state.offers && state.offers[idx];
+    if (!o) return;
+    state.clubId = o.clubId;
+    state.league = o.league;
+    state.deal = makeDeal(state, o.clubId, rng, o.fee || 0, o.cur);
+    state.signFor = 'transfer';
+    state.phase = 'sign';
+  }
+
+  /* ====== بعد توقيع العقد (انتقال أو تجديد) ====== */
+  function finishMove(state, rng) {
+    startNextSeason(state, rng);
+  }
+
+  /* ====== بعد شاشة الجوايز ====== */
+  function continueAfterAwards(state) {
+    state.phase = state.afterAwards || 'offers';
+  }
+
+  /* ====== التصدير ====== */
+  root.KoraCMEngine = {
+    newCareer: newCareer,
+    playRound: playRound,
+    playLive: playLive,
+    finishSeason: finishSeason,
+    chooseOffer: chooseOffer,
+    applyTerms: applyTerms,
+    signContract: signContract,
+    buyAsset: buyAsset,
+    takeSponsor: takeSponsor,
+    marketValue: marketValue,
+    squadRole: squadRole,
+    coachNote: coachNote,
+    ntOf: ntOf,
+    nextExtraInfo: nextExtraInfo,
+    nextExtra: nextExtra,
+    myFixtures: myFixtures,
+    myPosition: myPosition,
+    table: table,
+    rounds: rounds,
+    derbyOf: derbyOf,
+    answerPress: answerPress,
+    answerFree: answerFree,
+    matchLineups: matchLineups,
+    runSummerEvent: runSummerEvent,
+    finishSummer: finishSummer,
+    retireNow: retireNow,
+    continueAfterAwards: continueAfterAwards,
+    STAGE_AR: STAGE_AR,
+    simMarket: simMarket
+  };
+
+})(window);
