@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
 
 :root {
@@ -13,7 +14,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; scroll-padding-top: 85px; overflow-x: hidden; }
+html { scroll-behavior: smooth; scroll-padding-top: 85px; }
 
 body {
   background: var(--bg);
@@ -21,7 +22,6 @@ body {
   font-family: 'Cairo', Tahoma, Arial, sans-serif;
   line-height: 1.8;
   overflow-x: hidden;
-  max-width: 100vw;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -156,7 +156,6 @@ button { font: inherit; cursor: pointer; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
-  box-sizing: border-box;
 }
 .stat-item { display: flex; align-items: center; justify-content: center; gap: 13px; }
 .stat-icon { width: 45px; height: 45px; display: grid; place-items: center; border-radius: 12px; background: #1a3022; font-size: 22px; }
@@ -164,14 +163,14 @@ button { font: inherit; cursor: pointer; }
 .stat-item strong { font-size: 22px; }
 .stat-item small { color: var(--muted); font-size: 11px; }
 
-.games-section { max-width: 1250px; padding: 0 7% 75px; margin: auto; overflow-x: hidden; }
+.games-section { max-width: 1250px; padding: 0 7% 75px; margin: auto; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
 .section-heading h2 { font-size: 31px; line-height: 1.5; font-weight: 900; }
 .section-heading p { color: var(--muted); font-size: 13px; }
 .section-ball { font-size: 50px; opacity: .8; }
 
-.games-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; width: 100%; max-width: 100%; box-sizing: border-box; }
-.game-card { background: var(--surface); border: 1px solid var(--border); border-radius: 15px; overflow: hidden; transition: border-color .25s, transform .25s; min-width: 0; box-sizing: border-box; }
+.games-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.game-card { background: var(--surface); border: 1px solid var(--border); border-radius: 15px; overflow: hidden; transition: border-color .25s, transform .25s; }
 .game-card:hover { border-color: #27834b; transform: translateY(-5px); }
 
 .game-art { height: 155px; position: relative; display: grid; place-items: center; overflow: hidden; }
@@ -183,21 +182,21 @@ button { font: inherit; cursor: pointer; }
 .art-number { position: absolute; bottom: -20px; left: 12px; font-size: 85px; line-height: 1; font-weight: 900; color: #ffffff0a; direction: ltr; }
 .art-label { position: absolute; top: 12px; right: 12px; background: #1f9c57; color: white; font-size: 10px; padding: 3px 10px; border-radius: 20px; }
 
-.game-info { padding: 19px; min-width: 0; }
+.game-info { padding: 19px; }
 .game-category { color: var(--green); font-size: 11px; font-weight: 800; }
-.game-info h3 { font-size: 22px; margin: 3px 0 7px; overflow-wrap: anywhere; }
-.game-info > p { font-size: 12px; line-height: 2; color: var(--muted); min-height: 72px; overflow-wrap: anywhere; }
+.game-info h3 { font-size: 22px; margin: 3px 0 7px; }
+.game-info > p { font-size: 12px; line-height: 2; color: var(--muted); min-height: 72px; }
 .game-meta { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 14px 0; color: #b4c5b9; font-size: 10px; }
-.game-btn { width: 100%; border: 1px solid #2b5237; background: #14251a; color: var(--green); border-radius: 8px; padding: 10px; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: space-between; transition: .2s; box-sizing: border-box; }
+.game-btn { width: 100%; border: 1px solid #2b5237; background: #14251a; color: var(--green); border-radius: 8px; padding: 10px; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: space-between; transition: .2s; }
 .game-btn:hover { background: #1c3a27; }
 
-.challenge-banner { max-width: 1100px; margin: 0 auto 75px; padding: 28px 35px; display: flex; align-items: center; gap: 24px; border: 1px solid #285237; border-radius: 17px; background: linear-gradient(110deg, #132b1c, #0e1711 75%); box-sizing: border-box; }
+.challenge-banner { max-width: 1100px; margin: 0 auto 75px; padding: 28px 35px; display: flex; align-items: center; gap: 24px; border: 1px solid #285237; border-radius: 17px; background: linear-gradient(110deg, #132b1c, #0e1711 75%); }
 .banner-ball { font-size: 48px; }
-.challenge-banner > div:nth-child(2) { flex: 1; min-width: 0; }
+.challenge-banner > div:nth-child(2) { flex: 1; }
 .challenge-banner h2 { font-size: 24px; line-height: 1.6; }
 .challenge-banner p { color: var(--muted); font-size: 12px; }
 
-footer { padding: 25px 7%; border-top: 1px solid #1b2820; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; box-sizing: border-box; }
+footer { padding: 25px 7%; border-top: 1px solid #1b2820; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 footer p, footer small { font-size: 11px; color: var(--muted); }
 
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 20; background: #1a2b20; border: 1px solid #38714a; color: white; padding: 12px 20px; border-radius: 10px; font-size: 13px; transition: .25s; max-width: 90%; text-align: center; }
@@ -214,6 +213,7 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   .floating-card { padding: 7px 9px; }
   .floating-card > span { font-size: 19px; }
   .games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .game-card:last-child { grid-column: 1 / -1; }
   .stats-strip { margin-left: 5%; margin-right: 5%; }
   .challenge-banner { margin-left: 5%; margin-right: 5%; }
 }
@@ -234,25 +234,27 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   .orbit-two { width: 260px; height: 130px; }
   .card-top { right: 0; top: 12px; }
   .card-bottom { left: 0; bottom: 8px; }
-  .stats-strip { padding: 17px 8px; gap: 6px; margin-bottom: 48px; margin-left: 4%; margin-right: 4%; }
+  .stats-strip { padding: 17px 8px; gap: 6px; margin-bottom: 48px; }
   .stat-item { gap: 7px; flex-direction: column; text-align: center; }
   .stat-icon { width: 36px; height: 36px; font-size: 18px; }
   .stat-item strong { font-size: 18px; }
   .stat-item small { font-size: 10px; }
-  .games-section { padding: 0 4% 50px; }
+  .games-section { padding: 0 5% 50px; }
   .section-heading h2 { font-size: 26px; }
   .section-heading p { font-size: 11px; }
   .section-ball { font-size: 35px; }
-  .games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .games-grid { grid-template-columns: 1fr; gap: 16px; }
+  .game-card:last-child { grid-column: auto; }
   .game-art { height: 140px; }
   .game-info > p { min-height: auto; }
-  .challenge-banner { margin: 0 4% 45px; padding: 20px; gap: 12px; flex-wrap: wrap; }
+  .challenge-banner { margin: 0 5% 45px; padding: 20px; gap: 12px; flex-wrap: wrap; }
   .banner-ball { font-size: 36px; }
   .challenge-banner h2 { font-size: 20px; }
   .challenge-banner p { font-size: 11px; }
   .challenge-banner .btn { width: 100%; }
   footer { justify-content: center; text-align: center; flex-direction: column; }
 }
+
 
 /* Kora Challenge SVG icon system */
 .svg-icon {
@@ -313,7 +315,12 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   }
 }
 
-/* Header actions & Settings */
+
+/* =====================================
+   KORA CHALLENGE - SETTINGS & THEMES
+   ===================================== */
+
+/* Header actions */
 .top {
   min-height: 76px;
   padding: 12px 7%;
@@ -326,7 +333,6 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   position: sticky;
   top: 0;
   z-index: 30;
-  box-sizing: border-box;
 }
 
 .brand {
@@ -346,7 +352,6 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: 50px;
 }
 
 .settings-toggle,
@@ -371,6 +376,27 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   transform: translateY(-2px);
 }
 
+.settings-toggle svg {
+  transition: transform .3s;
+}
+
+.settings-toggle:hover svg {
+  transform: rotate(35deg);
+}
+
+.top .back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 43px;
+  height: 43px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+/* Settings overlay */
 .settings-overlay {
   position: fixed;
   inset: 0;
@@ -386,6 +412,7 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   visibility: visible;
 }
 
+/* Settings side panel */
 .settings-panel {
   position: fixed;
   z-index: 50;
@@ -424,6 +451,11 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   font-weight: 900;
 }
 
+.settings-close {
+  flex-shrink: 0;
+  font-size: 19px;
+}
+
 .setting-group {
   margin-bottom: 27px;
 }
@@ -447,6 +479,15 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   font-size: 14px;
   outline: none;
   cursor: pointer;
+}
+
+#languageSelect:focus {
+  border-color: var(--green);
+}
+
+#languageSelect option {
+  background: var(--surface);
+  color: var(--text);
 }
 
 .theme-options {
@@ -474,9 +515,17 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   transition: .2s;
 }
 
+.theme-option > span:first-child {
+  font-size: 27px;
+}
+
+.theme-option:hover,
 .theme-option.active {
   border-color: var(--green);
   background: var(--surface-2);
+}
+
+.theme-option.active {
   box-shadow: inset 0 0 0 1px var(--green);
   color: var(--green);
 }
@@ -492,6 +541,21 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   background: var(--bg);
 }
 
+/* Make buttons and controls use the selected theme */
+button,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.settings-open {
+  overflow: hidden;
+}
+
+/* =====================================
+   LIGHT THEME
+   JavaScript will set data-theme="light"
+   ===================================== */
+
 :root[data-theme="light"] {
   --bg: #f4f7f5;
   --surface: #ffffff;
@@ -503,6 +567,105 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   --border: #d7e2da;
 }
 
+:root[data-theme="light"] .top {
+  background: rgba(255, 255, 255, .96);
+}
+
+:root[data-theme="light"] .eyebrow {
+  background: #e4f5e9;
+  border-color: #c4e9d0;
+}
+
+:root[data-theme="light"] .btn-primary {
+  color: #ffffff;
+}
+
+:root[data-theme="light"] .btn-primary:hover {
+  background: #0b8747;
+}
+
+:root[data-theme="light"] .btn-outline {
+  background: #ffffff;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme="light"] .floating-card {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 12px 30px rgba(20, 50, 30, .12);
+}
+
+:root[data-theme="light"] .stats-strip,
+:root[data-theme="light"] .game-card {
+  box-shadow: 0 8px 25px rgba(20, 50, 30, .045);
+}
+
+:root[data-theme="light"] .stat-icon {
+  background: #e3f5e9;
+}
+
+:root[data-theme="light"] .game-meta {
+  color: #52645a;
+}
+
+:root[data-theme="light"] .game-btn {
+  background: #eaf7ee;
+  border-color: #c5e7d0;
+  color: #08783d;
+}
+
+:root[data-theme="light"] .game-btn:hover {
+  background: #d8f1e1;
+}
+
+:root[data-theme="light"] .challenge-banner {
+  background: linear-gradient(110deg, #e4f6e9, #f8fbf9 75%);
+  border-color: #c5e7d0;
+}
+
+:root[data-theme="light"] footer {
+  border-color: var(--border);
+}
+
+:root[data-theme="light"] .toast {
+  background: #ffffff;
+  border-color: #9ad7ae;
+  color: #17251c;
+  box-shadow: 0 8px 25px rgba(20, 50, 30, .12);
+}
+
+:root[data-theme="light"] .settings-panel {
+  box-shadow: -15px 0 45px rgba(20, 50, 30, .12);
+}
+
+/* Responsive settings */
+@media (max-width: 580px) {
+  .top {
+    min-height: 65px;
+    padding: 10px 5%;
+  }
+
+  .brand {
+    font-size: 14px;
+  }
+
+  .settings-toggle,
+  .top .back {
+    width: 39px;
+    height: 39px;
+  }
+
+  .header-actions {
+    gap: 7px;
+  }
+
+  .settings-panel {
+    padding: 20px;
+  }
+}
+
+/* Right-to-left layout for Arabic */
 :root[dir="rtl"] .settings-panel {
   right: auto;
   left: 0;
@@ -513,6 +676,14 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
 
 :root[dir="rtl"] .settings-panel.open {
   transform: translateX(0);
+}
+
+/* =====================================
+   HAMBURGER MENU
+   ===================================== */
+
+.top {
+  position: sticky;
 }
 
 .menu-toggle {
@@ -541,14 +712,273 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   stroke-linecap: round;
 }
 
+.menu-toggle:hover {
+  color: var(--green);
+  border-color: var(--green);
+}
+
 .brand {
   margin-left: 55px;
 }
 
+/* =====================================
+   FAVORITE CLUB GAME
+   ===================================== */
+
 .favorite-club-art {
-  background: radial-gradient(circle at 50% 45%, #315d24, #172b18 65%, #0e1711);
+  background: radial-gradient(
+    circle at 50% 45%,
+    #315d24,
+    #172b18 65%,
+    #0e1711
+  );
 }
 
+/* اختيار النادي */
+
+.club-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, .78);
+}
+
+.club-modal-overlay.open {
+  display: flex;
+}
+
+.club-modal {
+  width: min(100%, 650px);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 70px #0008;
+}
+
+.club-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.club-modal-header h2 {
+  font-size: 22px;
+  line-height: 1.6;
+}
+
+.club-modal > p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+
+.club-modal-close {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 20px;
+}
+
+.club-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.club-option {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+  padding: 10px 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, transform .2s;
+}
+
+.club-option:hover {
+  transform: translateY(-3px);
+  border-color: var(--green);
+}
+
+.club-option.selected {
+  border-color: var(--green);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+
+.club-logo-wrap {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+}
+
+.club-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.club-logo-fallback {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--green);
+  border-radius: 50%;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.club-name {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.6;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.club-country {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.club-confirm {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--green);
+  color: #06140b;
+  font: inherit;
+  font-weight: 900;
+}
+
+.club-confirm:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 850px) {
+  .menu-toggle {
+    left: 5%;
+  }
+
+  .club-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .games-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .game-card:last-child {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 580px) {
+  .menu-toggle {
+    left: 5%;
+    width: 39px;
+    height: 39px;
+  }
+
+  .brand {
+    margin-left: 48px;
+    font-size: 12px;
+  }
+
+  .header-actions {
+    margin-right: 0;
+  }
+
+  .club-modal {
+    padding: 15px;
+  }
+
+  .club-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .club-option {
+    min-height: 105px;
+    padding: 8px 4px;
+  }
+
+  .club-logo-wrap {
+    width: 43px;
+    height: 43px;
+  }
+
+  .club-name {
+    font-size: 11px;
+  }
+
+  .games-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .game-info {
+    padding: 12px;
+  }
+
+  .game-info h3 {
+    font-size: 17px;
+    line-height: 1.6;
+  }
+
+  .game-info > p {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+
+  .game-meta {
+    font-size: 9px;
+  }
+
+  .game-btn {
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  .game-art {
+    height: 115px;
+  }
+}
+
+@media (max-width: 350px) {
+  .games-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .streak-button {
   display: inline-flex;
   align-items: center;
@@ -562,9 +992,26 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   font: inherit;
   font-size: 12px;
   cursor: pointer;
-  white-space: nowrap;
 }
 
+.header-actions {
+  margin-left: 60px;
+}
+
+@media (max-width: 580px) {
+  .header-actions {
+    margin-left: 48px;
+    gap: 5px;
+  }
+
+  .streak-button {
+    min-height: 36px;
+    padding: 5px 7px;
+    font-size: 11px;
+  }
+} 
+
+/* القائمة الجانبية الجديدة */
 .menu-overlay {
   position: fixed;
   inset: 0;
@@ -595,7 +1042,6 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   visibility: hidden;
   transition: transform .25s, visibility .25s;
   overflow-y: auto;
-  box-sizing: border-box;
 }
 
 .menu-drawer.open {
@@ -640,13 +1086,86 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   text-align: right;
   font: inherit;
   cursor: pointer;
-  box-sizing: border-box;
 }
 
 .menu-item span:last-child {
   margin-right: auto;
   color: var(--green, #31d879);
 }
+
+/* إصلاح عرض شبكة الألعاب */
+.games-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 18px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.games-grid > .game-card {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  grid-column: auto !important;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.game-card .game-art {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.game-card .game-info {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.game-card .game-info h3 {
+  font-size: clamp(16px, 2vw, 23px);
+  line-height: 1.6;
+}
+
+.game-card .game-info p {
+  line-height: 1.9;
+}
+
+.game-card .game-btn {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 580px) {
+  .games-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px;
+  }
+
+  .game-card .game-info {
+    padding: 10px;
+  }
+
+  .game-card .game-info h3 {
+    font-size: 15px;
+  }
+
+  .game-card .game-info p {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 350px) {
+  .games-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* =====================================
+   GAME CARD ICONS + 4TH CARD (FAVORITE CLUB)
+   ===================================== */
 
 .art-svg {
   display: block;
@@ -671,6 +1190,7 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   height: 62px;
 }
 
+/* كل الكروت بنفس الارتفاع والزرار تحت */
 .games-grid > .game-card {
   display: flex;
   flex-direction: column;
@@ -686,10 +1206,30 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
   margin-top: auto;
 }
 
-.sprint-art {
-  background: radial-gradient(circle at 50% 45%, #7a2c4a, #2a1220 65%, #0e1711);
+@media (max-width: 580px) {
+  .art-svg {
+    width: 54px;
+    height: 54px;
+  }
+
+  .favorite-club-art .art-svg {
+    width: 48px;
+    height: 48px;
+  }
 }
 
+
+/* الكارت 05 - كام لاعب في 60 ثانية */
+.sprint-art {
+  background: radial-gradient(
+    circle at 50% 45%,
+    #7a2c4a,
+    #2a1220 65%,
+    #0e1711
+  );
+}
+
+/* ===== قسم الحساب داخل الإعدادات ===== */
 .account-box {
   display: flex;
   align-items: center;
@@ -727,16 +1267,49 @@ footer p, footer small { font-size: 11px; color: var(--muted); }
 .account-logout:hover {
   background: #ff6b6b;
   color: #fff;
+  }
+/* =====================================
+   FINAL FIX - NO HORIZONTAL SCROLL
+   ===================================== */
+
+/* منع الصفحة من التحرك يمين وشمال */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip !important;
 }
 
-@media (max-width: 580px) {
-  .header-actions {
-    margin-left: 45px;
-    gap: 5px;
-  }
-  .streak-button {
-    min-height: 36px;
-    padding: 5px 6px;
-    font-size: 11px;
-  }
+/* منع العناصر من تجاوز عرض الشاشة */
+* {
+  max-width: 100%;
+}
+
+body {
+  overflow-x: clip !important;
+}
+
+/* إزالة زر الاستريك */
+.streak-button {
+  display: none !important;
+}
+
+/* إلغاء المساحة التي كان يحجزها زر الاستريك */
+.header-actions {
+  margin-left: 0 !important;
+}
+
+/* حماية الهيدر من تجاوز الشاشة */
+.top,
+.navbar {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* حماية شبكة الألعاب */
+.games-grid {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
