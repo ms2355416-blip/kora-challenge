@@ -55,9 +55,10 @@
       <div>
         <div class="eyebrow"><span class="dot"></span>أونلاين مع صاحبك • 4 جولات</div>
         <h1>تحدي <span>رسم</span><br>اللاعبين</h1>
-        <p class="lead">واحد يرسم لاعب كورة على اللوحة والتاني يخمّن اسمه. اللي بيرسم هو اللي بيحكم: صح ولا غلط. لو التخمين صح اللي خمّن ياخد 60 نقطة والرسام 5 نقاط. وبتتبدلوا الأدوار كل جولة.</p>
+        <p class="lead">واحد يرسم لاعب كورة على اللوحة والتاني يخمّن اسمه (أو في الغرفة الجماعية: لحد 6 لاعبين، واحد يرسم والباقي يخمّنوا). اللي بيرسم هو اللي بيحكم: صح ولا غلط. لو التخمين صح اللي خمّن ياخد 60 نقطة والرسام 5 نقاط. وبتتبدلوا الأدوار كل جولة.</p>
         <div class="actions">
           <button class="btn btn-primary" id="createBtn" type="button">إنشاء غرفة +</button>
+          <button class="btn btn-primary" id="createPartyBtn" type="button">غرفة جماعية (3-6) +</button>
           <input class="code-input" id="codeInput" maxlength="5" placeholder="الكود" autocomplete="off" inputmode="latin" aria-label="كود الغرفة">
           <button class="btn btn-outline" id="joinBtn" type="button">انضمام</button>
         </div>
@@ -93,6 +94,7 @@
       <div class="dr-pill dr-timer" id="timerPill">90</div>
       <div class="dr-score"><span>إنت <b id="myScore">0</b></span><span>الخصم <b id="opScore">0</b></span></div>
     </div>
+    <div class="dr-party hidden" id="partyBoard"></div>
     <div class="dr-role" id="roleLine"></div>
 
     <div class="dr-board">
@@ -109,6 +111,7 @@
     </div>
     <div class="dr-idea hidden" id="idea"></div>
 
+    <div class="dr-pj hidden" id="partyJudge"></div>
     <!-- الرسام: يحكم على التخمين -->
     <div class="dr-judge hidden" id="judge">
       <small>الخصم خمّن:</small>
