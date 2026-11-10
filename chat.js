@@ -125,15 +125,23 @@
       const u = me(), mine = u && m.uid === u.uid;
       const row = el('div', 'chat-msg' + (mine ? ' mine' : ''));
       const bub = el('div', 'chat-bubble');
-      if (!mine) {
+      const adm = !!(window.KoraAdmin && window.KoraAdmin.is(u));
+      if (!mine || adm) {
         const top = el('div', 'chat-top'), more = el('button', 'chat-more', '⋯'); more.type = 'button'; more.setAttribute('aria-label', 'خيارات الرسالة');
         const menu = el('div', 'chat-menu'); menu.hidden = true;
-        const rb = el('button', '', 'إبلاغ عن الرسالة'), bb = el('button', '', 'حظر ' + Sec.name(m.name || 'لاعب', 30)); rb.type = bb.type = 'button';
-        rb.addEventListener('click', () => { menu.hidden = true; reportMsg(key, m); });
-        bb.addEventListener('click', () => { menu.hidden = true; blockUser(m.uid, Sec.name(m.name || 'لاعب', 30)); });
+        if (!mine) {
+          const rb = el('button', '', 'إبلاغ عن الرسالة'), bb = el('button', '', 'حظر ' + Sec.name(m.name || 'لاعب', 30)); rb.type = bb.type = 'button';
+          rb.addEventListener('click', () => { menu.hidden = true; reportMsg(key, m); });
+          bb.addEventListener('click', () => { menu.hidden = true; blockUser(m.uid, Sec.name(m.name || 'لاعب', 30)); });
+          menu.append(rb, bb);
+        }
+        if (adm) {
+          const db2 = el('button', '', 'حذف (أدمن)'); db2.type = 'button';
+          db2.addEventListener('click', () => { menu.hidden = true; adminDelete(key); });
+          menu.appendChild(db2);
+        }
         more.addEventListener('click', () => { menu.hidden = !menu.hidden; });
-        menu.append(rb, bb);
-        top.append(el('b', 'chat-name', Sec.name(m.name || 'لاعب', 30)), more);
+        top.append(mine ? el('span') : el('b', 'chat-name', Sec.name(m.name || 'لاعب', 30)), more);
         bub.append(top, menu);
       }
       if (m.aud === 1) bub.appendChild(audioNode(key, m)); else bub.appendChild(el('span', 'chat-text', Sec.clean(m.text, MAX_LEN)));
@@ -236,6 +244,14 @@
     mic.addEventListener('click', startRec);
     recGo.addEventListener('click', () => { if (rec && rec.state === 'recording') rec.stop(); });
     recCancel.addEventListener('click', () => { canceled = true; if (rec && rec.state === 'recording') rec.stop(); else cleanup(); });
+
+    /* ---- حذف الأدمن ---- */
+    function adminDelete(key) {
+      const go = () => Promise.all([ref.child(key).remove(), db.ref('chat/audio/' + key).remove().catch(() => {})])
+        .then(() => say('اتحذفت الرسالة.')).catch(() => say('معرفتش أحذف (راجع قواعد Firebase للأدمن).'));
+      if (window.KoraDialog && window.KoraDialog.confirm) window.KoraDialog.confirm({ title: 'حذف الرسالة؟', message: 'هتتحذف من الغرفة عند الكل.', okText: 'احذف', cancelText: 'لأ', danger: true }).then(ok => { if (ok) go(); });
+      else go();
+    }
 
     /* ---- الإبلاغ والحظر ---- */
     function hideRow(key) { const r = rows[key]; if (r) { r.remove(); delete rows[key]; } }
