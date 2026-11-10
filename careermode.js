@@ -148,14 +148,13 @@
   const posName = id => (D.POSITIONS.find(p => p.id === id) || {}).ar || id;
 
   function show(id) {
-    ['cmMode', 'cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire', 'cmSign', 'cmSummer'].forEach(k => { if($(k)) $(k).hidden = k !== id; });
+    ['cmMode', 'cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire', 'cmSign', 'cmSummer'].forEach(k => { $(k).hidden = k !== id; });
     window.scrollTo(0, 0);
   }
 
   /* ====== شاشة الإنشاء ====== */
   function buildCreate() {
     const natBtn = $('cmNatBtn');
-    if(!natBtn) return;
     const paintNat = () => { natBtn.textContent = ''; natBtn.append(flag(sel.nat[1]), el('span', '', sel.nat[0])); };
     paintNat();
     natBtn.addEventListener('click', () => {
@@ -216,7 +215,6 @@
   /* ====== شاشة اللعب ====== */
   function renderPlayer() {
     const p = S.player, c = club(S.clubId), box = $('cmPlayer');
-    if(!box) return;
     box.textContent = '';
 
     ['bronze', 'silver', 'gold', 'elite'].forEach(t => box.classList.remove('cm-tier-' + t));
@@ -318,7 +316,7 @@
   function renderStatusSoon() { try { const m = $('cmMoney'); if (m) m.textContent = money(S.money); } catch (e) { /* ignore */ } }
 
   function paneHome() {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = '';
+    const pane = $('cmPane'); pane.textContent = '';
     const myRounds = E.rounds(S.league);
     const card = el('div', 'cm-card cm-next');
 
@@ -446,7 +444,7 @@
   }
 
   function paneTable() {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = '';
+    const pane = $('cmPane'); pane.textContent = '';
     const keys = Object.keys(S.world.leagues);
     if (!tabLeague || (keys.indexOf(tabLeague) < 0 && tabLeague !== 'cl')) tabLeague = S.league;
     if (tabLeague === 'cl' && !(S.euro && S.euro.lpTable)) tabLeague = S.league;
@@ -498,7 +496,7 @@
   }
 
   function paneFixtures() {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = '';
+    const pane = $('cmPane'); pane.textContent = '';
     const chips = el('div', 'cm-leagues');
     [['all', 'الكل'], ['played', 'اللي اتلعبت'], ['next', 'اللي جاية']].concat(S.log.some(x => x.comp) ? [['cl', 'الكؤوس وأوروبا']] : []).forEach(f => {
       const b = el('button', 'cm-tab' + (fxFilter === f[0] ? ' active' : ''), f[1]); b.type = 'button';
@@ -562,7 +560,7 @@
     h.appendChild(b); return h;
   }
   function paneHonors() {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = ''; pane.appendChild(paneHead('بطولاتي'));
+    const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('بطولاتي'));
     const hs = S.honors || [];
     if (!hs.length) { const c = el('div', 'cm-card cm-soon'); c.append(el('b', '', 'لسه مكسبتش حاجة'), el('div', '', 'العب كويس وهتلاقي بطولاتك وجوايزك هنا.')); pane.appendChild(c); return; }
     const c = el('div', 'cm-card');
@@ -580,7 +578,7 @@
     return kind === 'house' ? A.house(it.k, it.c) : kind === 'car' ? A.car(it.t, it.c, it.id) : kind === 'moto' ? A.moto(it.t, it.c) : A.bike(it.t, it.c);
   }
   function paneAssets() {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = ''; pane.appendChild(paneHead('ممتلكاتي'));
+    const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('ممتلكاتي'));
     const top = el('div', 'cm-card'); top.style.padding = '12px';
     const own = ASSET_KINDS.map(k => k[2] + ': ' + D.ASSETS[k[0]].filter(i => S.owned.indexOf(i.id) > -1).length).join(' • ');
     top.append(el('b', '', 'رصيدك: ' + money(S.money)), el('div', 'cm-sub', own));
@@ -608,7 +606,7 @@
   }
 
   function paneClubs() {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = ''; pane.appendChild(paneHead('الأندية اللي لعبتلها'));
+    const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('الأندية اللي لعبتلها'));
     const rows = {}, order = [];
     function row(id, year) { if (!rows[id]) { rows[id] = { id, seasons: 0, apps: 0, goals: 0, assists: 0, rs: 0, first: year, last: year, titles: 0 }; order.push(id); } rows[id].last = year; return rows[id]; }
     S.history.forEach(h => { const r = row(h.clubId, h.year); r.seasons++; r.apps += h.apps; r.goals += h.goals; r.assists += h.assists; r.rs += (h.avg || 0) * h.apps; });
@@ -630,7 +628,7 @@
   }
 
   function paneClubTrophies() {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = '';
+    const pane = $('cmPane'); pane.textContent = '';
     const c = club(S.clubId), card = el('div', 'cm-card');
     const top = el('div', 'cm-clubrow'); const hd = el('div', 'top'); hd.append(badge(c), el('b', '', 'بطولات ' + c.ar)); top.appendChild(hd);
     const won = (S.honors || []).filter(h => h.clubId === S.clubId && ['league', 'cup', 'cl', 'cwc', 'caf'].indexOf(h.type) > -1);
@@ -652,7 +650,7 @@
   }
 
   function paneMarket() {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = '';
+    const pane = $('cmPane'); pane.textContent = '';
     const m = S.market;
     if (!m || !m.items || !m.items.length) { const c = el('div', 'cm-card cm-soon'); c.append(el('b', '', 'سوق الانتقالات'), el('div', '', 'مفيش أخبار لسه.')); pane.appendChild(c); return; }
     pane.appendChild(el('div', 'cm-note', 'أخبار صيف ' + m.year + ': اللاعبين بيتنقلوا ويعتزلوا في الأندية كلها حتى لو إنت مش طرف فيها، وده بيأثر على قوة الفرق.'));
@@ -725,7 +723,7 @@
   }
 
   function paneArchive() {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = ''; pane.appendChild(paneHead('أرشيف مسيرتي'));
+    const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('أرشيف مسيرتي'));
     const H = S.history || [];
     if (!H.length) { const c = el('div', 'cm-card cm-soon'); c.append(el('b', '', 'لسه مخلصتش موسم'), el('div', '', 'إحصائياتك ورسم مستواك هيظهروا هنا بعد أول موسم.')); pane.appendChild(c); return; }
     const tt = S.totals || { apps: 0, goals: 0, assists: 0 };
@@ -792,7 +790,7 @@
   }
 
   function paneSoon(title) {
-    const pane = $('cmPane'); if(!pane) return; pane.textContent = '';
+    const pane = $('cmPane'); pane.textContent = '';
     const c = el('div', 'cm-card cm-soon');
     c.appendChild(el('b', '', title));
     c.appendChild(el('div', '', 'القسم ده هيتضاف قريبًا.'));
@@ -800,7 +798,6 @@
   }
 
   function renderPane() {
-    if(!$('cmTabs')) return;
     $('cmTabs').querySelectorAll('.cm-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     if (tab === 'home') paneHome();
     else if (tab === 'table') paneTable();
@@ -839,4 +836,6 @@
     wrap.appendChild(sc);
     const cmp = pm.comp ? (pm.cupName || pm.cn || 'دوري الأبطال') + ' • ' + (pm.stageText || pm.st || E.STAGE_AR[pm.stage] || '') : 'الجولة ' + pm.round;
     wrap.appendChild(el('div', 'cm-sub', cmp + ' • ' + (myHome ? 'على ملعبك' : 'خارج الأرض')));
-    if (pm.pens) wrap.appendChild(el('div', 'cm-sub', 'اتحسمت بركلات الترجيح ' + (myHome ? pm.pens[0] 
+    if (pm.pens) wrap.appendChild(el('div', 'cm-sub', 'اتحسمت بركلات الترجيح ' + (myHome ? pm.pens[0] + ' - ' + pm.pens[1] : pm.pens[1] + ' - ' + pm.pens[0]) + ' لصالح ' + (pm.pens[0] > pm.pens[1] ? club(myHome ? pm.home : pm.away).ar : 'الخصم')));
+    let role;
+    if (pm.role === 'start') role = 'المدرب أشركك أساسي' + (pm.b < 90 ? ' واتبدلت في الدقيقة ' + pm.b 
