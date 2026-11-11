@@ -10,7 +10,8 @@
     seed: (Number(q.get('ch')) || 1) >>> 0,
     mode: String(q.get('m') || '').slice(0, 24),
     score: Math.max(0, Math.min(1e6, Math.floor(Number(q.get('s')) || 0))),
-    name: Sec.name(q.get('n') || 'صاحبك', 24) || 'صاحبك'
+    name: Sec.name(q.get('n') || 'صاحبك', 24) || 'صاحبك',
+    uid: /^[A-Za-z0-9]{10,40}$/.test(q.get('u') || '') ? q.get('u') : ''
   } : null;
   let cur = null;
 
@@ -46,6 +47,8 @@
     u.searchParams.set('m', cur.mode);
     u.searchParams.set('s', String(Math.max(0, Math.floor(score) || 0)));
     u.searchParams.set('n', myName());
+    const me = (window.KoraAuth && window.KoraAuth.user) || (window.firebase && firebase.auth && firebase.auth().currentUser);
+    if (me && me.uid) u.searchParams.set('u', me.uid);
     return u.toString();
   }
 
@@ -77,11 +80,27 @@
     return d;
   }
 
+  /* بنبلّغ صاحب التحدي (إشعار) إن صاحبه لعب تحديه */
+  function tellOwner(score) {
+    try {
+      if (!info || !info.uid || !cur || !cur.challenge || cur.sent) return;
+      const u = (window.KoraAuth && window.KoraAuth.user) || (window.firebase && firebase.auth && firebase.auth().currentUser);
+      if (!u || u.uid === info.uid || !window.firebase || !firebase.database) return;
+      if (window.KoraSec && window.KoraSec.limit && window.KoraSec.limit('chl:' + u.uid, 5, 60000)) return;
+      cur.sent = true;
+      firebase.database().ref('challengeInbox/' + info.uid).push({
+        from: myName(), fromUid: u.uid, mode: info.mode, game: (location.pathname.split('/').pop() || '').replace('.html', '').slice(0, 30),
+        mine: Math.max(0, Math.floor(score) || 0), theirs: info.score, win: score > info.score, t: firebase.database.ServerValue.TIMESTAMP
+      }).catch(() => { /* ignore */ });
+    } catch (e) { /* ignore */ }
+  }
+
   /* كارت في شاشة النتيجة: مقارنة (لو تحدي) + زرار تحدّي صاحبك */
   function result(host, score) {
     if (!host || !cur) return;
     css();
     const old = host.querySelector('.kc-ch-res'); if (old) old.remove();
+    tellOwner(score);
     const box = document.createElement('div'); box.className = 'kc-ch kc-ch-res';
     if (cur.challenge && info) {
       const w = score > info.score, t = score === info.score;
