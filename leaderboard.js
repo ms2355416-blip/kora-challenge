@@ -111,6 +111,13 @@
       small.textContent = 'نقطة';
       points.appendChild(small);
 
+      /* أدمن: ضغطة على الصورة تفتح فاحص اللاعب */
+      if (window.KoraAdmin && window.KoraAdmin.me() && window.KoraAdminInspect) {
+        avatar.style.cursor = 'pointer'; avatar.title = 'فحص اللاعب (أدمن)'; avatar.setAttribute('role', 'button'); avatar.tabIndex = 0;
+        const openIt = ev => { ev.stopPropagation(); window.KoraAdminInspect.open(row.uid, row); };
+        avatar.addEventListener('click', openIt);
+        avatar.addEventListener('keydown', ev => { if (ev.key === 'Enter') openIt(ev); });
+      }
       li.append(rankEl, avatar, info, points);
       listEl.appendChild(li);
     });
