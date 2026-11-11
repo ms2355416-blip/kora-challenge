@@ -36,6 +36,8 @@
     appId: "1:535044321885:web:b89615d5eb01a93e1613b4"
   };
   window.KoraAuth = { user: null };
+    /* لو كان مسجّل دخول قبل كده: اعرض الصفحة فورًا والتحقق بيتم في الخلفية */
+    try { if (localStorage.getItem('koraAuthHint') === '1') document.documentElement.classList.remove('auth-pending'); } catch (e) { /* ignore */ }
 
   function toLogin() {
     var p = location.pathname.split('/').pop();
@@ -53,8 +55,9 @@
   var timer = setTimeout(toLogin, 10000);
   firebase.auth().onAuthStateChanged(function (u) {
     clearTimeout(timer);
-    if (!u) { toLogin(); return; }
+    if (!u) { try { localStorage.removeItem('koraAuthHint'); } catch (e) { /* ignore */ } toLogin(); return; }
     window.KoraAuth.user = u;
+      try { localStorage.setItem('koraAuthHint', '1'); } catch (e) { /* ignore */ }
     document.documentElement.classList.remove('auth-pending');
     ready(function () {
       var name = u.displayName || (u.email ? u.email.split('@')[0] : '') || 'لاعب';
@@ -737,7 +740,7 @@
 <script src="unlocks.js"></script>
 <script src="account.js" defer></script>
 <script src="points-sync.js" defer></script>
-<script src="pwa.js?v=1" defer></script>
+<script src="pwa.js?v=2" defer></script>
 <script src="kora-security.js"></script>
 <script src="admin.js?v=1" defer></script>
 <script src="chat.js?v=4" defer></script>

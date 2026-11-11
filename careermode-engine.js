@@ -1703,6 +1703,7 @@
   root.KoraCMEngine = {
     newCareer: newCareer,
     playRound: playRound,
+    skipExpulsion: skipExpulsion,
     playLive: playLive,
     finishSeason: finishSeason,
     chooseOffer: chooseOffer,

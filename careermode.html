@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>كارير مود | Kora Challenge</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="careermode.css?v=13">
+  <link rel="stylesheet" href="careermode.css?v=14">
   <link rel="stylesheet" href="unlocks.css">
   <link rel="stylesheet" href="buttons.css">
   <link rel="icon" type="image/png" href="favicon.png">
@@ -36,18 +36,22 @@
       appId: "1:535044321885:web:b89615d5eb01a93e1613b4"
     };
     window.KoraAuth = { user: null };
+    /* لو كان مسجّل دخول قبل كده: اعرض الصفحة فورًا والتحقق بيتم في الخلفية */
+    try { if (localStorage.getItem('koraAuthHint') === '1') document.documentElement.classList.remove('auth-pending'); } catch (e) { /* ignore */ }
     function toLogin() { location.replace('login.html?next=' + encodeURIComponent('careermode.html')); }
     try { if (!firebase.apps.length) firebase.initializeApp(CFG); } catch (e) { toLogin(); return; }
     var timer = setTimeout(toLogin, 10000);
     firebase.auth().onAuthStateChanged(function (u) {
       clearTimeout(timer);
-      if (!u) { toLogin(); return; }
+      if (!u) { try { localStorage.removeItem('koraAuthHint'); } catch (e) { /* ignore */ } toLogin(); return; }
       window.KoraAuth.user = u;
+      try { localStorage.setItem('koraAuthHint', '1'); } catch (e) { /* ignore */ }
       document.documentElement.classList.remove('auth-pending');
     });
   })();
   </script>
   <script src="icons.js"></script>
+<script src="pwa.js?v=2" defer></script>
 </head>
 <body>
   <script>

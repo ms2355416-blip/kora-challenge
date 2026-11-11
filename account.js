@@ -134,6 +134,7 @@
 
     try { localStorage.setItem(photoKey(), photo); } catch (e) { /* ignore */ }
     render();
+    window.dispatchEvent(new Event('kora-photo'));
 
     const ref = dbRef('photo');
     if (!ref) return toast('اتحفظت الصورة على جهازك');
@@ -147,6 +148,7 @@
     photo = '';
     try { localStorage.removeItem(photoKey()); } catch (e) { /* ignore */ }
     render();
+    window.dispatchEvent(new Event('kora-photo'));
     const ref = dbRef('photo');
     if (ref) ref.remove().catch(() => {});
     toast('تم حذف الصورة');

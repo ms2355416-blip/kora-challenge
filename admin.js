@@ -23,7 +23,7 @@
     const db = firebase.database(), ref = db.ref('chat/reports');
 
     const btn = el('button', 'chat-btn rep-btn'); btn.id = 'repBtn'; btn.type = 'button'; btn.title = 'صندوق البلاغات (أدمن)';
-    btn.textContent = '🚩'; btn.style.cssText = 'position:relative;font-size:1.1rem';
+    btn.innerHTML = window.KIcon ? window.KIcon('flag') : '🚩';
     const badge = el('span', 'chat-badge', '0'); badge.hidden = true; btn.appendChild(badge);
     bar.prepend(btn);
 

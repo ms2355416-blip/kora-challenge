@@ -14,7 +14,7 @@
 .unl-p-meta{display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted,#8aa397)}
 
 /* ---------- زرار الهيدر ---------- */
-.unl-head-btn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;cursor:pointer;color:var(--unl-gold);background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);transition:transform .2s,border-color .2s}
+.unl-head-btn{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;cursor:pointer;color:var(--unl-gold);background:var(--surface,#101714);border:1px solid var(--border,#1f2b26);transition:transform .2s,border-color .2s}
 .unl-head-btn:hover{transform:translateY(-2px);border-color:var(--unl-gold)}
 .unl-head-btn svg{width:21px;height:21px}
 

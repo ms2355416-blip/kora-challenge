@@ -28,7 +28,7 @@
     if (!bar || document.getElementById('installBtn') || standalone()) return;
     if (!deferred && !isIOS) return;
     const b = document.createElement('button'); b.type = 'button'; b.id = 'installBtn'; b.className = 'chat-btn'; b.title = 'ثبّت التطبيق'; b.setAttribute('aria-label', 'ثبّت التطبيق');
-    b.textContent = '📲'; b.style.fontSize = '1.1rem';
+    b.innerHTML = window.KIcon ? window.KIcon('download') : '📲';
     b.addEventListener('click', async () => {
       if (deferred) { deferred.prompt(); try { await deferred.userChoice; } catch (e) { /* ignore */ } deferred = null; b.remove(); }
       else say('من متصفح Safari: دوس زرار المشاركة ثم "إضافة إلى الشاشة الرئيسية".');

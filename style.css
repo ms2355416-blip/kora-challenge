@@ -1313,3 +1313,14 @@ body {
   max-width: 100%;
   min-width: 0;
 }
+
+/* أزرار الهيدر (جرس الإشعارات / التثبيت / الأدمن / المكافآت): شكل موحّد في كل الصفحات */
+.chat-btn,.unl-head-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;width:42px;height:42px;padding:0;cursor:pointer;color:var(--green,#24e982);background:var(--surface,#101814);border:1px solid var(--border,#25352b);border-radius:12px;font:inherit;line-height:1;transition:transform .2s,border-color .2s}
+.chat-btn:hover,.unl-head-btn:hover{transform:translateY(-2px);border-color:var(--green,#24e982)}
+.chat-btn svg,.unl-head-btn svg{width:21px;height:21px}
+.unl-head-btn{color:var(--unl-gold,#f6c445)}
+.unl-head-btn:hover{border-color:var(--unl-gold,#f6c445)}
+.chat-btn.rep-btn{color:#ff6b57}.chat-btn.rep-btn:hover{border-color:#ff6b57}
+.chat-btn.is-off{color:var(--muted,#8aa397)}
+.chat-btn .chat-badge{position:absolute;top:-6px;inset-inline-end:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#ff5a5f;color:#fff;font-size:11px;font-weight:800;line-height:15px;text-align:center;border:2px solid var(--bg,#080d0b)}
+@media (max-width:580px){.chat-btn,.unl-head-btn{width:39px;height:39px}}

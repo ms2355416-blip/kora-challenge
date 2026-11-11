@@ -138,11 +138,36 @@
     firebase.database().ref('progress/' + user.uid).set(snap).catch(() => { /* ignore */ });
   }
 
+
+  /* ---------- صورة مصغّرة للترتيب العالمي (avatars/<uid>) ---------- */
+  function syncThumb() {
+    if (!user || typeof firebase === 'undefined' || !firebase.database) return;
+    const pk = 'koraProfilePhoto:' + user.uid, tk = 'koraThumbSig:' + user.uid;
+    let photo = '', sig = '';
+    try { photo = localStorage.getItem(pk) || ''; sig = localStorage.getItem(tk) || ''; } catch (e) { return; }
+    const now = photo ? photo.length + ':' + photo.slice(-24) : '';
+    if (now === sig) return;
+    const ref = firebase.database().ref('avatars/' + user.uid);
+    const done = () => { try { localStorage.setItem(tk, now); } catch (e) { /* ignore */ } };
+    if (!photo) { ref.remove().then(done).catch(() => { /* هنحاول تاني */ }); return; }
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(photo)) return;
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = c.height = 72;
+        c.getContext('2d').drawImage(img, 0, 0, 72, 72);
+        ref.set(c.toDataURL('image/jpeg', 0.72)).then(done).catch(() => { /* القواعد ممكن تمنع الكتابة */ });
+      } catch (e) { /* ignore */ }
+    };
+    img.src = photo;
+  }
+  window.addEventListener('kora-photo', () => { try { syncThumb(); } catch (e) { /* ignore */ } });
+
   function loadScript(src) { const sc = document.createElement('script'); sc.src = src; sc.defer = true; document.head.appendChild(sc); }
   let extrasLoaded = false;
   function extras() {
     if (extrasLoaded) return; extrasLoaded = true;
-    if (!document.querySelector('script[src^="pwa.js"]')) loadScript('pwa.js?v=1');
+    if (!document.querySelector('script[src^="pwa.js"]')) loadScript('pwa.js?v=2');
     if (!document.querySelector('script[src^="notify.js"]')) loadScript('notify.js?v=1');
   }
 
@@ -185,11 +210,12 @@
     firebase.auth().onAuthStateChanged(u => {
       user = u || null;
       lastKey = '';
-      if (user) { sync(); presence(); pushProgress(true); extras(); }
+      if (user) { sync(); presence(); pushProgress(true); extras(); setTimeout(syncThumb, 1500); }
     });
     clearInterval(progTimer);
     progTimer = setInterval(() => pushProgress(false), 60000);
     setInterval(sync, CHECK_EVERY_MS);
+    setInterval(syncThumb, 60000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
     window.addEventListener('pagehide', () => { sync(); pushProgress(false); });
   }

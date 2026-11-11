@@ -16,6 +16,18 @@
   let rows = [];
   let mode = 'global';          // global | weekly
   let activeRef = null;
+  const thumbs = new Map();        // uid -> data URL (صور مصغّرة)
+  const thumbTried = new Set();
+  function loadThumbs() {
+    if (!db) return;
+    const need = rows.filter(r => !thumbTried.has(r.uid));
+    if (!need.length) return;
+    need.forEach(r => thumbTried.add(r.uid));
+    Promise.all(need.map(r => db.ref('avatars/' + r.uid).once('value').then(s => {
+      const v = s.val();
+      if (window.KoraSec ? KoraSec.isImageDataUrl(v, 30000) : (typeof v === 'string' && v.length < 30000 && /^data:image\/jpeg;base64,/.test(v))) thumbs.set(r.uid, v);
+    }).catch(() => { /* القواعد ممكن تمنع القراءة */ }))).then(() => { if (thumbs.size) render(); });
+  }
   const tabBtns = document.querySelectorAll('.lb-tab');
   const weekInfo = document.getElementById('lbWeekInfo');
   const meLabel = document.getElementById('lbMeLabel');
@@ -71,7 +83,9 @@
       avatar.className = 'lb-avatar';
       const cos = cosmetic(row);
       if (cos.frame !== 'none') avatar.classList.add('kframe', 'kframe-' + cos.frame);
-      if (cos.avatar !== 'none' && window.KoraUnlocks) avatar.innerHTML = window.KoraUnlocks.avatarSVG(cos.avatar);
+      const thumb = thumbs.get(row.uid);
+      if (thumb) { const im = document.createElement('img'); im.alt = ''; im.src = thumb; im.decoding = 'async'; avatar.classList.add('has-photo'); avatar.appendChild(im); }
+      else if (cos.avatar !== 'none' && window.KoraUnlocks) avatar.innerHTML = window.KoraUnlocks.avatarSVG(cos.avatar);
       else avatar.textContent = initial(row.name);
 
       const info = document.createElement('div');
@@ -202,6 +216,7 @@
     activeRef.on('value', snap => {
       rows = readRows(snap);
       render();
+      loadThumbs();
       updateMyRank();
     }, () => state('مش قادر أقرأ الترتيب. اتأكد من قواعد Firebase (leaderboard).'));
     updateMyRank();

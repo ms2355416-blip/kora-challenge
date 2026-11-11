@@ -203,3 +203,8 @@
 .lb-prev-row b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-prev-row small { opacity: .75; }
 .lb-prev-row.me b { color: var(--accent, #ffcc3d); }
+
+/* صور اللاعبين في الترتيب */
+.lb-avatar{overflow:hidden}
+.lb-avatar.kframe{overflow:visible}
+.lb-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}

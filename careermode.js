@@ -393,7 +393,7 @@
     }
     const last = S.log[S.log.length - 1];
     if (last) {
-      const c = el('div', 'cm-card cm-fx click'); c.tabIndex = 0; c.addEventListener('click', () => openModal(reportNode(last), 'تمام'));
+      const c = el('div', 'cm-card cm-click'); c.tabIndex = 0; c.addEventListener('click', () => openModal(reportNode(last), 'تمام'));
       c.appendChild(el('h3', '', 'آخر مباراة'));
       c.lastChild.style.cssText = 'margin:0 0 8px;font-size:.84rem;color:var(--muted)';
       const row = el('div', 'cm-last');

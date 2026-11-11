@@ -386,10 +386,10 @@
 .cm-sc-grid b{font-size:.86rem}
 .cm-form small{display:block;font-size:.72rem;color:var(--muted,#8aa397);margin-bottom:6px}
 .cm-dots{display:flex;gap:8px;justify-content:center}
-.cm-dot{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;color:#04110a;background:#2a3530}
-.cm-dot.gold{background:linear-gradient(135deg,#ffe38a,#f6b92f)}
-.cm-dot.green{background:#24e982}
-.cm-dot.amber{background:#f6c445}
+.cm-dots .cm-dot{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;color:#04110a;background:#2a3530}
+.cm-dots .cm-dot.gold{background:linear-gradient(135deg,#ffe38a,#f6b92f)}
+.cm-dots .cm-dot.green{background:#24e982}
+.cm-dots .cm-dot.amber{background:#f6c445}
 .cm-dot.red{background:#ff6b5e;color:#2a0905}
 .cm-dot.none{background:var(--surface-2,#17211d);color:var(--muted,#8aa397)}
 .cm-toasts{position:fixed;top:72px;left:12px;right:12px;max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:8px;z-index:9800;pointer-events:none}
@@ -449,3 +449,14 @@
 .cm-adm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .cm-adm-chk { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(127,127,127,.14); font-size: .85rem; cursor: pointer; }
 .cm-adm-in { flex: 1; min-width: 0; padding: 10px; border-radius: 10px; font: inherit; }
+
+/* آخر مباراة: كارت قابل للضغط (من غير تعارض مع صفوف الجدول) */
+.cm-click{cursor:pointer}
+.cm-last{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.cm-last>div{min-width:0}
+.cm-last b{display:block;line-height:1.6}
+.cm-last small{display:block;margin-top:2px}
+.cm-last .cm-dot{flex:none}
+/* روابط آخر الصفحة */
+.cm-foot{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 18px;margin:18px 0 8px}
+.cm-foot .cm-link{padding:6px 2px}

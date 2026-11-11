@@ -32,8 +32,8 @@
   function bell() {
     const bar = document.querySelector('.header-actions');
     if (!bar || document.getElementById('notifyBtn') || !supported) return;
-    const b = document.createElement('button'); b.type = 'button'; b.id = 'notifyBtn'; b.className = 'chat-btn'; b.style.fontSize = '1.1rem';
-    const paint = () => { const on = allowed(); b.textContent = on ? '🔔' : '🔕'; b.title = on ? 'الإشعارات شغالة (دوس لإيقافها)' : 'فعّل الإشعارات'; b.setAttribute('aria-label', b.title); };
+    const b = document.createElement('button'); b.type = 'button'; b.id = 'notifyBtn'; b.className = 'chat-btn';
+    const paint = () => { const on = allowed(); const nm = on ? 'bell' : 'bell-off'; b.innerHTML = window.KIcon ? window.KIcon(nm) : (on ? '🔔' : '🔕'); b.classList.toggle('is-off', !on); b.title = on ? 'الإشعارات شغالة (دوس لإيقافها)' : 'فعّل الإشعارات'; b.setAttribute('aria-label', b.title); };
     b.addEventListener('click', async () => {
       if (Notification.permission === 'denied') { inApp('الإشعارات محظورة من إعدادات المتصفح للموقع ده. فعّلها من هناك.'); return; }
       if (Notification.permission !== 'granted') { const r = await Notification.requestPermission(); if (r !== 'granted') { paint(); return; } store.set(ON_KEY, '1'); inApp('الإشعارات اشتغلت ✓'); }
