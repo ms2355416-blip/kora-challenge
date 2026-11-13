@@ -34,7 +34,7 @@
   let tab = 'home';
   let tabLeague = null;
   let fxFilter = 'all';
-  const sel = { color: COLORS[0], pos: 'ST', start: 'eng3', photo: null, nat: ['مصر', 'eg'] };
+  const sel = { color: COLORS[0], pos: 'ST', start: 'eng3', photo: null, nat: ['مصر', 'eg'], age: 18 };
   const IC_P = {
     trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
     home: '<path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-6h6v6"/>',
@@ -149,7 +149,7 @@
   const posName = id => (D.POSITIONS.find(p => p.id === id) || {}).ar || id;
 
   function show(id) {
-    ['cmMode', 'cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire', 'cmSign', 'cmSummer'].forEach(k => { $(k).hidden = k !== id; });
+    ['cmMode', 'cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire', 'cmSign', 'cmSummer', 'cmYouth'].forEach(k => { const n = $(k); if (n) n.hidden = k !== id; });
     window.scrollTo(0, 0);
   }
 
@@ -179,6 +179,16 @@
       pos.appendChild(b);
     });
 
+    const ageBox = $('cmAge');
+    const ageNote = () => { $('cmAgeNote').textContent = sel.age === 15 ? 'هتبدأ في أكاديمية الناشئين لمدة موسمين، وبتوصلك طلبات تجنيس من منتخبات، وبعدها بتتعاقد احترافي.' : 'هتبدأ مباشرة بعقدك الاحترافي الأول من غير أي حاجة زيادة.'; };
+    [[18, '18 سنة', 'عادي'], [15, '15 سنة', 'ناشئين + تجنيس']].forEach(a => {
+      const b = el('button', 'cm-chip' + (a[0] === sel.age ? ' on' : ''), a[1] + ' • ' + a[2]);
+      b.type = 'button'; b.setAttribute('role', 'radio');
+      b.addEventListener('click', () => { sel.age = a[0]; ageBox.querySelectorAll('.cm-chip').forEach(x => x.classList.toggle('on', x === b)); ageNote(); });
+      ageBox.appendChild(b);
+    });
+    ageNote();
+
     const cols = $('cmColors');
     COLORS.forEach(c => {
       const b = el('button', 'cm-sw' + (c === sel.color ? ' on' : ''));
@@ -206,7 +216,7 @@
       e.preventDefault();
       const name = window.KoraSec ? window.KoraSec.name($('cmName').value, 22) : $('cmName').value.trim();
       if (!name) return;
-      S = E.newCareer({ name, nat: sel.nat[0], natCode: sel.nat[1], pos: sel.pos, color: sel.color, start: sel.start, photo: sel.photo }, Math.random);
+      S = E.newCareer({ name, nat: sel.nat[0], natCode: sel.nat[1], pos: sel.pos, color: sel.color, start: sel.start, startAge: sel.age, photo: sel.photo }, Math.random);
       S.pointsGiven = false;
       tab = 'home'; tabLeague = S.league;
       save(); render();
@@ -637,6 +647,84 @@
     pane.appendChild(grid);
   }
 
+  /* ====== نقاط المهارة ====== */
+  const SK_INFO = {
+    spd: ['السرعة', 'بتزوّد فرصة تسجيل الأهداف وصناعتها شوية'],
+    skl: ['المهارات', 'بتزوّد صناعة الأهداف والمراوغة'],
+    phy: ['القوة البدنية', 'إصابات أقل وتعب أبطأ'],
+    crs: ['العرضيات', 'أسيست أكتر من الأطراف والعرضيات'],
+    pow: ['قوة التسديد', 'أهداف أكتر ونجاح أعلى في ضربات الجزاء']
+  };
+  function skillsCard(onChange) {
+    E.initSkills(S);
+    const card = el('div', 'cm-card cm-skills');
+    const head = el('div', 'cm-sk-head');
+    head.append(el('b', '', 'نقاط المهارة'), el('span', 'cm-sk-pts', 'متاح: ' + S.skillPts));
+    card.appendChild(head);
+    card.appendChild(el('small', 'cm-sub', 'هتجمّع 30 نقطة على طول مسيرتك (الأكتر في أول سنين). كل مهارة آخرها ' + E.SKILL_MAX + ' نقط، فاختار بتزوّد إيه. مصروف: ' + E.skillTotal(S) + ' من 30.'));
+    E.SKILLS.forEach(k => {
+      const v = S.skills[k[0]], row = el('div', 'cm-sk-row');
+      const lab = el('div', 'cm-sk-lab'); lab.append(el('b', '', SK_INFO[k[0]][0]), el('small', '', SK_INFO[k[0]][1]));
+      const bar = el('div', 'cm-sk-bar'); for (let i = 0; i < E.SKILL_MAX; i++) bar.appendChild(el('i', i < v ? 'on' : ''));
+      const plus = el('button', 'cm-sk-plus', '+'); plus.type = 'button'; plus.setAttribute('aria-label', 'زوّد ' + SK_INFO[k[0]][0]);
+      plus.disabled = !(S.skillPts > 0 && v < E.SKILL_MAX);
+      plus.addEventListener('click', () => { if (E.upgradeSkill(S, k[0])) { save(); onChange(); } });
+      row.append(lab, bar, el('span', 'cm-sk-val', v + '/' + E.SKILL_MAX), plus);
+      card.appendChild(row);
+    });
+    return card;
+  }
+  function paneSkills() {
+    const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('مهاراتي'));
+    pane.appendChild(skillsCard(paneSkills));
+  }
+
+  /* ====== أكاديمية الناشئين ====== */
+  function renderYouth() {
+    const box = $('cmYouth'); box.textContent = '';
+    const y = S.youth, p = S.player, c = club(S.clubId);
+    const head = el('div', 'cm-card cm-next');
+    head.append(el('h3', 'cm-sum-title', 'أكاديمية ناشئين ' + c.ar), el('div', 'cm-sub', p.name + ' • ' + p.age + ' سنة • ' + p.nat + ' • مستوى ' + Math.round(p.ovr) + ' • موسم ' + Math.min(y.yr + 1, 2) + ' من 2'));
+    box.appendChild(head);
+    if (y.log.length) {
+      const lg = el('div', 'cm-card');
+      lg.appendChild(el('b', '', 'مواسمك مع الناشئين'));
+      y.log.forEach(r => { const row = el('div', 'cm-fx'); row.append(el('span', 'rd', r.age + ' س'), el('span', 'mt', r.apps + ' مباراة • ' + r.goals + ' هدف • ' + r.assists + ' أسيست'), el('span', 'rt ' + (r.rating >= 4 ? 'hi' : r.rating >= 3.3 ? 'mid' : 'lo'), r.rating.toFixed(1))); lg.appendChild(row); });
+      box.appendChild(lg);
+    }
+    if (y.offers && y.offers.length) {
+      const oc = el('div', 'cm-card cm-nat');
+      oc.appendChild(el('b', '', y.offers.length === 1 ? 'طلب تجنيس' : 'طلبات تجنيس'));
+      oc.appendChild(el('small', 'cm-sub', 'لو قبلت هتتغيّر جنسيتك وتلعب للمنتخب ده لما تكبر. لو تجاهلتهم هيروحوا.'));
+      y.offers.forEach(o => {
+        const row = el('div', 'cm-nat-row');
+        const fl = document.createElement('img'); fl.className = 'cm-flag'; fl.alt = ''; fl.src = 'https://flagcdn.com/w40/' + o.code + '.png'; fl.addEventListener('error', () => fl.remove());
+        const tx = el('div'); tx.append(el('b', '', o.ar), el('small', '', 'قوة المنتخب ' + o.str));
+        const yes = el('button', 'cm-btn', 'اقبل'); yes.type = 'button';
+        yes.addEventListener('click', () => {
+          window.KoraDialog.confirm({ title: 'تتجنّس وتلعب لـ' + o.ar + '؟', message: 'جنسيتك هتبقى ' + o.ar + ' بدل ' + p.nat + ' وهتتحسب مع منتخبهم.', okText: 'اقبل التجنيس', cancelText: 'لأ' })
+            .then(ok => { if (ok && E.acceptNaturalization(S, o.code)) { save(); toast('اتجنّست وبقيت لاعب ' + o.ar, 'good'); renderYouth(); } });
+        });
+        row.append(fl, tx, yes); oc.appendChild(row);
+      });
+      const no = el('button', 'cm-link', 'ارفض الكل'); no.type = 'button'; no.addEventListener('click', () => { E.declineNaturalization(S); save(); renderYouth(); });
+      oc.appendChild(no);
+      box.appendChild(oc);
+    }
+    box.appendChild(skillsCard(renderYouth));
+    const go = el('button', 'cm-btn', y.done ? 'وقّع أول عقد احترافي' : 'كمّل موسم الناشئين'); go.type = 'button';
+    go.addEventListener('click', () => {
+      if (y.done) { E.finishYouth(S, Math.random); save(); render(); return; }
+      const r = E.playYouthSeason(S, Math.random); save();
+      const w = el('div'); w.appendChild(el('div', 'cm-sum-title', 'خلص موسم الناشئين'));
+      w.appendChild(el('p', 'cm-sub', r.apps + ' مباراة • ' + r.goals + ' هدف • ' + r.assists + ' أسيست • تقييم ' + r.rating.toFixed(1) + ' • مستواك +' + r.gain.toFixed(1)));
+      (r.news || []).forEach(n => w.appendChild(el('div', 'cm-note ' + (n.k === 'up' ? 'up' : 'down'), n.x)));
+      if (S.skillGain) w.appendChild(el('div', 'cm-note up', 'كسبت ' + S.skillGain + ' نقطة مهارة'));
+      openModal(w, 'تمام', () => renderYouth()); renderYouth();
+    });
+    box.appendChild(go);
+  }
+
   function paneClubs() {
     const pane = $('cmPane'); pane.textContent = ''; pane.appendChild(paneHead('الأندية اللي لعبتلها'));
     const rows = {}, order = [];
@@ -844,6 +932,7 @@
     else if (tab === 'trophies') paneHonors();
     else if (tab === 'assets') paneAssets();
     else if (tab === 'clubs') paneClubs();
+    else if (tab === 'skills') paneSkills();
     else if (tab === 'market') paneMarket();
     else if (tab === 'archive') paneArchive();
     else paneClubTrophies();
@@ -993,6 +1082,7 @@
   /* ====== نهاية الموسم ====== */
   function endSeason() {
     E.finishSeason(S, Math.random);
+    if (S.skillGain) toast('كسبت ' + S.skillGain + ' نقطة مهارة — وزّعها من القايمة ← مهاراتي', 'good');
     if (!S.pointsGiven) { saveStats(S.summary.points); S.pointsGiven = true; }
     save(); render();
   }
@@ -1352,7 +1442,7 @@
     pn.appendChild(w);
     const fm = el('div', 'cm-fame'); const ft = el('div', 'cm-fame-t'); ft.append(el('span', '', 'الشهرة'), el('b', '', (S.fame || 0) + ' / 100'));
     const fb = el('div', 'cm-bar'); const ff = el('i'); ff.style.width = clampPct(S.fame || 0) + '%'; fb.appendChild(ff); fm.append(ft, fb); pn.appendChild(fm);
-    [['trophies', 'trophy', 'بطولاتي', 'البطولات والجوايز اللي كسبتها'], ['assets', 'home', 'ممتلكاتي', 'بيوت وعربيات وموتوسيكلات ودراجات'], ['clubs', 'clip', 'الأندية اللي لعبتلها', 'ومعدل إنجازك في كل نادي']].forEach(m => {
+    [['trophies', 'trophy', 'بطولاتي', 'البطولات والجوايز اللي كسبتها'], ['assets', 'home', 'ممتلكاتي', 'بيوت وعربيات وموتوسيكلات ودراجات'], ['clubs', 'clip', 'الأندية اللي لعبتلها', 'ومعدل إنجازك في كل نادي'], ['skills', 'star', 'مهاراتي', 'نقاط السرعة والمهارات والتسديد… وزّعها بنفسك']].forEach(m => {
       const b = el('button', 'cm-menu-item'); b.type = 'button';
       const tx = el('div'); tx.append(el('div', '', m[2]), el('small', '', m[3]));
       b.append(icon(m[1]), tx);
@@ -1468,6 +1558,7 @@
   function render() {
     if (location.hash !== '#player') { renderMode(); show('cmMode'); return; }
     if (!S) { show('cmCreate'); return; }
+    if (S.phase === 'youth') { renderYouth(); show('cmYouth'); return; }
     if (S.phase === 'retired') { renderRetire(); show('cmRetire'); return; }
     if (S.phase === 'sign') { renderSign(); show('cmSign'); return; }
     if (S.phase === 'summer') { renderSummer(); show('cmSummer'); return; }
