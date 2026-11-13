@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#080d0b">
 <title>تحدي رسم اللاعبين | Kora Challenge</title>
-<link rel="stylesheet" href="myteem.css">
+<link rel="stylesheet" href="myteem.css?v=2">
 <link rel="stylesheet" href="buttons.css">
 <link rel="stylesheet" href="draw.css?v=2">
 <style>html.auth-pending body{visibility:hidden}</style>
@@ -26,6 +26,8 @@
     appId: "1:535044321885:web:b89615d5eb01a93e1613b4"
   };
   window.KoraAuth = { user: null };
+    /* لو كان مسجّل دخول قبل كده: اعرض الصفحة فورًا والتحقق بيتم في الخلفية */
+    try { if (localStorage.getItem('koraAuthHint') === '1') document.documentElement.classList.remove('auth-pending'); } catch (e) { /* ignore */ }
   function toLogin() {
     var p = location.pathname.split('/').pop();
     location.replace('login.html' + (p && p !== 'index.html' ? '?next=' + encodeURIComponent(p) : ''));
@@ -34,13 +36,15 @@
   var timer = setTimeout(toLogin, 10000);
   firebase.auth().onAuthStateChanged(function (u) {
     clearTimeout(timer);
-    if (!u) { toLogin(); return; }
+    if (!u) { try { localStorage.removeItem('koraAuthHint'); } catch (e) { /* ignore */ } toLogin(); return; }
     window.KoraAuth.user = u;
+      try { localStorage.setItem('koraAuthHint', '1'); } catch (e) { /* ignore */ }
     document.documentElement.classList.remove('auth-pending');
   });
 })();
 </script>
 <script src="kora-security.js"></script>
+<script src="pwa.js?v=2" defer></script>
 </head>
 <body>
 <header class="navbar">
