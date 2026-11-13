@@ -244,7 +244,7 @@
         res.pw = 1;
         events.push({ m: m1, t: 'pw' });
         var taker = p.ovr >= teamStr - 3 && rng() < 0.7;
-        if (rng() < 0.78) {
+        if (rng() < 0.78 + (taker ? 0.012 * sk(state, 'pow') : 0)) {
           our.push(-m1);
           if (taker) { res.goals++; events.push({ m: m1, t: 'goal', pen: true }); }
         } else if (taker) { res.pm = 1; events.push({ m: m1, t: 'pen_miss' }); }
@@ -270,6 +270,9 @@
       var oppAdj = clamp(1 - (oppStr - p.ovr) * 0.004, 0.85, 1.12);
       var gShare = clamp(POS_G[pos] * (0.55 + (p.ovr - 60) * 0.022) * lgMult * oppAdj, 0, 0.6);
       var aShare = clamp(POS_A[pos] * (0.5 + (p.ovr - 60) * 0.03) * lgMult * oppAdj, 0, 0.22);
+      /* نقاط المهارة */
+      gShare = clamp(gShare * (1 + 0.012 * sk(state, 'pow') + 0.008 * sk(state, 'spd') + 0.004 * sk(state, 'skl')), 0, 0.6);
+      aShare = clamp(aShare * (1 + 0.012 * sk(state, 'skl') + 0.014 * sk(state, 'crs') + 0.006 * sk(state, 'spd')), 0, 0.22);
       our.forEach(function (m) {
         if (m <= 0) return;
         if (m >= a && m <= b) {
@@ -384,12 +387,12 @@
     } else if (pm.role === 'out' && pm.why === 'susp') { s.missed++; state.susp--; fat -= 10; }
     else if (!played) fat -= 14;
     if (played) {
-      fat += (pm.role === 'start' && pm.minutes >= 60) ? 9 : 3;
+      fat += ((pm.role === 'start' && pm.minutes >= 60) ? 9 : 3) * (1 - 0.03 * sk(state, 'phy'));
       var yPrev = s.yellow || 0;
       if (pm.red) { var sg = 1 + (pm.round % 3); state.susp = (state.susp || 0) + sg; pm.news.push({ k: 'down', x: 'كرت أحمر: إيقاف ' + sg + (sg === 1 ? ' مباراة' : ' مباريات') }); }
       else if (pm.yellow && Math.floor((yPrev + pm.yellow) / 5) > Math.floor(yPrev / 5)) { state.susp = (state.susp || 0) + 1; pm.news.push({ k: 'down', x: 'إيقاف مباراة بسبب تراكم الكروت الصفراء' }); }
       if (!state.injury && !(state.injCool > 0)) {
-        var pI = 0.012 * (1 + Math.max(0, pl.age - 29) * 0.06) * (1 + Math.max(0, fat - 60) / 60) * (pm.minutes / 90);
+        var pI = 0.012 * (1 - 0.04 * sk(state, 'phy')) * (1 + Math.max(0, pl.age - 29) * 0.06) * (1 + Math.max(0, fat - 60) / 60) * (pm.minutes / 90);
         if (rng() < pI) {
           var r = rng(), t = INJ.filter(function (z) { return r < z.max; })[0], g = t.g[0] + Math.floor(rng() * (t.g[1] - t.g[0] + 1));
           state.injury = { n: pick(t.names, rng), games: g, total: g, loss: t.loss };
@@ -806,6 +809,8 @@
   }
 
   function simGlobal(state, rng) {
+    /* مسيرات قديمة اتحفظت بقايمة لاعيبة فاضية: نعبّيها هنا */
+    if (!state.pl || !state.pl.length) initPlayers(state);
     var byClub = {}, ps = {};
     state.pl.forEach(function (x) { (byClub[x.c] = byClub[x.c] || []).push(x); });
     Object.keys(byClub).forEach(function (cid) { markStarters(byClub[cid]); });
@@ -1529,6 +1534,7 @@
     state.offersReason = offerInfo.reason;
     state.tabs = promo.tabs;
     state.afterAwards = state.summer.length ? 'summer' : (p.age >= 38 ? 'retired' : 'offers');
+    initSkills(state); state.skillGain = grantSkillPoints(state);
     state.phase = 'awards';
     return summary;
   }
@@ -1542,195 +1548,4 @@
     buildWorld(state, country, rng);
     state.phase = 'play'; state.offers = null; state.summary = null; state.awards = null; state.euro = null;
     state.callupChecked = false; state.pendingCallup = null; state.summer = null; state.sponsorOffers = [];
-    if (!state.coach || state.coachClub !== state.clubId || rng() < 0.3) { var oc = state.coach && state.coachClub === state.clubId ? state.coach.name : null; newCoach(state, rng, 'ns'); state.coachClub = state.clubId; state.coachNews = oc ? 'المدرب الجديد ' + state.coach.name + ' خلف ' + oc + ' (' + coachNote(state) + ')' : 'مدربك الجديد ' + state.coach.name + ' (' + coachNote(state) + ')'; } else state.coachNews = null;
-    state.earn = { salary: 0, bonus: 0, prizes: 0, sponsor: 0 };
-    initClubs(state); initExtras(state);
-    if (state.injury) { state.injury.games = Math.max(0, state.injury.games - 8); if (!state.injury.games) state.injury = null; }
-        state.fatigue = 10; state.susp = 0; state.injCool = 0;
-    state.expelled = null; state.abuse = null; state.noRenew = false; state.fired = null;
-    state.coachChangedYear = null;
-    state.euro = null;
-    state.cups = [];
-
-    /* تأهيل دوري الأبطال: بناءً على جدول الموسم اللي فات */
-    var eq = euroQualForClub(state, state.clubId);
-    if (eq) startEuro(state, eq, rng);
-
-    /* الكؤوس المحلية والقارية */
-    initCups(state, rng);
-    initCaf(state, rng);
-    initAfc(state, rng);
-
-    /* سوق الانتقالات في الخلفية */
-    simMarket(state, rng);
-  }
-
-  /* ====== تأهيل الأندية لدوري الأبطال بناءً على ترتيب الموسم اللي فات ====== */
-  function euroQualForClub(state, clubId) {
-    var c = state.clubs[clubId];
-    if (!c) return null;
-    var lk = c.league, qn = D.EUROQ[lk];
-    if (!qn || !LG[lk] || LG[lk].tier !== 1) return null;
-    var tab = state.tabs && state.tabs[lk];
-    if (!tab) return null;
-    var pos = tab.indexOf(clubId);
-    if (pos < 0 || pos >= qn) return null;
-    return qn >= 4 ? (pos < 3 ? 'cl' : 'qual') : qn === 2 ? (pos === 0 ? 'cl' : 'qual') : 'qual';
-  }
-
-  /* ====== بداية مسيرة جديدة ====== */
-  function newCareer(cfg, rng) {
-    var state = {
-      v: 2,
-      year: 2025,
-      phase: 'sign',
-      clubId: null,
-      league: null,
-      player: {
-        name: cfg.name,
-        nat: cfg.nat,
-        natCode: cfg.natCode,
-        pos: cfg.pos,
-        color: cfg.color,
-        photo: cfg.photo || null,
-        ovr: 62,
-        age: 17
-      },
-      money: 20000,
-      fame: 0,
-      fatigue: 0,
-      susp: 0,
-      injCool: 0,
-      owned: [],
-      sponsors: [],
-      contracts: [],
-      earn: { salary: 0, bonus: 0, prizes: 0, sponsor: 0 },
-      history: [],
-      honors: [],
-      totals: { apps: 0, goals: 0, assists: 0 },
-      stats: { apps: 0, starts: 0, goals: 0, assists: 0, ratingSum: 0, rated: 0, yellow: 0, red: 0, minutes: 0 },
-      log: [],
-      pl: [],
-      ps: {},
-      intl: { caps: 0, goals: 0, assists: 0, log: [] },
-      clubs: {},
-      world: null,
-      adminAwards: [],
-      form: [],
-      agent: false
-    };
-
-    initClubs(state);
-    initExtras(state);
-
-    /* اختيار أضعف نادي في الدوري المختار */
-    var lk = cfg.start || 'eng3';
-    var teams = Object.keys(state.clubs).filter(function (id) { return state.clubs[id].league === lk; });
-    teams.sort(function (a, b) { return state.clubs[a].str - state.clubs[b].str; });
-    state.clubId = teams[0];
-    state.league = lk;
-
-    buildWorld(state, LG[lk].country, rng);
-
-    newCoach(state, rng, 'start');
-    state.coachClub = state.clubId;
-
-    initCups(state, rng);
-    simMarket(state, rng);
-
-    state.deal = makeDeal(state, state.clubId, rng, 0, null);
-    state.signFor = 'start';
-
-    return state;
-  }
-
-  /* ====== مباريات اللاعب في الدوري ====== */
-  function myFixtures(state) {
-    var L = state.world && state.world.leagues[state.league];
-    if (!L) return [];
-    var me = state.clubId, out = [];
-    L.fixtures.forEach(function (rd, r) {
-      rd.forEach(function (m, i) {
-        if (m[0] === me || m[1] === me) {
-          var res = L.results[r] && L.results[r][i];
-          var log = null;
-          if (res) {
-            for (var k = 0; k < state.log.length; k++) {
-              if (!state.log[k].comp && state.log[k].round === r + 1) { log = state.log[k]; break; }
-            }
-          }
-          out.push({ round: r + 1, home: m[0], away: m[1], res: res || null, log: log });
-        }
-      });
-    });
-    return out;
-  }
-
-  /* ====== مركز الفريق في الدوري ====== */
-  function myPosition(state) {
-    var t = table(state, state.league);
-    return t.findIndex(function (r) { return r.id === state.clubId; }) + 1;
-  }
-
-  /* ====== اختيار عرض (أو البقاء) ====== */
-  function chooseOffer(state, idx, rng) {
-    if (idx === -1) {
-      state.deal = makeDeal(state, state.clubId, rng, 0, null);
-      state.signFor = 'renew';
-      state.phase = 'sign';
-      return;
-    }
-    var o = state.offers && state.offers[idx];
-    if (!o) return;
-    state.clubId = o.clubId;
-    state.league = o.league;
-    state.deal = makeDeal(state, o.clubId, rng, o.fee || 0, o.cur);
-    state.signFor = 'transfer';
-    state.phase = 'sign';
-  }
-
-  /* ====== بعد توقيع العقد (انتقال أو تجديد) ====== */
-  function finishMove(state, rng) {
-    startNextSeason(state, rng);
-  }
-
-  /* ====== بعد شاشة الجوايز ====== */
-  function continueAfterAwards(state) {
-    state.phase = state.afterAwards || 'offers';
-  }
-
-  /* ====== التصدير ====== */
-  root.KoraCMEngine = {
-    newCareer: newCareer,
-    playRound: playRound,
-    skipExpulsion: skipExpulsion,
-    playLive: playLive,
-    finishSeason: finishSeason,
-    chooseOffer: chooseOffer,
-    applyTerms: applyTerms,
-    signContract: signContract,
-    buyAsset: buyAsset,
-    takeSponsor: takeSponsor,
-    marketValue: marketValue,
-    squadRole: squadRole,
-    coachNote: coachNote,
-    ntOf: ntOf,
-    nextExtraInfo: nextExtraInfo,
-    nextExtra: nextExtra,
-    myFixtures: myFixtures,
-    myPosition: myPosition,
-    table: table,
-    rounds: rounds,
-    derbyOf: derbyOf,
-    answerPress: answerPress,
-    answerFree: answerFree,
-    matchLineups: matchLineups,
-    runSummerEvent: runSummerEvent,
-    finishSummer: finishSummer,
-    retireNow: retireNow,
-    continueAfterAwards: continueAfterAwards,
-    STAGE_AR: STAGE_AR,
-    simMarket: simMarket
-  };
-
-})(window);
+    if (!state.coach || state.coachClub !== state.clubId || rng() < 0.3) { var oc = state.coach && state.coachClub ===
