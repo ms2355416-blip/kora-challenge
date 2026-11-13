@@ -287,6 +287,7 @@
           eff.push(f.favor > 0.04 ? 'المدرب مرتاح' : f.favor < -0.04 ? 'المدرب زعلان' : 'رأي المدرب ثابت');
           eff.push(f.ai ? 'تحليل بالذكاء الاصطناعي' : 'تحليل بالقواعد');
           body.appendChild(el('small', 'cm-sub', eff.join(' • ')));
+          if (f.expelled || S.expelled) { const ex = skipBtn(); ex.style.marginTop = '12px'; body.appendChild(ex); }
         } else if (press.opts[press.done]) body.appendChild(el('div', 'cm-press-r', 'قلت: ' + press.opts[press.done].t + (press.reply ? ' — ' + press.reply : '')));
         return;
       }
@@ -326,6 +327,19 @@
   }
   function renderStatusSoon() { try { const m = $('cmMoney'); if (m) m.textContent = money(S.money); } catch (e) { /* ignore */ } }
 
+  /* تخطّي عقوبة الطرد: نكمّل الموسم من غير لعب ونروح للعروض */
+  function doSkipExpulsion() {
+    if (!S || !S.expelled) return;
+    E.skipExpulsion(S, Math.random); save();
+    const m = $('cmModal'); if (m) m.hidden = true;
+    tab = 'home'; render();
+  }
+  function skipBtn(extra) {
+    const sk = el('button', 'cm-btn' + (extra ? ' ' + extra : ''), 'تخطّى العقوبة وروح لنهاية الموسم'); sk.type = 'button';
+    sk.addEventListener('click', doSkipExpulsion);
+    return sk;
+  }
+
   function paneHome() {
     const pane = $('cmPane'); pane.textContent = '';
     const myRounds = E.rounds(S.league);
@@ -336,9 +350,7 @@
       card.classList.add('cm-exit');
       card.append(el('h3', 'cm-sum-title', 'اتطردت من ' + (S.clubs[S.expelled.clubId] ? S.clubs[S.expelled.clubId].ar : 'النادي') + '!'),
         el('div', 'cm-note', 'الإدارة فصلتك بسبب الإساءة المتكررة للمدرب ورئيس النادي. إنت دلوقتي بدون نادي ومش هتلعب لحد نهاية الموسم، وبعدها هتدوّر على نادي جديد.'));
-      const sk = el('button', 'cm-btn', 'تخطّى العقوبة وروح لنهاية الموسم'); sk.type = 'button';
-      sk.addEventListener('click', () => { E.skipExpulsion(S, Math.random); save(); render(); });
-      card.appendChild(sk);
+      card.appendChild(skipBtn());
       pane.appendChild(card);
     } else if ((S.seasonOver || S.round >= myRounds) && !due) {
       card.appendChild(el('h3', '', 'الموسم خلص!'));
@@ -817,6 +829,13 @@
     pane.appendChild(c);
   }
 
+  function expelBanner() {
+    const pane = $('cmPane');
+    if (!S || !S.expelled || S.seasonOver || tab === 'home' || !pane) return;
+    const c = el('div', 'cm-card cm-exit');
+    c.append(el('h3', 'cm-sum-title', 'إنت مطرود من النادي'), el('div', 'cm-note', 'مش هتلعب لحد نهاية الموسم. تخطّى العقوبة عشان تشوف العروض الجديدة.'), skipBtn());
+    pane.prepend(c);
+  }
   function renderPane() {
     $('cmTabs').querySelectorAll('.cm-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     if (tab === 'home') paneHome();
@@ -828,6 +847,7 @@
     else if (tab === 'market') paneMarket();
     else if (tab === 'archive') paneArchive();
     else paneClubTrophies();
+    expelBanner();
   }
 
   /* ====== اللعب ====== */
