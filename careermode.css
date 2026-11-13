@@ -460,3 +460,29 @@
 /* روابط آخر الصفحة */
 .cm-foot{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 18px;margin:18px 0 8px}
 .cm-foot .cm-link{padding:6px 2px}
+
+/* نقاط المهارة */
+.cm-skills{display:flex;flex-direction:column;gap:12px}
+.cm-sk-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cm-sk-pts{font-weight:800;font-size:.82rem;color:#04110a;background:var(--green,#24e982);border-radius:999px;padding:4px 12px}
+.cm-sk-row{display:grid;grid-template-columns:1fr auto;grid-template-areas:"lab plus" "bar val";gap:8px 12px;align-items:center;padding-top:10px;border-top:1px solid var(--border,#1f2b26)}
+.cm-sk-row:first-of-type{border-top:0}
+.cm-sk-lab{grid-area:lab;min-width:0}
+.cm-sk-lab b{display:block;font-size:.92rem}
+.cm-sk-lab small{display:block;color:var(--muted,#8aa397);font-size:.72rem;line-height:1.5}
+.cm-sk-bar{grid-area:bar;display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
+.cm-sk-bar i{height:8px;border-radius:3px;background:var(--surface-2,#17211d);border:1px solid var(--border,#1f2b26)}
+.cm-sk-bar i.on{background:var(--green,#24e982);border-color:var(--green,#24e982)}
+.cm-sk-val{grid-area:val;font-weight:800;font-size:.8rem;color:var(--muted,#8aa397);text-align:end;direction:ltr}
+.cm-sk-plus{grid-area:plus;width:38px;height:38px;border-radius:12px;border:1px solid var(--green,#24e982);background:transparent;color:var(--green,#24e982);font-size:1.4rem;font-weight:800;line-height:1;cursor:pointer}
+.cm-sk-plus:disabled{opacity:.3;cursor:not-allowed;border-color:var(--border,#1f2b26);color:var(--muted,#8aa397)}
+/* أكاديمية الناشئين وطلبات التجنيس */
+#cmYouth{display:flex;flex-direction:column;gap:12px}
+#cmYouth .cm-btn{width:100%}
+.cm-nat{display:flex;flex-direction:column;gap:10px}
+.cm-nat-row{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;background:var(--surface-2,#17211d)}
+.cm-nat-row .cm-flag{width:34px;height:24px;object-fit:cover;border-radius:3px;flex:none}
+.cm-nat-row>div{flex:1;min-width:0}
+.cm-nat-row small{display:block;color:var(--muted,#8aa397);font-size:.72rem}
+.cm-nat-row .cm-btn{width:auto;min-height:38px;padding:6px 18px}
+#cmYouth .cm-nat-row .cm-btn{width:auto;flex:none}
