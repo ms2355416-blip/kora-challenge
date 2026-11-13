@@ -1324,3 +1324,25 @@ body {
 .chat-btn.is-off{color:var(--muted,#8aa397)}
 .chat-btn .chat-badge{position:absolute;top:-6px;inset-inline-end:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#ff5a5f;color:#fff;font-size:11px;font-weight:800;line-height:15px;text-align:center;border:2px solid var(--bg,#080d0b)}
 @media (max-width:580px){.chat-btn,.unl-head-btn{width:39px;height:39px}}
+
+/* ===== ترتيب الهيدر (الرئيسية): اللوجو يمين، الأزرار، وزرار القائمة ☰ في الآخر من غير تداخل ===== */
+body .top { gap: 10px; padding-inline: 14px; flex-wrap: nowrap; }
+body .top .brand { margin: 0 !important; flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+body .top .header-actions { margin: 0 !important; margin-inline-start: auto !important; gap: 8px !important; flex: 0 0 auto; }
+body .top .menu-toggle { position: static; transform: none; left: auto; flex: none; order: 3; width: 42px; height: 42px; }
+body .top .header-actions { order: 2; }
+body .top .brand { order: 1; }
+@media (max-width: 480px) {
+  body .top { gap: 6px; padding-inline: 10px; }
+  body .top .brand { font-size: 11px; gap: 4px; }
+  body .top .brand .brand-ball { width: 20px; height: 20px; }
+  body .top .header-actions { gap: 5px !important; }
+  body .top .menu-toggle, body .top .header-actions .chat-btn, body .top .header-actions .unl-head-btn { width: 36px !important; height: 36px !important; border-radius: 10px; }
+  body .top .menu-toggle svg { width: 22px; height: 22px; }
+}
+@media (max-width: 400px) {
+  body .top .brand .brand-ball { display: none; }
+  body .top .menu-toggle, body .top .header-actions .chat-btn, body .top .header-actions .unl-head-btn { width: 34px !important; height: 34px !important; }
+  body .top .header-actions { gap: 4px !important; }
+  body .top .menu-toggle svg, body .top .header-actions .chat-btn svg, body .top .header-actions .unl-head-btn svg { width: 19px; height: 19px; }
+}
