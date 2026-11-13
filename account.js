@@ -263,18 +263,7 @@
     const note = $('.settings-note', panel);
     if (note) note.before(logout); else panel.appendChild(logout);
 
-    // صورة الحساب في الهيدر
-    const actions = $('.header-actions');
-    if (actions) {
-      els.headBtn = document.createElement('button');
-      els.headBtn.type = 'button';
-      els.headBtn.className = 'acc-head-btn';
-      els.headBtn.title = 'حسابي';
-      els.headBtn.setAttribute('aria-label', 'حسابي');
-      els.headBtn.setAttribute('aria-controls', 'settingsPanel');
-      els.headBtn.addEventListener('click', openPanel);
-      actions.prepend(els.headBtn);
-    }
+    // (زرار صورة الحساب في الهيدر اتشال: الحساب بيتفتح من زرار القائمة ☰)
   }
 
   // ---------- تشغيل ----------
