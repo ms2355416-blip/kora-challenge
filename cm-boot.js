@@ -5,7 +5,7 @@
   'use strict';
   const LIST = ['careermode-data.js', 'coach-data.js?v=8', 'coach-squads-1.js?v=8', 'coach-squads-2.js?v=8', 'careermode-rosters.js?v=2', 'careermode-world.js?v=3',
     'careermode-art.js?v=3', 'careermode-cinema.js?v=1', 'admin.js?v=1', 'careermode-press.js?v=3', 'ai-config.js?v=1', 'careermode-press-ai.js?v=1',
-    'careermode-engine.js?v=18', 'careermode.js?v=19'];
+    'careermode-engine.js?v=19', 'careermode.js?v=20'];
   const $ = id => document.getElementById(id);
   let loading = null, loaded = false;
 
@@ -35,7 +35,7 @@
   /* شاشة اختيار المهنة (خفيفة) لحد ما الملفات التقيلة تتحمل */
   function lite() {
     const mode = $('cmMode'); if (!mode) return;
-    ['cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire', 'cmSign', 'cmSummer'].forEach(k => { const n = $(k); if (n) n.hidden = true; });
+    ['cmCreate', 'cmGame', 'cmAwards', 'cmSeason', 'cmRetire', 'cmSign', 'cmSummer', 'cmYouth'].forEach(k => { const n = $(k); if (n) n.hidden = true; });
     mode.hidden = false;
     let open = false; try { open = localStorage.getItem('koraPlayerRetired') === '1'; } catch (e) { /* ignore */ }
     const ca = $('cmModeCoach'), lk = $('cmCoachLock');
