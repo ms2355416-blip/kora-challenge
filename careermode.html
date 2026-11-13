@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>كارير مود | Kora Challenge</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="careermode.css?v=14">
+  <link rel="stylesheet" href="careermode.css?v=16">
   <link rel="stylesheet" href="unlocks.css">
   <link rel="stylesheet" href="buttons.css">
   <link rel="icon" type="image/png" href="favicon.png">
@@ -107,7 +107,7 @@
 
   <!-- إنشاء اللاعب -->
   <section id="cmCreate" class="cm-screen" hidden>
-    <p class="cm-lead">اصنع لاعبك وابدأ مسيرتك من الدرجات الدنيا. هتبدأ بطاقة 60 وهدفك توصل 99.</p>
+    <p class="cm-lead">اصنع لاعبك وابدأ مسيرتك من الدرجات الدنيا. هدفك توصل لـ 99.</p>
     <form id="cmForm" class="cm-card cm-form" autocomplete="off">
       <div class="cm-avatar-preview" id="cmPrev"></div>
 
@@ -132,6 +132,11 @@
 
       <div class="cm-field"><span>لون القميص</span>
         <div class="cm-swatches" id="cmColors" role="radiogroup"></div>
+      </div>
+
+      <div class="cm-field"><span>سن البداية</span>
+        <div class="cm-chips" id="cmAge" role="radiogroup"></div>
+        <small class="cm-hint" id="cmAgeNote"></small>
       </div>
 
       <div class="cm-field"><span>بداية المسيرة</span>
@@ -166,6 +171,7 @@
 
   <!-- أحداث الصيف: منتخب وكأس العالم للأندية -->
   <section id="cmSummer" class="cm-screen" hidden></section>
+  <section id="cmYouth" class="cm-screen" hidden></section>
 
   <!-- نهاية الموسم والعروض -->
   <section id="cmAwards" class="cm-screen" hidden></section>
