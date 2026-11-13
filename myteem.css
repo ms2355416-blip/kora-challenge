@@ -121,3 +121,6 @@ footer{padding:22px 7%;border-top:1px solid #1b2820;color:var(--muted);font-size
 .mt-feed b{color:var(--green)}
 .mt-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
 .mt-actions h2,.mt-actions p{flex:1 1 100%}
+
+/* خانة الكود: بعرض الصف كله وبعدها زرار الانضمام (بدل ما تبان صغيرة وتايهة) */
+.actions .code-input{flex:1 1 100%;max-width:none;min-width:0;height:48px;box-sizing:border-box}
