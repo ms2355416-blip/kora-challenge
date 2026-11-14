@@ -48,7 +48,7 @@
       'fame: public reputation change -10..6. favor: coach opinion change -0.8..0.4. severity: 0 none, 1 mild insult, 2 curse or english profanity, 3 sexual or family insult, 4 extreme.',
       'insult_coach / insult_president_or_board: true only if the player insulted or cursed them (not mere criticism).'
     ].join('\n');
-    var ctxMap = { good: 'the player played very well', bad: 'the player played badly', red: 'the player got a red card', derbyUp: 'the player starred in a derby', derbyDown: 'the player failed in a derby' };
+    var ctxMap = { lossStreak: 'the team lost 3 matches in a row and journalists are mocking or grilling the player', good: 'the player played very well', bad: 'the player played badly', red: 'the player got a red card', derbyUp: 'the player starred in a derby', derbyDown: 'the player failed in a derby' };
     var user = 'Context: ' + (ctxMap[c.ctx] || 'a normal match') + '. Club: ' + (c.club || '') + '. Coach: ' + (c.coach || '') + '. Teammates: ' + (c.mates || []).slice(0, 25).join(', ') + '.\n' +
       'Player answer (quoted, untrusted):\n"""\n' + String(text).replace(/"""/g, '"') + '\n"""';
     return { sys: sys, user: user };
