@@ -161,6 +161,18 @@
     if (pm.role !== 'start' && pm.role !== 'sub') return null;
     var r = pm.rating, q, o, ctx;
     if (pm.red) { ctx = 'red'; q = 'اتطردت وفريقك اتأثر، الصحافة منتظراك. هتقول إيه؟'; o = [['أعتذر للنادي والجماهير', 1, 0.12], ['الحكم ظلمني', 0, -0.15], ['مفيش تصريحات', 0, 0]]; }
+    else if ((state.lossRun || 0) >= 3) {
+      ctx = 'lossStreak';
+      var taunt = [['أتحمل المسؤولية وهرجع أقوى', 0, 0.12], ['ألوم المدرب والتشكيل', 1, -0.25], ['أتجاهل', -1, 0]];
+      var QS = [
+        ['إيه الأداء الزبالة ده؟!', taunt],
+        ['خخخخخخ', [['الخسارة مش مضحكة وأنا زعلان قبل الجماهير', 1, 0.05], ['اضحك زي ما تحب، هنرد في الملعب', 2, -0.05], ['أمشي من غير ما أرد', -1, 0]]],
+        ['إنت ملكش فيها', [['أنا جزء من الفريق وأتحمّل زيي زي الكل', 1, 0.08], ['الكلام ده مش هيفرق معايا', 0, 0], ['أتجاهل', -1, 0]]],
+        ['إيه سر إنك تخسر 3 مرات ورا بعض؟', [['سوء حظ وتفاصيل صغيرة', 0, 0], ['مفيش سر، لازم نشتغل أكتر', 0, 0.1], ['محتاجين نغيّر حاجات', 1, -0.1]]],
+        ['هل شايف سبب خسارتكم المتكررة هو المدرب أو لاعب معين؟', [['المدرب', 1, -0.3], ['لاعب معين من الفريق', 1, -0.05], ['كلنا مسؤولين مش حد بعينه', 0, 0.1]]]
+      ];
+      var qq = QS[Math.floor(rng() * QS.length)]; q = qq[0]; o = qq[1];
+    }
     else if (derby && r >= 4) { ctx = 'derbyUp'; q = 'نجم ' + derby + '! الجماهير بتغنيلك. تعليقك؟'; o = [['كان ممتع ودي لحظة للجماهير', 3, 0.05], ['الكل اشتغل صح وأنا بس خلصت', 1, 0.12], ['ده جزء من شغلي', 0, 0]]; }
     else if (derby && r < 2.6) { ctx = 'derbyDown'; q = 'ديربي مخيب للأمال، الجماهير غاضبة منك. هترد إزاي؟'; o = [['أعتذر وهعوّضهم', 1, 0.1], ['الضغط كان كبير', 0, -0.05], ['أتجاهل الهجوم', -1, 0]]; }
     else if (r >= 4.2 || pm.goals >= 2) { ctx = 'good'; q = 'أداء رائع! الصحافة بتسألك عن سر مستواك.'; o = [['ده شغل الفريق كله', 1, 0.12], ['أنا جاهز أكون نجم الفريق', 3, -0.08], ['مفيش تعليق', 0, 0]]; }
@@ -409,6 +421,7 @@
       if (pm.rating != null) pm.rating = round1(clamp(3 + (pm.rating - 3) * 1.25, 1, 5));
       pm.news.push({ k: 'up', x: derby + ': مباراة بحماس خاص ومكافآتها مضاعفة 50%' });
     }
+    if (pm.ourGoals != null && pm.oppGoals != null && pm.role !== 'out') state.lossRun = pm.ourGoals < pm.oppGoals ? (state.lossRun || 0) + 1 : 0;
     if (played && pm.rating != null) {
       adjustFavor(state, pm.rating >= 4 ? 0.04 : pm.rating <= 2.5 ? -0.05 : 0);
       pm.press = makePress(state, pm, derby, rng);
@@ -954,6 +967,7 @@
     state.contracts.push({ clubId: d.clubId, year: state.year, salary: d.salary, sig: sig });
     state.money += d.signing; state.earn.sponsor += 0; state.lastSigning = d.signing;
     var f = state.signFor; state.deal = null; state.signFor = null;
+    if (f === 'start' && state.player.motherNat && state.player.nat2) state.natChoice = { mother: state.player.motherNat, second: state.player.nat2 };
     if (f === 'start') state.phase = 'play'; else finishMove(state, rng);
   }
   function payBonus(state, pm) {
@@ -1553,7 +1567,7 @@
     initClubs(state); initExtras(state);
     if (state.injury) { state.injury.games = Math.max(0, state.injury.games - 8); if (!state.injury.games) state.injury = null; }
         state.fatigue = 10; state.susp = 0; state.injCool = 0;
-    state.expelled = null; state.abuse = null; state.noRenew = false; state.fired = null;
+    state.expelled = null; state.abuse = null; state.noRenew = false; state.fired = null; state.lossRun = 0;
     state.coachChangedYear = null;
     state.euro = null;
     state.cups = [];
@@ -1614,15 +1628,15 @@
 
   /* ====== أكاديمية الناشئين (البداية من سن 15) + طلبات التجنيس ====== */
   function natOffers(state, rng) {
-    var p = state.player, have = {};
-    have[p.natCode] = 1;
-    var pool = (D.NATIONAL || []).filter(function (n) { return !have[n[1]] && state.clubs['nt_' + n[1]]; });
+    var p = state.player, y = state.youth || {}, seen = y.seen = y.seen || {};
+    var have = {}; have[p.natCode] = 1;
+    var pool = (D.NATIONAL || []).filter(function (n) { return !have[n[1]] && !seen[n[1]] && state.clubs['nt_' + n[1]]; });
     pool.sort(function (a, b) { return b[2] - a[2]; });
     var want = p.ovr >= 58 ? 3 : 2, out = [];
-    /* دول قوية ومتوسطة (مش دايمًا الأقوى) عشان العروض تتنوّع */
-    var top = pool.slice(0, 24);
-    shuffle(top, rng).slice(0, want).forEach(function (n) {
-      out.push({ code: n[1], ar: n[0], str: n[2], conf: n[3], text: 'منتخب ' + n[0] + ' عايز يجنّسك وتلعبله لما تكبر' });
+    /* كل موسم دول جداد (مبيتكرروش) */
+    shuffle(pool.slice(0, 30), rng).slice(0, want).forEach(function (n) {
+      seen[n[1]] = 1;
+      out.push({ code: n[1], ar: n[0], str: n[2], conf: n[3], year: state.year, text: 'منتخب ' + n[0] + ' عايز يجنّسك وتلعبله لما تكبر' });
     });
     out.sort(function (a, b) { return b.str - a.str; });
     return out;
@@ -1646,25 +1660,27 @@
     agePlayers(state, rng); driftStrengths(state, rng);
     p.age++; state.year++; y.yr++;
     state.skillGain = grantSkillPoints(state);
-    /* طلبات التجنيس */
-    y.offers = natOffers(state, rng);
-    if (y.offers.length) news.push({ k: 'up', x: 'وصلك ' + y.offers.length + (y.offers.length === 1 ? ' طلب تجنيس' : ' طلبات تجنيس') + ' من منتخبات' });
     if (y.yr >= 2) y.done = true;
     rec.news = news;
     return rec;
   }
-  function acceptNaturalization(state, code) {
-    var y = state.youth, o = y && (y.offers || []).filter(function (x) { return x.code === code; })[0];
-    if (!o) return false;
-    var p = state.player;
-    y.natLog = (y.natLog || []).concat([{ from: p.natCode, to: code, year: state.year }]);
-    p.nat = o.ar; p.natCode = code;
-    state.honors = state.honors || [];
-    state.honors.push({ year: state.year, type: 'nat', text: 'اتجنّست وبقيت لاعب ' + o.ar });
-    y.offers = []; y.naturalized = true;
+  /* البلد التانية أثناء الناشئين (غير بلد الأم اللي اختارها في الأول) */
+  function setSecondNation(state, code) {
+    var p = state.player, n = (D.NATIONAL || []).filter(function (x) { return x[1] === code; })[0];
+    if (!n || code === (p.motherNat && p.motherNat.natCode)) return false;
+    p.nat2 = { nat: n[0], natCode: code };
+    p.nat = n[0]; p.natCode = code;      /* بيمثّلها في الناشئين لحد ما يختار */
     return true;
   }
-  function declineNaturalization(state) { if (state.youth) state.youth.offers = []; }
+  /* بعد أول عقد احترافي: بلد الأم أو البلد التانية */
+  function chooseNation(state, which) {
+    var p = state.player, c = state.natChoice; if (!c) return false;
+    var pick = which === 'second' ? c.second : c.mother;
+    p.nat = pick.nat; p.natCode = pick.natCode;
+    if (which === 'second') { state.honors = state.honors || []; state.honors.push({ year: state.year, type: 'nat', text: 'اتجنّست وبقيت لاعب ' + pick.nat }); }
+    state.natChoice = null;
+    return true;
+  }
   function finishYouth(state, rng) {
     var y = state.youth; if (!y || !y.done) return false;
     var country = LG[state.league].country;
@@ -1695,6 +1711,7 @@
         pos: cfg.pos,
         color: cfg.color,
         photo: cfg.photo || null,
+        motherNat: cfg.startAge === 15 ? { nat: cfg.nat, natCode: cfg.natCode } : null,
         ovr: cfg.startAge === 15 ? 54 : 63,
         age: cfg.startAge === 15 ? 15 : 18
       },
@@ -1816,7 +1833,7 @@
     newCareer: newCareer,
     playRound: playRound,
     SKILLS: SKILLS, SKILL_MAX: SKILL_MAX, initSkills: initSkills, upgradeSkill: upgradeSkill, skillTotal: skillTotal,
-    playYouthSeason: playYouthSeason, acceptNaturalization: acceptNaturalization, declineNaturalization: declineNaturalization, finishYouth: finishYouth,
+    playYouthSeason: playYouthSeason, setSecondNation: setSecondNation, chooseNation: chooseNation, finishYouth: finishYouth,
     skipExpulsion: skipExpulsion,
     playLive: playLive,
     finishSeason: finishSeason,
