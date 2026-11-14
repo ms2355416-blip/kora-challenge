@@ -209,7 +209,7 @@
   function analyze(text, o) {
     o = o || {};
     var ctx = o.ctx || '', rng = o.rng || Math.random, coach = o.coach || 'المدرب', club = o.club || 'النادي', salary = o.salary || 0;
-    var a0 = make(text), bad = ctx === 'bad' || ctx === 'derbyDown' || ctx === 'red', good = ctx === 'good' || ctx === 'derbyUp';
+    var a0 = make(text), bad = ctx === 'bad' || ctx === 'derbyDown' || ctx === 'red' || ctx === 'lossStreak', good = ctx === 'good' || ctx === 'derbyUp';
     var r = { fame: 0, favor: 0, fine: 0, susp: 0, lines: [], tone: 'neutral', tags: [], abuse: null, words: [] };
     if (!a0.toks.length) { r.lines.push({ who: 'الصحافة', x: 'مفيش كلام اتقال، والمؤتمر عدّى بهدوء.', k: 'neutral' }); return r; }
 
