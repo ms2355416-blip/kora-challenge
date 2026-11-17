@@ -69,7 +69,7 @@
     }
     window.addEventListener('error', function (e) {
       if (e.target && e.target !== window && (e.target.src || e.target.href)) { var u = e.target.src || e.target.href; if (/\.(js|css)(\?|$)/.test(u) && u.indexOf('http') !== 0 || /careermode|coach-/.test(u)) show('FILE NOT LOADED: ' + u); return; }
-      if (!DBG) return; show('ERROR: ' + e.message + ' @ ' + String(e.filename || '').split('/').pop() + ':' + e.lineno);
+      if (!DBG && !/careermode|cm-boot|legend|sim|-x\.js|engine/.test(String(e.filename || ''))) return; show('ERROR: ' + e.message + ' @ ' + String(e.filename || '').split('/').pop() + ':' + e.lineno);
     }, true);
     window.addEventListener('unhandledrejection', function (e) { if (!DBG) return; show('PROMISE: ' + (e.reason && e.reason.message || e.reason)); });
   })();
