@@ -53,11 +53,15 @@
   <script src="icons.js"></script>
 <script src="pwa.js?v=2" defer></script>
   <link rel="stylesheet" href="header-btns.css?v=1">
+  <link rel="stylesheet" href="careermode-x.css?v=1">
+  <link rel="stylesheet" href="modern.css?v=1">
 </head>
 <body>
   <script>
   /* عرض أي خطأ على الشاشة عشان نعرف السبب */
   (function () {
+    /* رسائل الأخطاء بتظهر للمطوّر بس: افتح الصفحة بـ ?debug */
+    var DBG = /[?&]debug/.test(location.search);
     function show(t) {
       var d = document.getElementById('cmErrBox');
       if (!d) { d = document.createElement('pre'); d.id = 'cmErrBox'; d.style.cssText = 'white-space:pre-wrap;direction:ltr;text-align:left;margin:12px;padding:12px;border:2px solid #ff7a59;border-radius:12px;color:#ffd7cc;background:#2a1511;font-size:12px;position:relative;z-index:99999'; (document.body || document.documentElement).appendChild(d); }
@@ -65,9 +69,9 @@
     }
     window.addEventListener('error', function (e) {
       if (e.target && e.target !== window && (e.target.src || e.target.href)) { var u = e.target.src || e.target.href; if (/\.(js|css)(\?|$)/.test(u) && u.indexOf('http') !== 0 || /careermode|coach-/.test(u)) show('FILE NOT LOADED: ' + u); return; }
-      show('ERROR: ' + e.message + ' @ ' + String(e.filename || '').split('/').pop() + ':' + e.lineno);
+      if (!DBG) return; show('ERROR: ' + e.message + ' @ ' + String(e.filename || '').split('/').pop() + ':' + e.lineno);
     }, true);
-    window.addEventListener('unhandledrejection', function (e) { show('PROMISE: ' + (e.reason && e.reason.message || e.reason)); });
+    window.addEventListener('unhandledrejection', function (e) { if (!DBG) return; show('PROMISE: ' + (e.reason && e.reason.message || e.reason)); });
   })();
   </script>
 
@@ -103,6 +107,7 @@
         <b>مهنة لاعب</b><small>اصنع لاعبك وابدأ من الدرجات الدنيا لحد القمة</small><em id="cmModePlayerNote"></em>
       </a>
     </div>
+  <div id="cmLegends" class="cm-legends"></div>
   </section>
 
   <!-- إنشاء اللاعب -->
@@ -195,6 +200,7 @@
 <script src="dialog.js"></script>
 <script src="unlocks.js"></script>
 <script src="points-sync.js"></script>
-<script src="cm-boot.js?v=1"></script>
+<script src="cm-boot.js?v=2"></script>
+<script src="cm-legends-hall.js?v=1" defer></script>
 </body>
 </html>
