@@ -1,0 +1,67 @@
+/* Kora Challenge — طبقة التصميم العصري (بتتحمّل آخر ملف عشان تغلب على الباقي)
+   • كروت أصغر ومضغوطة بذكاء لتوفير مساحة الموبايل
+   • زجاج خفيف (Glassmorphism) بدون backdrop-filter على الكروت عشان الأداء (FPS) يفضل عالي
+   • حدود نيون ناعمة + Hover احترافي (على الأجهزة اللي فيها ماوس بس)
+   • نفس الهوية: خلفية داكنة + أخضر نيون + نفس الخطوط. الوضع الفاتح بيفضل زي ما هو.            */
+:root { --kc-neon: #24e982; --kc-line: rgba(36, 233, 130, .2); --kc-line-hi: rgba(36, 233, 130, .55); }
+
+:root:not([data-theme="light"]) .game-card,
+:root:not([data-theme="light"]) .mode-card,
+:root:not([data-theme="light"]) .pcard,
+:root:not([data-theme="light"]) .cm-card,
+:root:not([data-theme="light"]) .unl-card,
+:root:not([data-theme="light"]) .cm-coachcard,
+:root:not([data-theme="light"]) .cm-statcard {
+  background: linear-gradient(150deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .012) 55%), var(--surface, #101814);
+  border: 1px solid var(--kc-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 6px 16px rgba(0, 0, 0, .32);
+}
+
+/* ===== الكروت المضغوطة ===== */
+.cm-card { padding: 12px; margin-bottom: 9px; border-radius: 14px; }
+.cm-stat { padding: 6px 3px; border-radius: 10px; }
+.cm-sum-grid { gap: 6px; }
+.games-grid { gap: 12px !important; }
+.game-card { border-radius: 14px; }
+.game-art { height: 104px; }
+.art-emoji { font-size: 46px; }
+.art-number { font-size: 64px; }
+.game-info { padding: 12px 14px 14px; }
+.game-info h3 { font-size: clamp(15px, 4.2vw, 18px) !important; margin: 1px 0 4px; line-height: 1.5 !important; }
+.game-info > p { font-size: 12px; line-height: 1.75 !important; min-height: 0; }
+.mode-card, .pcard { border-radius: 14px; }
+.cm-btn { padding: 11px 14px; border-radius: 11px; }
+.cm-tab { padding: 6px 12px; }
+
+/* ===== Hover احترافي (أجهزة الماوس بس) ===== */
+.game-card, .mode-card, .pcard, .cm-mode, .cm-card.cm-click { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+@media (hover: hover) and (pointer: fine) {
+  :root:not([data-theme="light"]) .game-card:hover,
+  :root:not([data-theme="light"]) .mode-card:hover,
+  :root:not([data-theme="light"]) .pcard:hover,
+  :root:not([data-theme="light"]) .cm-mode:hover,
+  :root:not([data-theme="light"]) .cm-card.cm-click:hover {
+    transform: translateY(-3px);
+    border-color: var(--kc-line-hi);
+    box-shadow: 0 0 0 1px rgba(36, 233, 130, .2), 0 12px 26px rgba(36, 233, 130, .13);
+  }
+  .cm-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+}
+
+/* ===== إتاحة وأداء ===== */
+:focus-visible { outline: 2px solid var(--kc-neon); outline-offset: 2px; border-radius: 6px; }
+button, a, .cm-chip, .cm-tab { -webkit-tap-highlight-color: transparent; }
+.cm-btn, .cm-chip, .cm-tab, .cm-link { min-height: 40px; }
+.cm-fx, .cm-mk, .cm-ev, .cm-prize { content-visibility: auto; contain-intrinsic-size: 0 52px; }   /* القوايم الطويلة بتترسم بس لما تظهر */
+img { image-rendering: auto; }
+@media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+/* ===== الموبايل ===== */
+@media (max-width: 560px) {
+  .games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+  .game-art { height: 84px; }
+  .art-emoji { font-size: 38px; }
+  .game-info { padding: 10px 11px 12px; }
+  .game-info > p { font-size: 11px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .cm-page { padding-inline: 12px; }
+}

@@ -1,0 +1,4 @@
+/* Kora Challenge — أزرار الهيدر (الصفحة الرئيسية/الرجوع) — الملف كان ناقص وبيطلع 404 في كل صفحة */
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.header-actions .back.home-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: var(--green, #24e982); background: var(--surface-2, #151f19); border: 1px solid var(--border, #25352b); transition: border-color .2s, transform .2s; }
+.header-actions .back.home-icon:hover { border-color: var(--green, #24e982); transform: translateY(-1px); }
