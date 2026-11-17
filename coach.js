@@ -9,6 +9,8 @@
   let S = null, rng = E.mulberry((Date.now() ^ 0x5bd1e995) >>> 0);
   let squadMode = 'xi', view = 'squad', sortBy = 'pos', compSel = null, compTab = 'table', mkt = { f: { pos: 'F', foot: 'both' }, res: null }, careerClub = null;
   let pick = { country: 'eng', name: '', preview: null, seed: 0, q: '' };
+  /* لاعب معتزل جاي من كارير مود: نفس الاسم والجنسية */
+  let fromPlayer = null; try { fromPlayer = JSON.parse(localStorage.getItem('koraCoachFromPlayer') || 'null'); if (fromPlayer && fromPlayer.name) { pick.name = fromPlayer.name; pick.nat = fromPlayer.natCode || pick.nat; } } catch (e) { fromPlayer = null; }
 
   /* ====== حفظ ====== */
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ممتلئ */ } }
@@ -168,7 +170,7 @@
     const ok = await KoraDialog.confirm({ title: 'تدرّب ' + c.ar + '؟', message: 'الميزانية: ' + money(D.budgetFor(c.t, c.league)), okText: 'ابدأ', cancelText: 'لأ' });
     if (!ok) return;
     if (S) { E.selectClub(S, id, rng); S.xi = null; S.captain = null; if (S.world && E.nextMine(S) == null) { /* لسه */ } if (S.phase === 'summary' && S.summary) { S.summary.newClub = true; S.summary.sacked = false; } }
-    else { const nn = D.NATIONAL.filter(n => n[1] === (pick.nat || 'eg'))[0]; S = E.startCareer({ name: (pick.name || '').trim() || 'المدرب', clubId: id, nat: nn ? { ar: nn[0], code: nn[1] } : null }, E.mulberry(pick.seed)); }
+    else { const nn = D.NATIONAL.filter(n => n[1] === (pick.nat || 'eg'))[0]; S = E.startCareer({ name: (pick.name || '').trim() || 'المدرب', clubId: id, nat: nn ? { ar: nn[0], code: nn[1] } : null }, E.mulberry(pick.seed)); if (fromPlayer) { S.career.fromPlayer = fromPlayer; try { localStorage.removeItem('koraCoachFromPlayer'); } catch (e) { /* ignore */ } fromPlayer = null; } }
     pick.mode = null; save(); view = 'squad'; if (S.phase === 'summary') renderSummary(); else renderGame();
   }
 
