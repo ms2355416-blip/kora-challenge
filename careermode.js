@@ -23,6 +23,7 @@
   })();
 
   const E = window.KoraCMEngine, D = window.KoraCMData, LG = D.LEAGUES;
+  const X = window.KoraCMX || null;   /* إضافات: مؤتمرات، اعتزال دولي، محاكاة */
   const KEY = 'koraCareerMode';
   const STATS_KEY = 'koraChallengeStats';
   const COLORS = ['#e8453c', '#2f7cf6', '#24b36b', '#f6c445', '#8b5cf6', '#f5f5f5'];
@@ -274,10 +275,11 @@
     return t;
   }
 
-  function pressBox(press) {
+  function pressBox(press, po) {
+    po = po || {};
     const box = el('div', 'cm-press');
     const head = el('div', 'cm-press-top');
-    head.appendChild(el('b', 'cm-press-h', 'مؤتمر صحفي بعد المباراة'));
+    head.appendChild(el('b', 'cm-press-h', po.title || 'مؤتمر صحفي بعد المباراة'));
     const other = el('button', 'cm-press-other', 'إجابة أخرى'); other.type = 'button';
     head.appendChild(other);
     box.append(head, el('div', 'cm-press-q', press.q));
@@ -319,7 +321,7 @@
           }
           const r = E.answerFree(S, press, text, Math.random, pre);
           if (!r) { go.disabled = false; back.disabled = false; go.textContent = 'ابعت ردك'; toast('اكتب ردك الأول', 'bad'); return; }
-          save(); renderStatusSoon(); draw();
+          save(); renderStatusSoon(); draw(); if (po.onDone) po.onDone();
         });
         back.addEventListener('click', () => { typing = false; draw(); });
         row.append(go, back); body.append(ta, row);
@@ -328,7 +330,7 @@
       }
       press.opts.forEach((o, i) => {
         const b = el('button', 'cm-btn ghost cm-press-opt', o.t); b.type = 'button';
-        b.addEventListener('click', () => { press.reply = E.answerPress(S, press, i); save(); draw(); });
+        b.addEventListener('click', () => { press.reply = E.answerPress(S, press, i); save(); draw(); if (po.onDone) po.onDone(); });
         body.appendChild(b);
       });
     };
@@ -398,6 +400,11 @@
       const b5 = el('button', 'cm-btn ghost', 'العب 5 جولات'); b5.type = 'button'; b5.addEventListener('click', () => playRounds(5));
       row.append(b1, b5);
       card.appendChild(row);
+      if (X && X.simAvailable()) {
+        const sb = el('button', 'cm-btn sim', 'محاكاة الماتش (العب بنفسك)'); sb.type = 'button'; sb.style.marginTop = '8px';
+        sb.addEventListener('click', () => X.startSim(res => playRounds(1, res)));
+        card.appendChild(sb);
+      }
       const bs = el('button', 'cm-link', 'خلّص الموسم كله'); bs.type = 'button'; bs.style.marginTop = '10px';
       bs.addEventListener('click', () => playRounds(99));
       card.appendChild(bs);
@@ -1079,13 +1086,13 @@
     });
     openModal(w, 'يلا نكمل');
   }
-  function playRounds(n) {
+  function playRounds(n, sim) {
     if (S.natChoice) { showNatChoice(); return; }
     if (S.expelled) { toast('إنت مطرود من النادي. تخطّى العقوبة الأول.', 'bad'); return; }
     const reports = [];
     const myRounds = E.rounds(S.league);
     for (let i = 0; i < n && (S.round < myRounds || E.nextExtra(S)); i++) {
-      const rep = E.playRound(S, Math.random);
+      const rep = E.playRound(S, Math.random, false, i === 0 ? sim : null);
       if (rep.my) reports.push(rep.my);
       if (S.pendingCallup) break;
     }
@@ -1157,7 +1164,8 @@
     box.appendChild(cere);
     const lg = LG[sm.league].ar;
     const defs = [['club', 'أفضل نادي في العام', 'نادي العام في العالم'], ['kopa', 'جايزة كوبا', 'أحسن لاعب تحت 21 سنة في أوروبا'],
-      ['glove', 'القفاز الذهبي', 'أحسن حارس في ' + lg], ['boot', 'الحذاء الذهبي', 'هداف ' + lg], ['ballon', 'الكرة الذهبية', 'أحسن لاعب في أوروبا والعالم']];
+      ['glove', 'القفاز الذهبي', 'أحسن حارس في ' + lg], ['boot', 'الحذاء الذهبي', 'هداف ' + lg], ['afPlayer', 'أفضل لاعب في إفريقيا', 'أحسن لاعب إفريقي في العالم'], ['euPlayer', 'أفضل لاعب في أوروبا', 'أحسن لاعب في القارة العجوز'], ['ballon', 'الكرة الذهبية', 'أحسن لاعب في أوروبا والعالم']];
+    AW_ICONS.euPlayer = AW_ICONS.euPlayer || AW_ICONS.ballon; AW_ICONS.afPlayer = AW_ICONS.afPlayer || AW_ICONS.kopa;
     const items = [];
     defs.forEach(a => {
       const w = aw[a[0]], wrap = el('div', 'cm-aw' + (w && w.mine ? ' mine' : '') + (!w ? ' na' : '')); wrap.hidden = true;
@@ -1166,7 +1174,7 @@
       const info = el('div', 'cm-award-info');
       info.append(el('small', '', a[2]), el('b', 'cm-award-t', a[1]));
       if (!w) {
-        info.appendChild(el('small', 'cm-award-club', a[0] === 'glove' ? 'بتتوزع على الحراس في الدرجة الأولى بس.' : a[0] === 'boot' ? 'بتتوزع على هدافي الدرجة الأولى بس (إنت في درجة أدنى).' : 'مفيش مرشحين الموسم ده.'));
+        info.appendChild(el('small', 'cm-award-club', a[0] === 'glove' ? 'بتتوزع على الحراس في الدرجة الأولى بس.' : a[0] === 'boot' ? 'بتتوزع على هدافي الدرجة الأولى بس (إنت في درجة أدنى).' : a[0] === 'afPlayer' ? 'مفيش مرشحين أفارقة كفاية الموسم ده.' : 'مفيش مرشحين الموسم ده.'));
         card.append(ic, info);
       } else {
         const who = el('div', 'cm-award-who');
@@ -1175,6 +1183,7 @@
         info.appendChild(who);
         info.append(el('small', 'cm-award-club', (a[0] === 'club' ? '' : club(w.clubId).ar + ' • ') + w.stat));
         if (a[0] === 'ballon' && aw.ballonEligible === false) info.appendChild(el('small', 'cm-award-club', 'الكرة الذهبية بتتدي للاعيبة أوروبا بس، وإنت بتلعب برة أوروبا.'));
+        if (a[0] === 'afPlayer' && aw.afEligible === false) info.appendChild(el('small', 'cm-award-club', 'الجايزة دي للاعيبة المنتخبات الإفريقية بس.'));
         const tg = el('button', 'cm-link cm-cmp-toggle', 'شوف المقارنة'); tg.type = 'button';
         let cmp = null;
         tg.addEventListener('click', () => { if (cmp) { cmp.remove(); cmp = null; tg.textContent = 'شوف المقارنة'; } else { cmp = compareNode(w, a[0]); card.appendChild(cmp); tg.textContent = 'اخفي المقارنة'; } });
@@ -1194,10 +1203,11 @@
     };
     function finish() {
       clearTimeout(awTimer); finished = true; skip.textContent = 'كمّل';
+      if (X && X.queueAwardPress()) setTimeout(() => X.flushPress(), 700);
       items.forEach(it => { it.hidden = false; it.classList.add('in'); });
       tail.hidden = false;
       if (tail.childNodes.length) return;
-      const won = ['ballon', 'boot', 'glove', 'kopa', 'club'].filter(k => aw[k] && aw[k].mine).length;
+      const won = ['ballon', 'euPlayer', 'afPlayer', 'boot', 'glove', 'kopa', 'club'].filter(k => aw[k] && aw[k].mine).length;
       const wc = el('div', 'cm-card'); wc.appendChild(el('h3', 'cm-sum-title', 'أبطال الموسم حول العالم')); wc.lastChild.style.fontSize = '.95rem';
       const wl = el('div', 'cm-world');
       (sm.worldChamps || []).forEach(w => {
@@ -1231,7 +1241,7 @@
     card.appendChild(el('h2', 'cm-sum-title', sm.champion ? 'بطل الدوري!' : 'خلصت في المركز ' + sm.pos + ' من ' + sm.teams));
     card.appendChild(el('div', 'cm-sub', c.ar + ' • ' + LG[sm.league].ar));
     const g = el('div', 'cm-sum-grid');
-    [['مباريات', sm.apps], ['أهداف', sm.goals], ['أسيست', sm.assists], ['التقييم', sm.avg ? sm.avg.toFixed(1) : '-'], ['أصفر', sm.yellow], ['أحمر', sm.red]].forEach(x => {
+    (S.player.pos === 'GK' ? [['مباريات', sm.apps], ['تصديات', sm.saves || 0], ['شباك نظيفة', sm.cs || 0], ['التقييم', sm.avg ? sm.avg.toFixed(1) : '-'], ['أصفر', sm.yellow], ['أحمر', sm.red]] : [['مباريات', sm.apps], ['أهداف', sm.goals], ['أسيست', sm.assists], ['التقييم', sm.avg ? sm.avg.toFixed(1) : '-'], ['أصفر', sm.yellow], ['أحمر', sm.red]]).forEach(x => {
       const d = el('div', 'cm-stat'); d.append(el('small', '', x[0]), el('b', '', String(x[1]))); g.appendChild(d);
     });
     card.appendChild(g);
@@ -1503,22 +1513,50 @@
   function renderRetire() {
     try { localStorage.setItem('koraPlayerRetired', '1'); } catch (e) { /* ignore */ }
     const box = $('cmRetire'); box.textContent = '';
-    const card = el('div', 'cm-card');
-    card.appendChild(el('h2', 'cm-sum-title', 'اعتزلت الكورة'));
-    card.appendChild(el('div', 'cm-sub', S.player.name + ' • ' + S.history.length + ' موسم'));
-    const g = el('div', 'cm-sum-grid');
-    [['مباريات', S.totals.apps], ['أهداف', S.totals.goals], ['أسيست', S.totals.assists]].forEach(x => {
-      const d = el('div', 'cm-stat'); d.append(el('small', '', x[0]), el('b', '', fmt(x[1]))); g.appendChild(d);
-    });
+    const L = window.KoraLegend;
+    if (!L) { box.appendChild(el('div', 'cm-card', 'اعتزلت الكورة')); return; }
+    if (!S.retireSeen) {
+      S.retireSeen = true; save(); L.saveHall(S);
+      L.cinematic(S, () => { if (X) X.pressConf({ kind: 'retire' }, () => retireShowcase(box, L)); else retireShowcase(box, L); });
+      return;
+    }
+    retireShowcase(box, L);
+  }
+  /* لوحة الإنجازات + خيارات ما بعد الاعتزال */
+  function retireShowcase(box, L) {
+    box.textContent = '';
+    const s = L.summary(S), card = el('div', 'cm-card lg-card');
+    card.append(el('small', 'cm-sub', s.posAr + ' • ' + s.nat + ' • اعتزل في سن ' + s.age), el('h2', 'cm-sum-title', s.name));
+    const lr = el('div', 'lg-rating'); lr.append(el('b', '', String(s.legend)), el('span', '', s.tier)); card.appendChild(lr);
+    const g = el('div', 'cm-sum-grid lg-grid');
+    L.tiles(s).forEach(x => { const d = el('div', 'cm-stat'); const b = el('b', '', '0'); d.append(el('small', '', x[0]), b); g.appendChild(d); const to = Number(x[1]) || 0, t0 = performance.now(); const f = now => { const k = Math.min(1, (now - t0) / 1400); b.textContent = fmt(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(f); }; requestAnimationFrame(f); });
     card.appendChild(g);
-    const best = S.history.length ? Math.max.apply(null, S.history.map(h => h.ovrAfter)) : S.player.ovr;
-    card.appendChild(el('div', 'cm-note', 'أعلى طاقة وصلتلها: ' + Math.floor(best) + ' • ثروتك: ' + money(S.money) + ' • عدد البطولات والجوايز: ' + (S.honors || []).length));
+    if (s.records.length) { const rc = el('div', 'lg-records'); s.records.forEach(r => { const row = el('div', 'cm-prize'); row.append(el('span', '', r[0]), el('b', '', r[1])); rc.appendChild(row); }); card.appendChild(rc); }
+    card.appendChild(el('div', 'cm-note', 'ثروتك: ' + money(s.money) + ' • ' + s.clubs.length + ' نادي'));
     card.appendChild(el('div', 'cm-note up', 'مهنة المدرب اتفتحتلك!'));
-    const cb = el('a', 'cm-btn', 'ابدأ مهنة مدرب'); cb.href = 'coach.html'; cb.style.cssText = 'display:block;text-align:center;text-decoration:none;margin-bottom:8px';
-    const b = el('button', 'cm-btn ghost', 'ابدأ مسيرة لاعب جديدة'); b.type = 'button';
-    b.addEventListener('click', newCareer);
-    card.append(cb, b);
     box.appendChild(card);
+    const share = el('button', 'cm-btn', 'مشاركة بطاقة الأسطورة'); share.type = 'button';
+    share.addEventListener('click', async () => {
+      share.disabled = true; const r = await L.cardPNG(S, s); share.disabled = false;
+      const w = el('div', 'lg-share'); const im = document.createElement('img'); im.src = r.url; im.alt = 'بطاقة الأسطورة'; w.appendChild(im);
+      const dl = el('a', 'cm-btn', 'تحميل الصورة'); dl.href = r.url; dl.download = 'legend-' + s.name + '.png'; dl.style.cssText = 'display:block;text-align:center;text-decoration:none;margin-top:8px'; w.appendChild(dl);
+      if (navigator.share && navigator.canShare && r.blob && navigator.canShare({ files: [new File([r.blob], 'legend.png', { type: 'image/png' })] })) {
+        const sb = el('button', 'cm-btn ghost', 'مشاركة'); sb.type = 'button'; sb.style.marginTop = '8px';
+        sb.addEventListener('click', () => navigator.share({ files: [new File([r.blob], 'legend.png', { type: 'image/png' })], title: 'بطاقة الأسطورة - ' + s.name }).catch(() => {}));
+        w.appendChild(sb);
+      }
+      openModal(w, 'إغلاق');
+    });
+    box.appendChild(share);
+    if (X && E.comebackOptions(S).length) { const cb = el('button', 'cm-btn ghost', 'التراجع عن الاعتزال'); cb.type = 'button'; cb.style.marginTop = '8px'; cb.addEventListener('click', () => X.pickComeback()); box.appendChild(cb); }
+    const co = el('button', 'cm-btn', 'الانتقال لمهنة مدرب'); co.type = 'button'; co.style.marginTop = '8px';
+    co.addEventListener('click', () => {
+      try { localStorage.setItem('koraCoachFromPlayer', JSON.stringify({ name: s.name, nat: s.nat, natCode: s.natCode, apps: s.apps, goals: s.goals, assists: s.assists, titles: s.titles, legend: s.legend, seasons: s.seasons, pos: s.pos })); } catch (e) { /* ignore */ }
+      location.href = 'coach.html';
+    });
+    const nb = el('button', 'cm-btn ghost', 'ابدأ مسيرة لاعب جديدة'); nb.type = 'button'; nb.style.marginTop = '8px';
+    nb.addEventListener('click', newCareer);
+    box.append(co, nb);
   }
 
   function newCareer() { S = null; try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } render(); }
@@ -1544,78 +1582,4 @@
     if (!window.CompressionStream) return 'j:' + str;
     const buf = new Uint8Array(await new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
     let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
-    return 'g:' + btoa(bin);
-  }
-  async function unpack(v) {
-    if (v.slice(0, 2) === 'j:') return v.slice(2);
-    const bin = atob(v.slice(2)), u = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-    return await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
-  }
-  function bkRef() {
-    const u = window.KoraAuth && window.KoraAuth.user;
-    return u && window.firebase && firebase.database ? firebase.database().ref('careerBackup/' + u.uid) : null;
-  }
-  async function backupNow(silent) {
-    const ref = bkRef();
-    if (!ref || !S) { if (!silent) toast('سجّل دخول الأول عشان تحفظ نسخة احتياطية', 'bad'); return; }
-    try {
-      const c = JSON.parse(JSON.stringify(S));
-      if (c.contract) delete c.contract.sig;
-      (c.contracts || []).forEach(x => { delete x.sig; });
-      const data = await pack(JSON.stringify(c));
-      if (data.length > BK_MAX) throw new Error('big');
-      await ref.set({ data: data, t: firebase.database.ServerValue.TIMESTAMP, name: String(S.player.name).slice(0, 30), year: S.year, age: S.player.age });
-      if (!silent) toast('اتحفظت نسخة احتياطية من مسيرتك', 'up');
-    } catch (e) { if (!silent) toast('معرفتش أحفظ النسخة (اتأكد من قواعد Firebase: careerBackup)', 'bad'); }
-  }
-  async function restoreBackup() {
-    const ref = bkRef();
-    if (!ref) { toast('سجّل دخول الأول', 'bad'); return; }
-    try {
-      const snap = await ref.once('value'), v = snap.val();
-      if (!v || !v.data) { toast('مفيش نسخة احتياطية على حسابك', 'bad'); return; }
-      const ok = await window.KoraDialog.confirm({ title: 'استرجاع المسيرة؟', message: 'هتسترجع مسيرة ' + v.name + ' (موسم ' + v.year + ') وهتحل محل المسيرة الحالية على الجهاز ده.', okText: 'استرجع', cancelText: 'لأ', danger: true });
-      if (!ok) return;
-      const st = JSON.parse(await unpack(String(v.data)));
-      if (!st || st.v !== 2 || !st.player || !st.world) throw new Error('bad');
-      S = st; save(); tab = 'home'; tabLeague = S.league; render();
-      toast('اتسترجعت مسيرتك', 'up');
-    } catch (e) { toast('النسخة مش سليمة أو حصل خطأ في القراءة', 'bad'); }
-  }
-  $('cmBackup').addEventListener('click', () => backupNow(false));
-  $('cmRestore').addEventListener('click', restoreBackup);
-
-  $('cmChange').addEventListener('click', () => { location.hash = ''; render(); });
-
-  /* ====== التشغيل ====== */
-  function render() {
-    if (location.hash !== '#player') { renderMode(); show('cmMode'); return; }
-    if (!S) { show('cmCreate'); return; }
-    if (S.phase === 'youth') { renderYouth(); show('cmYouth'); return; }
-    if (S.phase === 'retired') { renderRetire(); show('cmRetire'); return; }
-    if (S.phase === 'sign') { renderSign(); show('cmSign'); return; }
-    if (S.phase === 'summer') { renderSummer(); show('cmSummer'); return; }
-    if (S.phase === 'awards') { renderAwards(); show('cmAwards'); return; }
-    if (S.phase === 'offers') { renderSeason(); show('cmSeason'); return; }
-    renderPlayer(); renderPane(); show('cmGame');
-    if (S.natChoice) showNatChoice();
-  }
-
-  $('cmTabs').addEventListener('click', e => {
-    const b = e.target.closest('.cm-tab'); if (!b) return;
-    tab = b.dataset.tab; renderPane();
-  });
-  $('cmReset').addEventListener('click', () => {
-    window.KoraDialog.confirm({ title: 'تبدأ مسيرة جديدة؟', message: 'مسيرتك الحالية هتتمسح ومش هترجع تاني.', okText: 'امسح وابدأ', cancelText: 'لأ، كمّل' })
-      .then(ok => { if (ok) newCareer(); });
-  });
-  $('cmModal').addEventListener('click', e => { if (e.target === $('cmModal')) $('cmModal').hidden = true; });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('cmModal').hidden = true; closeDrawer(); } });
-
-  try { buildCreate(); } catch (e) { console.error(e); window.dispatchEvent(new ErrorEvent('error', { message: 'buildCreate: ' + e.message, filename: 'careermode.js', lineno: 0 })); }
-  S = load();
-  if (S) { try { E.repairClubLeague(S, Math.random); save(); } catch (e) { /* ignore */ } }
-  if (S) { tabLeague = S.league; }
-  render();
-})();
+    return 'g:' + btoa(bin)
