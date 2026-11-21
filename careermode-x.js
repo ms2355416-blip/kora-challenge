@@ -222,7 +222,7 @@
     const S = U.S, E = U.E, me = U.club(clubIdMe), opp = U.club(oppId);
     const mc = teamColor(me.id), oc = teamColor(opp.id, mc.h), mor = E.moraleOf ? E.moraleOf(S) : 60;
     return Object.assign({
-      pos: SIMPOS[S.player.pos] || 'ST', ovr: S.player.ovr + (mor - 60) / 20, myStr: me.str, oppStr: opp.str, myName: me.ar, oppName: opp.ar, playerName: S.player.name,
+      pos: SIMPOS[S.player.pos] || 'ST', ovr: S.player.ovr + (mor - 60) / 20, myStr: me.str + (E.strAdj ? E.strAdj(S, !!(E.nextExtraInfo(S)) || /المنتخب/.test(label || '')) : 0), oppStr: opp.str, myName: me.ar, oppName: opp.ar, playerName: S.player.name,
       skills: S.skills || {}, home: home, myColor: mc.c, oppColor: oc.c, label: label || '', stars: E.starsOf ? E.starsOf(S, oppId, 2) : []
     }, extra || {});
   }
