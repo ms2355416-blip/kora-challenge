@@ -215,19 +215,32 @@
   }
   function simAvailable() {
     const S = U.S, E = U.E;
-    if (!root.KoraMatchSim || S.expelled || (S.injury && S.injury.games > 0) || S.susp > 0 || E.nextExtra(S) || S.seasonOver) return false;
-    return !!E.myFixtures(S).find(f => f.round === S.round + 1);
+    if (!root.KoraMatchSim || S.expelled || (S.injury && S.injury.games > 0) || S.susp > 0 || S.seasonOver) return false;
+    return !!(E.nextExtraInfo(S) || E.myFixtures(S).find(f => f.round === S.round + 1));
+  }
+  function simOpts(clubIdMe, oppId, home, label, extra) {
+    const S = U.S, E = U.E, me = U.club(clubIdMe), opp = U.club(oppId);
+    const mc = teamColor(me.id), oc = teamColor(opp.id, mc.h), mor = E.moraleOf ? E.moraleOf(S) : 60;
+    return Object.assign({
+      pos: SIMPOS[S.player.pos] || 'ST', ovr: S.player.ovr + (mor - 60) / 20, myStr: me.str, oppStr: opp.str, myName: me.ar, oppName: opp.ar, playerName: S.player.name,
+      skills: S.skills || {}, home: home, myColor: mc.c, oppColor: oc.c, label: label || '', stars: E.starsOf ? E.starsOf(S, oppId, 2) : []
+    }, extra || {});
   }
   function startSim(done) {
-    const S = U.S, E = U.E, fx = E.myFixtures(S).find(f => f.round === S.round + 1); if (!fx) return;
-    const home = fx.home === S.clubId, me = U.club(S.clubId), opp = U.club(home ? fx.away : fx.home);
-    const mc = teamColor(me.id), oc = teamColor(opp.id, mc.h);
-    const sk = S.skills || {};
-    root.KoraMatchSim.open({
-      pos: SIMPOS[S.player.pos] || 'ST', ovr: S.player.ovr, myStr: me.str, oppStr: opp.str, myName: me.ar, oppName: opp.ar, playerName: S.player.name,
-      skills: sk, home: home, myColor: mc.c, oppColor: oc.c
-    }, res => { if (res) done(res); });
+    const S = U.S, E = U.E, due = E.nextExtraInfo(S);
+    let o;
+    if (due) o = simOpts(S.clubId, due.home === S.clubId ? due.away : due.home, due.home === S.clubId, due.label);
+    else {
+      const fx = E.myFixtures(S).find(f => f.round === S.round + 1); if (!fx) return;
+      const home = fx.home === S.clubId; o = simOpts(S.clubId, home ? fx.away : fx.home, home, E.derbyOf(fx.home, fx.away) || '');
+    }
+    root.KoraMatchSim.open(o, res => { if (res) done(res); });
+  }
+  /* مباراة منتخب (من شاشة الاستدعاء) */
+  function startNatSim(pm, natId, done) {
+    const home = pm.home === natId;
+    root.KoraMatchSim.open(simOpts(natId, home ? pm.away : pm.home, home, 'المنتخب • ' + (pm.stageText || '')), res => { if (res) done(res); });
   }
 
-  root.KoraCMX = { bind: bind, pressConf: pressConf, flushPress: flushPress, queueAwardPress: queueAwardPress, renderIntl: renderIntl, renderComeback: renderComeback, pickComeback: pickComeback, simAvailable: simAvailable, startSim: startSim, teamColor: teamColor };
+  root.KoraCMX = { bind: bind, pressConf: pressConf, flushPress: flushPress, queueAwardPress: queueAwardPress, renderIntl: renderIntl, renderComeback: renderComeback, pickComeback: pickComeback, simAvailable: simAvailable, startSim: startSim, startNatSim: startNatSim, teamColor: teamColor };
 })(window);
