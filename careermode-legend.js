@@ -61,6 +61,18 @@
     if (list.some(x => x.name === s.name && x.year === s.year)) return;
     list.unshift({ name: s.name, pos: s.pos, posAr: s.posAr, nat: s.nat, natCode: s.natCode, color: s.color, legend: s.legend, tier: s.tier, apps: s.apps, goals: s.goals, assists: s.assists, saves: s.saves, cs: s.cs, titles: s.titles, indiv: s.indiv, ballon: s.ballon, peak: s.peak, age: s.age, year: s.year, gk: s.gk, caps: s.caps, seasons: s.seasons });
     try { localStorage.setItem(HALL_KEY, JSON.stringify(list.slice(0, 12))); } catch (e) { /* ignore */ }
+    pushOnline(s);
+  }
+  /* القاعة الأونلاين: أفضل أسطورة لكل حساب (بيتحدّث بس لو الجديدة أقوى) */
+  function pushOnline(s) {
+    try {
+      const fb = root.firebase; if (!fb || !fb.apps || !fb.apps.length) return;
+      const u = fb.auth().currentUser; if (!u) return;
+      const str = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u200e\u200f\u202a-\u202e]/g, '').slice(0, n);
+      const num = (v, n) => Math.max(0, Math.min(n, Math.round(Number(v) || 0)));
+      const row = { name: str(s.name, 30), posAr: str(s.posAr, 12), natCode: str(s.natCode, 8), legend: num(s.legend, 100), tier: str(s.tier, 20), goals: num(s.goals, 2000), assists: num(s.assists, 2000), saves: num(s.saves, 20000), cs: num(s.cs, 2000), titles: num(s.titles, 200), ballon: num(s.ballon, 50), apps: num(s.apps, 5000), gk: !!s.gk, year: num(s.year, 3000), by: str(u.displayName || '', 24), ts: fb.database.ServerValue.TIMESTAMP };
+      fb.database().ref('legends_hall/' + u.uid).transaction(cur => (!cur || (cur.legend || 0) < row.legend) ? row : undefined).catch(() => {});
+    } catch (e) { /* ignore */ }
   }
 
   /* ====== بطاقة الأسطورة (Canvas → PNG) ====== */
