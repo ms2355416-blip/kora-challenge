@@ -3,7 +3,7 @@
    - الصفحات التقيلة (كارير مود ومود المدرب) بتتخزن أول ما تفتحها بس
    - HTML: من الكاش فورًا وبيتحدّث في الخلفية | باقي الملفات: من الكاش وتتحدّث في الخلفية
    - Firebase والطلبات اللي بتكتب: مبنلمسهاش */
-const VERSION = 'kora-v3';
+const VERSION = 'kora-v4';
 const IMG_CACHE = 'kora-img-v1';
 const LIB_CACHE = 'kora-lib-v1';
 const LIBS = ['https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js', 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js', 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js'];
