@@ -67,6 +67,15 @@
     /* لو الفريق مصنف أقوى من الخصم بنساعد شوية (وعكسه) */
     m.biasMe = clamp((o.myStr - o.oppStr) / 90, -.18, .18); m.biasMeShoot = 1;
     m.userBias = { ST: 1.0, MF: 1.0, DF: 1.15, GK: 1.3 }[o.pos] || 1;   /* المهاجم بيجيله فرص أكتر من تمريرات الزمايل، والمدافع/الحارس خصمه بيهاجم أكتر */
+    /* نجوم الخصم الحقيقيين: أسرع وأدق، واسمهم فوق راسهم */
+    (o.stars || []).slice(0, 3).forEach(st => {
+      const role = st.pos === 'GK' ? 'GK' : st.pos === 'DF' ? 'DF' : st.pos === 'MF' ? 'MF' : 'FW';
+      const c = m.teams[1].players.filter(p => p.role === role && !p.star).sort((a, b) => Math.abs(a.ax - .5) - Math.abs(b.ax - .5))[0];
+      if (!c) return;
+      const bonus = clamp((st.o - 74) / 20, 0, 1);
+      c.star = { name: String(st.n || '').split(' ').slice(-1)[0], ovr: st.o, b: bonus };
+      c.spd += 4 + bonus * 9;
+    });
     placeAll(m, 0);
     return m;
   }
@@ -150,7 +159,7 @@
 
   function doShoot(m, p, aimX, power, userShot) {
     const t = m.teams[p.team], gy = t.idx === 0 ? 0 : H;
-    const q = userShot ? p.shootQ : clamp(.3 + t.q * .55, .2, .95);
+    const q = userShot ? p.shootQ : clamp(.3 + t.q * .55 + (p.star ? .06 + p.star.b * .08 : 0), .2, .97);
     const dg = Math.abs(gy - p.y);
     const err = (.03 + (1 - q) * .13 + power * .045 + Math.min(dg, 600) / 600 * .03) * (Math.hypot(p.vx, p.vy) > 60 ? 1.15 : 1);
     const speed = 520 + 600 * power;
@@ -197,7 +206,7 @@
   function doPass(m, p, r, power, userPass, through) {
     const t = m.teams[p.team];
     const d = Math.hypot(r.x - p.x, r.y - p.y);
-    const q = userPass ? p.passQ : clamp(.35 + t.q * .55, .2, .95);
+    const q = userPass ? p.passQ : clamp(.35 + t.q * .55 + (p.star ? .05 : 0), .2, .97);
     const lead = through ? .75 : .38;
     const tx = clamp(r.x + r.vx * lead + (through ? 0 : 0), 20, W - 20), ty = clamp(r.y + r.vy * lead + (through ? t.dir * 46 : 0), 8, H - 8);
     const dd = Math.hypot(tx - p.x, ty - p.y);
@@ -360,7 +369,7 @@
     if (isUser) m.u.tackleTry++;
     if (d > reach || m.restartHold > 0) return;
     const t = m.teams[p.team], ct = m.teams[c.team];
-    const tq = isUser ? p.tackQ : t.q * .8 + .15, cq = c.user ? .55 : ct.q * .8 + .12;
+    const tq = isUser ? p.tackQ : t.q * .8 + .15 + (p.star ? .06 : 0), cq = c.user ? .55 : ct.q * .8 + .12 + (c.star ? .08 : 0);
     /* اتجاه الاقتراب: من قدام أصعب، من ورا أسهل لكن احتمال ماقف */
     let pr = clamp(.45 + (tq - cq) * .75 + (c.user ? .08 : 0), .12, .85);
     if (rnd() < pr) {
@@ -474,7 +483,7 @@
     for (let gi = 0; gi < 2; gi++) {
       const gk = gks[gi], t = m.teams[gi];
       if (m.carrier === gk) continue;
-      const reach = (gk.dive > 0 || gk.stun > 0 && gk.dive <= 0 ? 0 : 0) + (gk.dive > 0 ? 50 : 26) + (gi === 1 ? t.q * 10 : 6);
+      const reach = (gk.dive > 0 || gk.stun > 0 && gk.dive <= 0 ? 0 : 0) + (gk.dive > 0 ? 50 : 26) + (gi === 1 ? t.q * 10 + (gk.star ? 5 + gk.star.b * 6 : 0) : 6);
       if (b.shot && b.shot.team !== gi && b.z < 38 && dist(gk, b) < reach && gk.stun <= 0) {
         const sp = Math.hypot(b.vx, b.vy), hold = sp < 560 + (gi === 1 ? t.q * 160 : 120) && rnd() < (gi === 1 ? .55 + t.q * .35 : .78);
         /* حارس بيتصدّى */
@@ -657,30 +666,85 @@
     return c;
   }
 
+  /* ألوان مشتقة (تتخزن مرة واحدة لكل لون) */
+  const _shade = {};
+  function shade(c, f) {
+    const k = c + f; if (_shade[k]) return _shade[k];
+    let r = 128, g2 = 128, b = 128;
+    if (/^#[0-9a-f]{6}$/i.test(c)) { r = parseInt(c.substr(1, 2), 16); g2 = parseInt(c.substr(3, 2), 16); b = parseInt(c.substr(5, 2), 16); }
+    const t = f < 0 ? 0 : 255, a = Math.abs(f);
+    return (_shade[k] = 'rgb(' + Math.round(r + (t - r) * a) + ',' + Math.round(g2 + (t - g2) * a) + ',' + Math.round(b + (t - b) * a) + ')');
+  }
+  let _drawT = 0, _drawDt = .016;
+
+  /* لاعب بجسم خفيف: رأس + قميص + شورت + أرجل وأذرع بحركة جري — شكل كرتوني واضح */
   function drawPlayer(g, p, col, isUser, fx, m) {
-    const x = p.x, y = p.y;
-    if (fx) { g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(x + 5, y + 6, R * .95, R * .6, 0, 0, 6.283); g.fill(); }
-    const lean = p.dive > 0 ? 1 : 0;
-    g.save(); g.translate(x, y - 3);
-    if (lean) g.rotate(Math.atan2(p.vy, p.vx) * .0 + (p.vx > 0 ? .9 : -.9));
-    /* الجسم */
-    g.fillStyle = p.role === 'GK' ? (p.team === 0 ? '#f6c445' : '#e87bd1') : col;
-    g.beginPath(); g.arc(0, 0, R, 0, 6.283); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.22)'; g.beginPath(); g.arc(-4, -5, R * .55, 0, 6.283); g.fill();
-    g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, R, 0, 6.283); g.stroke();
-    /* الرأس (يديه إحساس الارتفاع) + اتجاه النظر */
-    const fx0 = Math.cos(p.face) * 3, fy0 = Math.sin(p.face) * 3 - 5;
-    g.fillStyle = '#f1d3b4'; g.beginPath(); g.arc(fx0, fy0, 5.2, 0, 6.283); g.fill();
-    g.fillStyle = '#222'; g.beginPath(); g.arc(fx0 + Math.cos(p.face) * 1.6, fy0 + Math.sin(p.face) * 1.6 - 1.4, 3.4, 3.14, 6.283); g.fill();
+    const x = p.x, y = p.y, isGK = p.role === 'GK';
+    const sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+    p._ph = (p._ph || 0) + sp * .05 * _drawDt;
+    const run = Math.min(1, sp / 150), sw = Math.sin(p._ph) * run;       // -1..1 تأرجح الجري
+    const jersey = isGK ? (p.team === 0 ? '#f6c445' : '#e87bd1') : col;
+    const dark = shade(jersey, -.35), light = shade(jersey, .3);
+    const short = isGK ? '#1d2230' : (p.team === 0 ? '#f4f6f8' : '#1b2330');
+    const skin = '#f0c9a3';
+    const fcx = Math.cos(p.face), fsy = Math.sin(p.face), back = fsy < -.35;
+    /* ظل */
+    if (fx) { g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(x, y + 5, 11, 4.2, 0, 0, 6.283); g.fill(); }
+    g.save(); g.translate(x, y + 4);
+    if (p.dive > 0) { g.translate(0, -8); g.rotate(p.vx >= 0 ? 1.25 : -1.25); g.translate(0, 8); }
+    else if (p.stun > 0 && isGK) { g.translate(0, -3); g.rotate(p.vx >= 0 ? .9 : -.9); }
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    /* الأرجل */
+    const ls = sw * 7.5, bend = run * 1.5;
+    g.lineWidth = 4.4;
+    g.strokeStyle = skin; g.beginPath(); g.moveTo(-3, -11); g.lineTo(-3 - ls * .35, -5 - Math.max(0, -sw) * bend); g.moveTo(3, -11); g.lineTo(3 + ls * .35, -5 - Math.max(0, sw) * bend); g.stroke();
+    g.strokeStyle = jersey; g.lineWidth = 4.9;                                   // الشرابات بلون الفريق
+    g.beginPath(); g.moveTo(-3 - ls * .35, -6.2); g.lineTo(-3 - ls, -.6 - Math.max(0, -sw) * bend); g.moveTo(3 + ls * .35, -6.2); g.lineTo(3 + ls, -.6 - Math.max(0, sw) * bend); g.stroke();
+    g.fillStyle = '#15191f';
+    g.beginPath(); g.ellipse(-3 - ls, .6 - Math.max(0, -sw) * bend, 3.4, 2, 0, 0, 6.283); g.ellipse(3 + ls, .6 - Math.max(0, sw) * bend, 3.4, 2, 0, 0, 6.283); g.fill();
+    /* الشورت */
+    g.fillStyle = short; g.beginPath(); g.moveTo(-6.6, -18); g.lineTo(6.6, -18); g.lineTo(7.2, -10); g.lineTo(-7.2, -10); g.closePath(); g.fill();
+    /* الذراعين (عكس الرجلين) */
+    const as = p.dive > 0 ? 0 : -sw * 6, up = p.dive > 0 || (isGK && p.hold > 0);
+    g.lineWidth = 3.6; g.strokeStyle = jersey;
+    g.beginPath();
+    if (up) { g.moveTo(-8, -27); g.lineTo(-11, -38); g.moveTo(8, -27); g.lineTo(11, -38); }
+    else { g.moveTo(-8, -27); g.lineTo(-10 - as * .25, -19 + as * .6); g.moveTo(8, -27); g.lineTo(10 + as * .25, -19 - as * .6); }
+    g.stroke();
+    g.fillStyle = isGK ? '#fff' : skin;
+    const hr = isGK ? 3 : 2.2;
+    g.beginPath();
+    if (up) { g.arc(-11, -39, hr, 0, 6.283); g.moveTo(14, -39); g.arc(11, -39, hr, 0, 6.283); }
+    else { g.arc(-10 - as * .25, -18 + as * .6, hr, 0, 6.283); g.moveTo(10 + as * .25 + hr, -18 - as * .6); g.arc(10 + as * .25, -18 - as * .6, hr, 0, 6.283); }
+    g.fill();
+    /* القميص */
+    g.fillStyle = jersey; g.beginPath(); g.moveTo(-8.4, -28); g.quadraticCurveTo(0, -31.5, 8.4, -28); g.lineTo(6.8, -15.5); g.lineTo(-6.8, -15.5); g.closePath(); g.fill();
+    g.fillStyle = dark; g.beginPath(); g.moveTo(-8.4, -28); g.lineTo(-6.8, -15.5); g.lineTo(-4.2, -15.5); g.lineTo(-5.6, -28.6); g.closePath(); g.fill();
+    g.fillStyle = light; g.fillRect(-1.2, -28.6, 2.4, 12.4);                      // شريط القميص
+    /* الرأس */
+    const hx = fcx * 1.6;
+    g.fillStyle = skin; g.beginPath(); g.arc(hx, -35.5, 5.4, 0, 6.283); g.fill();
+    g.fillStyle = isGK ? '#2c2c2c' : '#2a1d14';
+    g.beginPath();
+    if (back) g.arc(hx, -35.8, 5.5, 0, 6.283);
+    else g.arc(hx, -36.6, 5.5, 3.14, 6.283);
+    g.fill();
+    if (!back) { g.fillStyle = '#1a1a1a'; g.fillRect(hx + fcx * 1.5 - 2.4, -35, 1.4, 1.6); g.fillRect(hx + fcx * 1.5 + 1, -35, 1.4, 1.6); }
     g.restore();
+    if (p.star) {
+      g.fillStyle = '#f6c445'; g.font = '800 11px Cairo, sans-serif'; g.textAlign = 'center';
+      g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText('★ ' + p.star.name, x, y - 44); g.fillText('★ ' + p.star.name, x, y - 44);
+    }
     if (isUser) {
-      g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.beginPath(); g.arc(x, y, R + 6 + Math.sin(performance.now() / 160) * 1.5, 0, 6.283); g.stroke();
-      g.fillStyle = '#24e982'; g.beginPath(); g.moveTo(x, y - R - 22); g.lineTo(x - 7, y - R - 32); g.lineTo(x + 7, y - R - 32); g.closePath(); g.fill();
+      const t = _drawT;
+      g.strokeStyle = '#fff'; g.lineWidth = 2.4; g.beginPath(); g.ellipse(x, y + 5, 15 + Math.sin(t / 160) * 1.5, 6.5, 0, 0, 6.283); g.stroke();
+      g.fillStyle = '#24e982'; g.beginPath(); g.moveTo(x, y - 40 + Math.sin(t / 200) * 2); g.lineTo(x - 7, y - 52 + Math.sin(t / 200) * 2); g.lineTo(x + 7, y - 52 + Math.sin(t / 200) * 2); g.closePath(); g.fill();
     }
   }
 
   function draw(g, m, view, layer, fxOn) {
     const sc = view.scale, cam = view.cam;
+    const nowT = performance.now(); _drawDt = Math.min(.05, Math.max(.004, (nowT - (_drawT || nowT)) / 1000)); _drawT = nowT;
     g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#050807'; g.fillRect(0, 0, view.cw, view.ch);
     const shake = m.shake > 0 ? (Math.random() - .5) * 8 * m.shake : 0;
     g.setTransform(sc * view.dpr, 0, 0, sc * view.dpr, (view.cw / 2 - cam.x * sc + shake) * view.dpr, (view.ch / 2 - cam.y * sc + shake) * view.dpr);
@@ -704,7 +768,12 @@
       g.strokeStyle = '#222'; g.lineWidth = 1.4; g.stroke();
       g.fillStyle = '#222'; g.beginPath(); g.arc(b.x - 1.3, b.y - hz - 3, 2.1, 0, 6.283); g.fill();
     };
-    list.forEach(p => { if (!ballDrawn && b.y < p.y - 4) drawBall(); drawPlayer(g, p, m.teams[p.team].color, p.user, fxOn, m); });
+    const pk = Math.min(1.45, Math.max(1, .62 / sc));     // نكبّر اللاعيبة شوية لما الشاشة صغيرة
+    list.forEach(p => {
+      if (!ballDrawn && b.y < p.y - 4) drawBall();
+      if (pk > 1.02) { g.save(); g.translate(p.x, p.y); g.scale(pk, pk); g.translate(-p.x, -p.y); drawPlayer(g, p, m.teams[p.team].color, p.user, fxOn, m); g.restore(); }
+      else drawPlayer(g, p, m.teams[p.team].color, p.user, fxOn, m);
+    });
     drawBall();
     /* جسيمات الاحتفال */
     if (fxOn) m.fx.forEach(f => { g.globalAlpha = Math.max(0, Math.min(1, f.life)); g.fillStyle = f.c; g.fillRect(f.x, f.y, f.s, f.s * 1.6); }); g.globalAlpha = 1;
@@ -740,7 +809,7 @@
     '.ms-pw{position:absolute;right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 196px);width:150px;height:12px;border-radius:99px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25);overflow:hidden;z-index:3;opacity:0;transition:opacity .15s}' +
     '.ms-pw.on{opacity:1}.ms-pw i{display:block;height:100%;width:0;background:linear-gradient(90deg,#24e982,#f6c445,#ff6a4d)}' +
     '.ms-stam{position:absolute;left:calc(env(safe-area-inset-left,0px) + 18px);bottom:calc(env(safe-area-inset-bottom,0px) + 160px);width:132px;height:6px;border-radius:9px;background:rgba(0,0,0,.55);overflow:hidden;z-index:3}.ms-stam i{display:block;height:100%;background:#6ec6ff;width:100%}' +
-    '.ms-hint{position:absolute;left:12px;right:12px;bottom:calc(min(42vh,260px) + 6px);text-align:center;font-size:.76rem;color:#cfe;background:rgba(0,0,0,.55);border-radius:10px;padding:5px 10px;z-index:3;pointer-events:none}' +
+    '.ms-hint{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 62px);text-align:center;font-size:.76rem;color:#cfe;background:rgba(0,0,0,.55);border-radius:10px;padding:5px 10px;z-index:3;pointer-events:none}' +
     '.ms-panel{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(3,8,6,.82);backdrop-filter:blur(6px)}' +
     '.ms-card{width:100%;max-width:420px;background:linear-gradient(160deg,rgba(24,36,30,.96),rgba(10,16,13,.96));border:1px solid rgba(36,233,130,.4);border-radius:20px;padding:18px;box-shadow:0 0 40px rgba(36,233,130,.15);max-height:92vh;overflow:auto;text-align:center}' +
     '.ms-card h2{margin:0 0 4px;font-size:1.25rem}.ms-card p{margin:4px 0;color:#9fb5a9;font-size:.86rem;line-height:1.7}' +
@@ -749,7 +818,11 @@
     '.ms-act{display:block;width:100%;margin-top:10px;font:inherit;font-weight:800;border-radius:13px;padding:12px;cursor:pointer;border:2px solid #24e982;background:#24e982;color:#04110a}.ms-act.ghost{background:transparent;color:#24e982}' +
     '.ms-opts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0}.ms-chip{font:inherit;font-size:.78rem;border-radius:99px;padding:6px 12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}.ms-chip.on{border-color:#24e982;color:#24e982;background:rgba(36,233,130,.12)}' +
     '.ms-rate{font-size:2.4rem;font-weight:900;color:#f6c445;margin:6px 0}' +
-    '@media (min-width:900px){.ms-ctrl{height:0}.ms-joy,.ms-btns,.ms-stam{display:none}.ms-hint{bottom:14px}.ms-pw{bottom:18px;right:18px}}' +
+    '.ms-score{min-width:0;flex:0 1 auto;white-space:nowrap}.ms-clock,.ms-ibtn{flex-shrink:0}' +
+    '@media (max-width:380px){.ms-top{padding-left:6px;padding-right:6px;gap:4px}.ms-clock{min-width:44px;padding:3px 6px;font-size:.85rem}.ms-score{padding:4px 8px;gap:5px}.ms-score b{font-size:1rem;min-width:0}.ms-score span{max-width:42px;font-size:.62rem}.ms-ibtn{width:34px;height:34px;border-radius:10px}.ms-tools{gap:4px}}' +
+    '@media (max-height:700px) and (orientation:portrait){.ms-joy{width:112px;height:112px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}.ms-knob{width:48px;height:48px;margin:-24px 0 0 -24px}.ms-btns{transform:scale(.8);transform-origin:100% 100%;bottom:calc(env(safe-area-inset-bottom,0px) + 14px)}.ms-stam{width:112px;bottom:calc(env(safe-area-inset-bottom,0px) + 134px)}.ms-pw{bottom:calc(env(safe-area-inset-bottom,0px) + 156px)}}' +
+    '@media (orientation:landscape) and (max-width:899px){.ms-hint{display:none}.ms-joy{width:112px;height:112px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px)}.ms-knob{width:48px;height:48px;margin:-24px 0 0 -24px}.ms-btns{transform:scale(.82);transform-origin:100% 100%;bottom:calc(env(safe-area-inset-bottom,0px) + 8px)}.ms-stam{width:112px;bottom:calc(env(safe-area-inset-bottom,0px) + 130px)}.ms-pw{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}.ms-top{padding-top:calc(env(safe-area-inset-top,0px) + 4px)}}' +
+    '@media (min-width:900px){.ms-ctrl{height:0}.ms-joy,.ms-btns,.ms-stam{display:none}.ms-hint{top:auto;bottom:14px}.ms-pw{bottom:18px;right:18px}}' +
     '@media (prefers-reduced-motion:reduce){.ms-banner.show{animation-duration:.4s}}';
 
   /* ====== أصوات بسيطة بالكود (Web Audio) من غير ملفات ====== */
@@ -795,18 +868,20 @@
       view.dpr = dpr; view.cw = rootEl.clientWidth; view.ch = rootEl.clientHeight;
       cv.width = Math.round(view.cw * dpr); cv.height = Math.round(view.ch * dpr);
       /* الملعب كله ظاهر: نحجز مكان فوق (السكور) وتحت (الأزرار) */
-      const topPad = 66, botPad = view.cw < 900 ? Math.min(view.ch * .26, 150) : 20;
+      const land = view.cw > view.ch && view.cw < 900;      // موبايل أفقي: الملعب أعرض ويتابع اللاعب
+      const topPad = land ? 50 : 66, botPad = land ? 6 : (view.cw < 900 ? Math.min(view.ch * .26, 150) : 20);
       const availH = view.ch - topPad - botPad, availW = view.cw - 10;
-      view.fit = Math.min(availW / (W + 40), availH / (H + 40));
+      view.land = land;
+      view.fit = land ? Math.max(availH / (H + 40), Math.min(availW, view.cw * .6) / (W + 40)) : Math.min(availW / (W + 40), availH / (H + 40));
       view.padTop = topPad; view.padBot = botPad;
-      const rs = Math.min(lowFx ? 1.1 : 1.6, Math.max(.8, view.fit * dpr * (zoomOn ? 1.6 : 1.15)));
+      const rs = Math.min(lowFx ? 1.1 : 1.6, Math.max(.8, view.fit * dpr * (zoomOn || view.land ? 1.6 : 1.15)));
       layer = buildPitchLayer(rs);
     }
     function updateCam() {
-      const fit = view.fit, z = zoomOn ? (isGK ? 1.9 : 1.55) : 1;
+      const fit = view.fit, follow = zoomOn || view.land, z = zoomOn ? (view.land ? 1.3 : (isGK ? 1.9 : 1.55)) : 1;
       view.scale = fit * z;
-      const tx = zoomOn ? (isGK ? W / 2 + (m.ball.x - W / 2) * .35 : m.user.x * .45 + m.ball.x * .55) : W / 2;
-      const ty = zoomOn ? (isGK ? H - 240 + (m.ball.y - (H - 240)) * .25 : m.user.y * .35 + m.ball.y * .65) : H / 2;
+      const tx = follow ? (isGK ? W / 2 + (m.ball.x - W / 2) * .35 : m.user.x * .45 + m.ball.x * .55) : W / 2;
+      const ty = follow ? (isGK ? H - 240 + (m.ball.y - (H - 240)) * .25 : m.user.y * .35 + m.ball.y * .65) : H / 2;
       const halfW = view.cw / 2 / view.scale, halfH = (view.ch - view.padTop - view.padBot) / 2 / view.scale;
       const cx = clamp(tx, Math.min(W / 2, halfW - M + 6), Math.max(W / 2, W + M - halfW - 6)), cyRaw = clamp(ty, Math.min(H / 2, halfH - M + 6), Math.max(H / 2, H + M - halfH - 6));
       /* ننزّل الكاميرا شوية عشان الملعب يبقى بين الشريط العلوي والأزرار */
@@ -822,6 +897,8 @@
       c.append(el('h2', '', 'محاكاة الماتش'), el('p', '', (o.home ? 'على أرضك' : 'خارج ملعبك') + ' • أنت: ' + o.playerName + ' • ' + POS_AR[o.pos]));
       const vs = el('div', 'ms-vs'); vs.append(el('span', '', o.myName), el('b', '', 'VS'), el('span', '', o.oppName)); c.appendChild(vs);
       c.appendChild(el('p', '', 'الماتش 90 دقيقة على الساعة = 200 ثانية فعلية. ' + (isGK ? 'إنت حارس المرمى: حرّك الحارس بالجويستيك واضغط «ارتماء» لصدّ التسديدات، ولما تمسك الكرة وزّعها بزرار «تمرير».' : o.pos === 'DF' ? 'إنت مدافع: اقطع الهجمات بزرار «افتكاك» وابني اللعب من الخلف.' : o.pos === 'MF' ? 'إنت صانع ألعاب: اربط الخطوط ومرّر تمريرات بينية (اضغط مطوّل على «تمرير» لقوة أكبر).' : 'إنت مهاجم: اطلب الكرة وسدّد على المرمى. شدّ زرار «شوت» لتتحكم في القوة.')));
+      if (o.label) c.insertBefore(el('p', '', '🏆 ' + o.label), vs);
+      if (o.stars && o.stars.length) c.appendChild(el('p', '', '⭐ نجوم الخصم: ' + o.stars.map(x => x.n + ' (' + x.o + ')').join('، ') + ' — خلي بالك منهم!'));
       c.appendChild(el('p', '', 'أسلوب ' + o.oppName + ' المتوقع: ' + (STYLES[m.teams[1].styleKey] || sty).ar + ' (وبيتغير حسب النتيجة).'));
       const row = el('div', 'ms-opts');
       const fxb = el('button', 'ms-chip' + (lowFx ? ' on' : ''), 'تأثيرات خفيفة (أداء أسرع)'); fxb.type = 'button';
