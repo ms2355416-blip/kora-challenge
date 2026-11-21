@@ -50,7 +50,10 @@
       ball: { x: W / 2, y: H / 2, z: 0, vx: 0, vy: 0, vz: 0, shot: null, pass: null, lastTeam: 0, lastP: null, hidden: false },
       carrier: null, poss: -1, kickTeam: 0, events: [], timeline: [], log: [], fx: [], flash: 0, banner: null, shake: 0, restartHold: 0,
       lastPass: null, o: o, input: null, charge: { shoot: 0, pass: 0 }, stamina: 1, lastEventT: 0, sfx: null,
-      u: { goals: 0, assists: 0, saves: 0, shots: 0, onTarget: 0, passes: 0, passOk: 0, tackles: 0, tackleTry: 0, fouls: 0, yellow: 0, intercepts: 0, concededOnWatch: 0 }
+      u: { goals: 0, assists: 0, saves: 0, shots: 0, onTarget: 0, passes: 0, passOk: 0, tackles: 0, tackleTry: 0, fouls: 0, yellow: 0, red: 0, intercepts: 0, concededOnWatch: 0 },
+      /* الحكم + التسلل/الفار + الكروت + الجزاء */
+      ref: { x: W / 2 + 90, y: H / 2 + 70, vx: 0, vy: 0, face: 0, ref: true, role: 'REF', team: -1, card: null, focus: null, dive: 0, stun: 0, hold: 0, slide: 0 },
+      freeze: 0, pen: null, hist: [], histN: 0, hc: 0, var: null, varId: 0, offs: [0, 0], userOff: false, cnt: { off: 0, foul: 0, y: 0, r: 0, pen: 0 }
     };
     const myStyle = 'possession';
     const oppStyleKey = o.style || (o.oppStr >= 78 ? (rnd() < .5 ? 'possession' : 'smart') : STYLE_KEYS[Math.floor(rnd() * 4)]);
@@ -76,6 +79,7 @@
       c.star = { name: String(st.n || '').split(' ').slice(-1)[0], ovr: st.o, b: bonus };
       c.spd += 4 + bonus * 9;
     });
+    m.all = m.teams[0].players.concat(m.teams[1].players);
     placeAll(m, 0);
     return m;
   }
@@ -151,6 +155,7 @@
     b.lastTeam = p.team; b.lastP = p; m.carrier = null; m.poss = -1; p.cd = .38;
     b.shot = opts.shot ? { team: p.team, by: p } : null;
     b.pass = opts.to ? { from: p, to: opts.to, t: m.t } : null;
+    if (b.pass && p.role !== 'GK') { const off = isOffside(m, p, opts.to); if (off) { recHist(m); off.hi = m.histN; b.pass.off = off; } }
     if (opts.to && p.user) { m.u.passes++; m.lastPass = { p: p, to: opts.to, t: m.t }; }
     if (opts.to && !p.user) m.lastPass = { p: p, to: opts.to, t: m.t };
     sfx(m, opts.shot ? 'shot' : 'kick');
@@ -353,7 +358,7 @@
     } else {
       ch.shoot = 0; ch.pass = 0;
       if (inp && inp.passPress) p.call = 2.2;             /* اطلب الكرة */
-      if (inp && inp.actPress && p.tcd <= 0) tackleTry(m, p, true);
+      if (inp && inp.actPress && p.tcd <= 0) { const c0 = m.carrier && m.carrier.team !== p.team && dist(p, m.carrier) < 150 ? m.carrier : b; startSlide(m, p, c0.x, c0.y); tackleTry(m, p, true); }
     }
   }
   function gkThrow(m, p, mx, my, power) {
@@ -364,6 +369,7 @@
   /* ====== الافتكاك ====== */
   function tackleTry(m, p, isUser) {
     const c = m.carrier; p.tcd = isUser ? .85 : .75;
+    if (!isUser && c && c.team !== p.team && dist(p, c) <= 26 && rnd() < .6) startSlide(m, p, c.x, c.y);
     if (!c || c.team === p.team) return;
     const d = dist(p, c), reach = isUser ? 36 : 26;
     if (isUser) m.u.tackleTry++;
@@ -379,12 +385,112 @@
       if (rnd() < .66) { give(m, p); p.cd = 0; } else { m.carrier = null; m.poss = -1; m.ball.vx = Math.cos(a + gauss() * .8) * 150; m.ball.vy = Math.sin(a + gauss() * .8) * 150; m.ball.lastTeam = p.team; m.ball.lastP = p; }
       if (isUser) { m.u.tackles++; say(m, 'افتكاك!', 'tackle'); sfx(m, 'tackle'); }
       if (c.user) say(m, 'اتاخدت منك الكرة', 'bad');
-    } else if (isUser && rnd() < .28) {
-      /* فاول */
-      m.u.fouls++; say(m, 'فاول!', 'foul'); sfx(m, 'whistle');
-      if (m.u.fouls >= 3 && !m.u.yellow) { m.u.yellow = 1; say(m, 'كارت أصفر', 'foul'); }
-      m.restartHold = .8; give(m, c); c.cd = 0; p.stun = .5;
+    } else if (rnd() < (isUser ? .18 : .12)) {
+      /* فاول (ممكن كارت أو ركلة جزاء) */
+      p.stun = .5; foul(m, p, c);
     } else p.stun = .25;
+  }
+
+  /* ====== انزلاق العرقلة + الحكم + الفاول والكروت + الجزاء + التسلل/الفار ====== */
+  const PEN_D = 110;
+  const inBox = (team, x, y) => Math.abs(x - W / 2) < PA_W / 2 && (team === 0 ? y > H - PA_D : y < PA_D);   /* صندوق الفريق اللي بيدافع */
+  function startSlide(m, p, tx, ty) {
+    if (p.slide > 0) return;
+    p.sa = Math.atan2(ty - p.y, tx - p.x); p.sdur = .42; p.slide = .42; p.face = p.sa;
+    if (!m.lowFx) burst(m, p.x, p.y + 8, '#d8c79a', 7);
+  }
+  const pName = (m, p) => p.user ? (m.o.playerName || 'لاعبنا') : 'لاعب ' + m.teams[p.team].name;
+  function sendOff(m, p) {
+    const t = m.teams[p.team], i = t.players.indexOf(p);
+    if (m.carrier === p) { m.carrier = null; m.poss = -1; }
+    if (i > 0) t.players.splice(i, 1);
+    p.off = true; p.vx = p.vy = 0; p.slide = 0;
+    if (p.user) m.userOff = true;
+    if (m.pen && m.pen.taker === p) m.pen.taker = null;
+  }
+  function foul(m, p, c) {
+    const mn = minute(m), pen = inBox(p.team, c.x, c.y); p.fouls = (p.fouls || 0) + 1;
+    m.cnt.foul++; if (p.user) m.u.fouls++;
+    sfx(m, 'whistle'); m.restartHold = 0;
+    let card = null;
+    if (rnd() < (pen ? .025 : .01) + (p.fouls >= 3 ? .01 : 0)) card = 'r';
+    else if (rnd() < .17 + (p.fouls >= 2 ? .2 : 0) + (pen ? .1 : 0)) { p.yel = (p.yel || 0) + 1; card = p.yel >= 2 ? 'r2' : 'y'; }
+    m.ref.focus = { x: c.x, y: c.y, t: 2.4 };
+    let txt = pen ? 'ركلة جزاء!' : 'فاول!', kind = 'foul';
+    if (card) {
+      m.ref.card = { k: card === 'y' ? 'y' : 'r', t: 2.2 };
+      txt += (pen ? ' + ' : ' ') + (card === 'y' ? 'كارت أصفر' : card === 'r2' ? 'أصفر تاني = أحمر' : 'كارت أحمر') + ' · ' + pName(m, p);
+      if (card === 'y') m.cnt.y++; else m.cnt.r++;
+      if (card !== 'y') kind = 'bad';
+      if (p.user) { if (card === 'y') m.u.yellow = 1; else { m.u.red = 1; if (card === 'r2') m.u.yellow = 1; m.timeline.push({ m: mn, t: 'red' }); } }
+      if (card !== 'y') sendOff(m, p);
+    }
+    say(m, txt, kind);
+    m.freeze = card ? 2.1 : 1.1;
+    if (pen) awardPen(m, c.team, c); else { give(m, c); c.cd = 0; m.restartHold = .8; }
+  }
+  function awardPen(m, team, fouled) {
+    m.cnt.pen++;
+    const t = m.teams[team], gy = team === 0 ? 0 : H, sy = team === 0 ? PEN_D : H - PEN_D;
+    let taker = null;
+    if (team === 0 && !m.isGK && !m.userOff && m.user) taker = m.user;
+    else taker = t.players.filter(q => q.role !== 'GK' && q !== fouled).sort((a, b) => (b.role === 'FW') - (a.role === 'FW') || Math.abs(a.ax - .5) - Math.abs(b.ax - .5))[0] || fouled;
+    const b = m.ball; b.vx = b.vy = 0; b.z = 0; b.shot = null; b.pass = null;
+    let i = 0;
+    m.teams.forEach(tm => tm.players.forEach(q => {
+      if (q === taker) return;
+      q.vx = q.vy = 0; q.slide = 0; q.stun = 0; q.dive = 0;
+      if (q.role === 'GK') { if (tm.idx !== team) { q.x = W / 2; q.y = gy + (team === 0 ? 10 : -10); } return; }
+      const k = i++; q.x = 110 + (k * 53) % (W - 220); q.y = team === 0 ? PA_D + 34 + (k % 3) * 18 : H - PA_D - 34 - (k % 3) * 18;
+    }));
+    taker.x = W / 2; taker.y = sy + (team === 0 ? R + 3 : -(R + 3)); taker.face = team === 0 ? -1.57 : 1.57; taker.vx = taker.vy = 0;
+    m.pen = { team: team, taker: taker, t: 0, tx: taker.x, ty: taker.y };
+    m.charge.shoot = 0; m.charge.pass = 0; give(m, taker); taker.cd = 0;
+  }
+  function doPen(m, taker) {
+    const gk = m.teams[oppIdx(taker.team)].players[0];
+    const aim = clamp(rnd() < .5 ? GX0 + 12 + rnd() * 16 : GX1 - 12 - rnd() * 16, GX0 + 6, GX1 - 6);
+    doShoot(m, taker, aim, .8, !!taker.user);
+  }
+  /* التسلل: أول مدافع قبل الأخير (غير الحارس لو الحارس طالع بيتحسب مكانه) */
+  function offsideLine(m, team) {
+    const ys = m.teams[oppIdx(team)].players.map(q => q.y).sort((a, b) => team === 0 ? a - b : b - a);
+    return ys.length > 1 ? ys[1] : ys[0];
+  }
+  function isOffside(m, p, r) {
+    if (!r || r.role === 'GK' || r === p) return null;
+    const team = p.team, line = offsideLine(m, team);
+    const half = team === 0 ? r.y < H / 2 - 4 : r.y > H / 2 + 4;
+    const aheadBall = team === 0 ? r.y < p.y - 8 : r.y > p.y + 8;
+    const aheadDef = team === 0 ? r.y < line - 7 : r.y > line + 7;
+    return half && aheadBall && aheadDef ? { line: line, ry: r.y, rx: r.x, team: team, rid: r.id } : null;
+  }
+  function recHist(m) {
+    const f = { b: [m.ball.x, m.ball.y, m.ball.z], r: [m.ref.x, m.ref.y], p: [] };
+    for (let i = 0; i < 2; i++) { const ps = m.teams[i].players; for (let j = 0; j < ps.length; j++) { const q = ps[j]; f.p.push(q.id, q.x, q.y, q.vx, q.vy); } }
+    m.hist.push(f); m.histN++; if (m.hist.length > 100) m.hist.shift();
+  }
+  function callOffside(m, r, off) {
+    sfx(m, 'whistle'); say(m, 'تسلل!', 'foul'); m.freeze = 1.5; m.cnt.off++; m.offs[r.team]++;
+    m.ref.focus = { x: r.x, y: r.y, t: 2 };
+    const b = m.ball; b.vx = b.vy = 0; b.z = 0; b.shot = null; b.pass = null;
+    recHist(m);
+    let frames = m.hist.slice(), pi = clamp(frames.length - 1 - (m.histN - off.hi), 0, frames.length - 1);
+    const st0 = Math.max(0, pi - 34); frames = frames.slice(st0); pi -= st0;
+    let did = -1, bd = 1e9; m.teams[oppIdx(r.team)].players.forEach(q => { const d = Math.abs(q.y - off.line); if (d < bd) { bd = d; did = q.id; } });
+    m.var = { frames: frames, pass: pi, info: { line: off.line, ry: off.ry, rx: off.rx, team: off.team, rid: off.rid, did: did } }; m.varId++;
+    const defT = m.teams[oppIdx(r.team)];
+    const tk = nearestTo(defT.players.filter(q => q.role !== 'GK'), r.x, r.y);
+    if (tk) { if (!tk.user || m.isGK === false) { tk.x = clamp(r.x, 20, W - 20); tk.y = clamp(r.y, 40, H - 40); } give(m, tk); tk.cd = 0; }
+    m.restartHold = .9;
+  }
+  function stepRef(m, dt) {
+    const r = m.ref, b = m.ball; let tx, ty;
+    if (r.focus && r.focus.t > 0) { r.focus.t -= dt; tx = r.focus.x + 42; ty = r.focus.y + 48; }
+    else if (m.pen) { tx = W / 2 + 150; ty = m.pen.team === 0 ? 230 : H - 230; }
+    else { tx = b.x + (b.x < W / 2 ? 80 : -80); ty = b.y + 95; }
+    moveToward(r, clamp(tx, 40, W - 40), clamp(ty, 50, H - 50), 120, dt, .12); advance(r, dt);
+    if (r.card) { r.card.t -= dt; if (r.card.t <= 0) r.card = null; }
   }
 
   /* ====== خطوة المحاكاة ====== */
@@ -411,8 +517,10 @@
     m.t += dt;
     if (m.half === 1 && m.t >= MATCH_SECONDS / 2) { m.half = 2; m.phase = 'ht'; m.phaseT = 2.4; say(m, 'نهاية الشوط الأول', 'big'); sfx(m, 'whistle'); return; }
     if (m.t >= MATCH_SECONDS) { m.t = MATCH_SECONDS; m.phase = 'ft'; m.phaseT = 1.4; say(m, 'نهاية المباراة', 'big'); sfx(m, 'whistle'); return; }
+    if (m.freeze > 0) { m.freeze -= dt; stepRef(m, dt); return; }
     if (m.restartHold > 0) m.restartHold -= dt;
-    adaptTeams(m);
+    adaptTeams(m); stepRef(m, dt);
+    if (++m.hc % 3 === 0) recHist(m);
     const b = m.ball, user = m.user;
 
     /* ـ فريقين ـ */
@@ -428,6 +536,17 @@
       }
       t.players.forEach(p => {
         if (p.cd > 0) p.cd -= dt; if (p.tcd > 0) p.tcd -= dt; if (p.call > 0) p.call -= dt;
+        if (p.slide > 0) { p.slide -= dt; const k = Math.max(0, p.slide / p.sdur), v = 40 + 250 * k; p.vx = Math.cos(p.sa) * v; p.vy = Math.sin(p.sa) * v; advance(p, dt); return; }
+        if (m.pen && p.role !== 'GK') {
+          const pn = m.pen;
+          if (p === pn.taker) {
+            if (p.user) userStep(m, p, Object.assign({}, inp, { pass: false, sprint: false }), dt);
+            else if (pn.t > 1.4 && m.carrier === p) doPen(m, p);
+            if (p.user && pn.t > 8 && m.carrier === p) doPen(m, p);
+            p.x = pn.tx; p.y = pn.ty; p.vx = p.vy = 0; return;
+          }
+          p.vx = p.vy = 0; return;
+        }
         if (p.user) { userStep(m, p, inp, dt); advance(p, dt); return; }
         if (p.role === 'GK') { aiKeeper(m, t, p, dt); advance(p, dt); return; }
         if (p.stun > 0) { p.stun -= dt; p.vx *= .8; p.vy *= .8; advance(p, dt); return; }
@@ -449,6 +568,7 @@
         advance(p, dt);
       });
     });
+    if (m.pen) { m.pen.t += dt; if (m.ball.shot || m.pen.t > 14 || !m.pen.taker) m.pen = null; }
     /* مباعدة بسيطة بين اللاعيبة */
     const all = m.teams[0].players.concat(m.teams[1].players);
     for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
@@ -510,6 +630,7 @@
         const fast = sp > 470;
         const t = m.teams[best.team];
         const chance = best.user ? (fast ? .8 : 1) : mate ? (isRecv ? .93 : fast ? .5 : .9) : (b.pass || b.shot ? .32 + t.q * .3 : .75);
+        if (b.pass && b.pass.off && mate && b.pass.to === best) { const off = b.pass.off; b.pass = null; callOffside(m, best, off); return; }
         if (rnd() < chance) {
           if (!mate && b.pass) { if (best.team === 0 && m.userRole !== 'GK' && best.user) m.u.intercepts++; if (b.pass.from && b.pass.from.user) say(m, 'تمريرتك اتقطعت', 'bad'); }
           if (b.pass && b.pass.from && b.pass.from.user && mate && b.pass.to === best) m.u.passOk++;
@@ -591,10 +712,10 @@
     if (pos === 'GK') { r += Math.min(u.saves, 8) * .16 - Math.max(0, op - 1) * .12 + (op === 0 ? .55 : 0); }
     else if (pos === 'DF') { r += op === 0 ? .5 : -Math.max(0, op - 1) * .12; }
     else if (pos === 'MF' && op === 0) r += .12;
-    r -= u.yellow * .1 + Math.max(0, u.fouls - 1) * .04;
+    r -= u.yellow * .1 + Math.max(0, u.fouls - 1) * .04 + u.red * 1.0;
     r = clamp(r + (m.o.ovr - 70) / 250, 1, 5);
-    return { goals: u.goals, assists: u.assists, saves: m.isGK ? u.saves : 0, ourGoals: my, oppGoals: op, rating: Math.round(r * 10) / 10, yellow: u.yellow, timeline: m.timeline.slice(),
-      detail: { shots: u.shots, onTarget: u.onTarget, passes: u.passes, passOk: u.passOk, tackles: u.tackles, fouls: u.fouls, intercepts: u.intercepts } };
+    return { goals: u.goals, assists: u.assists, saves: m.isGK ? u.saves : 0, ourGoals: my, oppGoals: op, rating: Math.round(r * 10) / 10, yellow: u.yellow, red: u.red, timeline: m.timeline.slice(),
+      detail: { off: m.cnt.off, foul: m.cnt.foul, cy: m.cnt.y, cr: m.cnt.r, pen: m.cnt.pen, shots: u.shots, onTarget: u.onTarget, passes: u.passes, passOk: u.passOk, tackles: u.tackles, fouls: u.fouls, intercepts: u.intercepts } };
   }
 
   /* اختبار من غير شاشة: اللاعب بيتحكم فيه الذكاء الاصطناعي (للضبط والفحص) */
@@ -683,385 +804,7 @@
     const sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
     p._ph = (p._ph || 0) + sp * .05 * _drawDt;
     const run = Math.min(1, sp / 150), sw = Math.sin(p._ph) * run;       // -1..1 تأرجح الجري
-    const jersey = isGK ? (p.team === 0 ? '#f6c445' : '#e87bd1') : col;
-    const dark = shade(jersey, -.35), light = shade(jersey, .3);
-    const short = isGK ? '#1d2230' : (p.team === 0 ? '#f4f6f8' : '#1b2330');
-    const skin = '#f0c9a3';
-    const fcx = Math.cos(p.face), fsy = Math.sin(p.face), back = fsy < -.35;
-    /* ظل */
-    if (fx) { g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(x, y + 5, 11, 4.2, 0, 0, 6.283); g.fill(); }
-    g.save(); g.translate(x, y + 4);
-    if (p.dive > 0) { g.translate(0, -8); g.rotate(p.vx >= 0 ? 1.25 : -1.25); g.translate(0, 8); }
-    else if (p.stun > 0 && isGK) { g.translate(0, -3); g.rotate(p.vx >= 0 ? .9 : -.9); }
-    g.lineCap = 'round'; g.lineJoin = 'round';
-    /* الأرجل */
-    const ls = sw * 7.5, bend = run * 1.5;
-    g.lineWidth = 4.4;
-    g.strokeStyle = skin; g.beginPath(); g.moveTo(-3, -11); g.lineTo(-3 - ls * .35, -5 - Math.max(0, -sw) * bend); g.moveTo(3, -11); g.lineTo(3 + ls * .35, -5 - Math.max(0, sw) * bend); g.stroke();
-    g.strokeStyle = jersey; g.lineWidth = 4.9;                                   // الشرابات بلون الفريق
-    g.beginPath(); g.moveTo(-3 - ls * .35, -6.2); g.lineTo(-3 - ls, -.6 - Math.max(0, -sw) * bend); g.moveTo(3 + ls * .35, -6.2); g.lineTo(3 + ls, -.6 - Math.max(0, sw) * bend); g.stroke();
-    g.fillStyle = '#15191f';
-    g.beginPath(); g.ellipse(-3 - ls, .6 - Math.max(0, -sw) * bend, 3.4, 2, 0, 0, 6.283); g.ellipse(3 + ls, .6 - Math.max(0, sw) * bend, 3.4, 2, 0, 0, 6.283); g.fill();
-    /* الشورت */
-    g.fillStyle = short; g.beginPath(); g.moveTo(-6.6, -18); g.lineTo(6.6, -18); g.lineTo(7.2, -10); g.lineTo(-7.2, -10); g.closePath(); g.fill();
-    /* الذراعين (عكس الرجلين) */
-    const as = p.dive > 0 ? 0 : -sw * 6, up = p.dive > 0 || (isGK && p.hold > 0);
-    g.lineWidth = 3.6; g.strokeStyle = jersey;
-    g.beginPath();
-    if (up) { g.moveTo(-8, -27); g.lineTo(-11, -38); g.moveTo(8, -27); g.lineTo(11, -38); }
-    else { g.moveTo(-8, -27); g.lineTo(-10 - as * .25, -19 + as * .6); g.moveTo(8, -27); g.lineTo(10 + as * .25, -19 - as * .6); }
-    g.stroke();
-    g.fillStyle = isGK ? '#fff' : skin;
-    const hr = isGK ? 3 : 2.2;
-    g.beginPath();
-    if (up) { g.arc(-11, -39, hr, 0, 6.283); g.moveTo(14, -39); g.arc(11, -39, hr, 0, 6.283); }
-    else { g.arc(-10 - as * .25, -18 + as * .6, hr, 0, 6.283); g.moveTo(10 + as * .25 + hr, -18 - as * .6); g.arc(10 + as * .25, -18 - as * .6, hr, 0, 6.283); }
-    g.fill();
-    /* القميص */
-    g.fillStyle = jersey; g.beginPath(); g.moveTo(-8.4, -28); g.quadraticCurveTo(0, -31.5, 8.4, -28); g.lineTo(6.8, -15.5); g.lineTo(-6.8, -15.5); g.closePath(); g.fill();
-    g.fillStyle = dark; g.beginPath(); g.moveTo(-8.4, -28); g.lineTo(-6.8, -15.5); g.lineTo(-4.2, -15.5); g.lineTo(-5.6, -28.6); g.closePath(); g.fill();
-    g.fillStyle = light; g.fillRect(-1.2, -28.6, 2.4, 12.4);                      // شريط القميص
-    /* الرأس */
-    const hx = fcx * 1.6;
-    g.fillStyle = skin; g.beginPath(); g.arc(hx, -35.5, 5.4, 0, 6.283); g.fill();
-    g.fillStyle = isGK ? '#2c2c2c' : '#2a1d14';
-    g.beginPath();
-    if (back) g.arc(hx, -35.8, 5.5, 0, 6.283);
-    else g.arc(hx, -36.6, 5.5, 3.14, 6.283);
-    g.fill();
-    if (!back) { g.fillStyle = '#1a1a1a'; g.fillRect(hx + fcx * 1.5 - 2.4, -35, 1.4, 1.6); g.fillRect(hx + fcx * 1.5 + 1, -35, 1.4, 1.6); }
-    g.restore();
-    if (p.star) {
-      g.fillStyle = '#f6c445'; g.font = '800 11px Cairo, sans-serif'; g.textAlign = 'center';
-      g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.75)'; g.strokeText('★ ' + p.star.name, x, y - 44); g.fillText('★ ' + p.star.name, x, y - 44);
-    }
-    if (isUser) {
-      const t = _drawT;
-      g.strokeStyle = '#fff'; g.lineWidth = 2.4; g.beginPath(); g.ellipse(x, y + 5, 15 + Math.sin(t / 160) * 1.5, 6.5, 0, 0, 6.283); g.stroke();
-      g.fillStyle = '#24e982'; g.beginPath(); g.moveTo(x, y - 40 + Math.sin(t / 200) * 2); g.lineTo(x - 7, y - 52 + Math.sin(t / 200) * 2); g.lineTo(x + 7, y - 52 + Math.sin(t / 200) * 2); g.closePath(); g.fill();
-    }
-  }
-
-  function draw(g, m, view, layer, fxOn) {
-    const sc = view.scale, cam = view.cam;
-    const nowT = performance.now(); _drawDt = Math.min(.05, Math.max(.004, (nowT - (_drawT || nowT)) / 1000)); _drawT = nowT;
-    g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#050807'; g.fillRect(0, 0, view.cw, view.ch);
-    const shake = m.shake > 0 ? (Math.random() - .5) * 8 * m.shake : 0;
-    g.setTransform(sc * view.dpr, 0, 0, sc * view.dpr, (view.cw / 2 - cam.x * sc + shake) * view.dpr, (view.ch / 2 - cam.y * sc + shake) * view.dpr);
-    g.drawImage(layer, -M, -M, W + M * 2, H + M * 2);
-    /* تلميح التمرير (الزميل الأنسب) */
-    const u = m.user;
-    if (!m.isGK && m.carrier === u && m.phase === 'play') {
-      const inp = m.input || {}, r = bestPass(m, u, inp.mx || 0, inp.my || 0, true);
-      if (r) { g.strokeStyle = 'rgba(255,255,255,.55)'; g.setLineDash([6, 6]); g.lineWidth = 2; g.beginPath(); g.moveTo(u.x, u.y); g.lineTo(r.x, r.y); g.stroke(); g.setLineDash([]); g.strokeStyle = '#24e982'; g.beginPath(); g.arc(r.x, r.y, R + 5, 0, 6.283); g.stroke(); }
-      if (m.charge.shoot > .02 || (inp.shoot)) { const aim = W / 2 + (inp.mx || 0) * 70; g.strokeStyle = 'rgba(255,200,60,.8)'; g.lineWidth = 3; g.setLineDash([10, 8]); g.beginPath(); g.moveTo(u.x, u.y); g.lineTo(aim, 0); g.stroke(); g.setLineDash([]); }
-    }
-    /* ترتيب الرسم من فوق لتحت (إحساس العمق) */
-    const list = m.teams[0].players.concat(m.teams[1].players).sort((a, b) => a.y - b.y);
-    const b = m.ball;
-    let ballDrawn = false;
-    const drawBall = () => {
-      if (ballDrawn) return; ballDrawn = true;
-      const hz = b.z * .55;
-      g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(b.x + 3 + b.z * .25, b.y + 4, BR * (1 - Math.min(b.z, 80) / 220), BR * .6, 0, 0, 6.283); g.fill();
-      g.fillStyle = '#fff'; g.beginPath(); g.arc(b.x, b.y - hz - 2, BR + b.z * .015, 0, 6.283); g.fill();
-      g.strokeStyle = '#222'; g.lineWidth = 1.4; g.stroke();
-      g.fillStyle = '#222'; g.beginPath(); g.arc(b.x - 1.3, b.y - hz - 3, 2.1, 0, 6.283); g.fill();
-    };
-    const pk = Math.min(1.45, Math.max(1, .62 / sc));     // نكبّر اللاعيبة شوية لما الشاشة صغيرة
-    list.forEach(p => {
-      if (!ballDrawn && b.y < p.y - 4) drawBall();
-      if (pk > 1.02) { g.save(); g.translate(p.x, p.y); g.scale(pk, pk); g.translate(-p.x, -p.y); drawPlayer(g, p, m.teams[p.team].color, p.user, fxOn, m); g.restore(); }
-      else drawPlayer(g, p, m.teams[p.team].color, p.user, fxOn, m);
-    });
-    drawBall();
-    /* جسيمات الاحتفال */
-    if (fxOn) m.fx.forEach(f => { g.globalAlpha = Math.max(0, Math.min(1, f.life)); g.fillStyle = f.c; g.fillRect(f.x, f.y, f.s, f.s * 1.6); }); g.globalAlpha = 1;
-    /* تأثير الفلاش عند الجول */
-    g.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
-    if (m.flash > 0) { g.fillStyle = 'rgba(255,255,255,' + (m.flash * .35) + ')'; g.fillRect(0, 0, view.cw, view.ch); }
-  }
-
-  /* ═════════════════════════════════════════════════════════════════════════
-     3) الواجهة: شاشة كاملة + جويستيك + أزرار + الصوت + نتيجة الماتش
-     ═════════════════════════════════════════════════════════════════════════ */
-  const CSS = '.ms-root{position:fixed;inset:0;z-index:100000;background:#050807;color:#fff;font-family:inherit;direction:rtl;touch-action:none;-webkit-user-select:none;user-select:none;overflow:hidden}' +
-    '.ms-cv{position:absolute;inset:0;width:100%;height:100%;display:block}' +
-    '.ms-top{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 6px;display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:3;background:linear-gradient(180deg,rgba(0,0,0,.72),transparent)}' +
-    '.ms-score{display:flex;align-items:center;gap:8px;background:rgba(16,24,20,.82);border:1px solid rgba(36,233,130,.35);border-radius:14px;padding:5px 12px;box-shadow:0 0 18px rgba(36,233,130,.18)}' +
-    '.ms-score b{font-size:1.35rem;letter-spacing:.04em;min-width:48px;text-align:center;font-variant-numeric:tabular-nums}.ms-score span{font-size:.74rem;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cfe}' +
-    '.ms-clock{background:rgba(0,0,0,.55);border-radius:10px;padding:3px 10px;font-weight:800;color:#24e982;font-variant-numeric:tabular-nums;font-size:.95rem;min-width:56px;text-align:center}' +
-    '.ms-ibtn{width:40px;height:40px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(16,24,20,.78);color:#fff;font:inherit;font-weight:800;font-size:.8rem;display:grid;place-items:center;cursor:pointer;padding:0}.ms-ibtn svg{width:19px;height:19px}.ms-ibtn.on{border-color:#24e982;color:#24e982}' +
-    '.ms-tools{display:flex;gap:6px}' +
-    '.ms-banner{position:absolute;left:0;right:0;top:24%;text-align:center;font-weight:900;font-size:clamp(1.6rem,8vw,3rem);text-shadow:0 4px 24px rgba(0,0,0,.9);z-index:4;pointer-events:none;opacity:0;transform:scale(.8)}' +
-    '.ms-banner.show{animation:msPop 1.6s ease-out}.ms-banner.goal{color:#24e982;text-shadow:0 0 30px rgba(36,233,130,.8),0 4px 20px #000}.ms-banner.bad{color:#ff8a70}.ms-banner.save{color:#6ec6ff}.ms-banner.big{color:#fff}' +
-    '@keyframes msPop{0%{opacity:0;transform:scale(.6)}12%{opacity:1;transform:scale(1.08)}22%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.04)}}' +
-    '.ms-ctrl{position:absolute;left:0;right:0;bottom:0;height:min(42vh,260px);z-index:3;pointer-events:none}' +
-    '.ms-joy{position:absolute;left:calc(env(safe-area-inset-left,0px) + 18px);bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:132px;height:132px;border-radius:50%;background:radial-gradient(circle,rgba(36,233,130,.12),rgba(255,255,255,.05));border:2px solid rgba(36,233,130,.45);pointer-events:auto;touch-action:none}' +
-    '.ms-knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7dffbf,#24e982 55%,#0f8a4e);box-shadow:0 4px 14px rgba(0,0,0,.6)}' +
-    '.ms-btns{position:absolute;right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:210px;height:170px;pointer-events:none}' +
-    '.ms-b{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.28);color:#fff;font:inherit;font-weight:900;display:grid;place-items:center;pointer-events:auto;touch-action:none;cursor:pointer;background:rgba(16,24,20,.78);box-shadow:0 4px 16px rgba(0,0,0,.55);text-align:center;line-height:1.1;padding:0}' +
-    '.ms-b small{display:block;font-size:.6rem;font-weight:600;opacity:.75}' +
-    '.ms-b.a{width:84px;height:84px;right:4px;bottom:6px;background:radial-gradient(circle at 35% 30%,#ffe59a,#f6c445 60%,#b07a14);color:#2a1b00;border-color:#fff3c4;font-size:1rem}' +
-    '.ms-b.b{width:68px;height:68px;right:94px;bottom:66px;background:radial-gradient(circle at 35% 30%,#7dffbf,#24e982 60%,#0f8a4e);color:#032312;border-color:#d6ffe9}' +
-    '.ms-b.c{width:56px;height:56px;right:106px;bottom:0;font-size:.74rem}' +
-    '.ms-b:active,.ms-b.down{transform:scale(.92);filter:brightness(1.15)}.ms-b.off{opacity:.4}' +
-    '.ms-pw{position:absolute;right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 196px);width:150px;height:12px;border-radius:99px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25);overflow:hidden;z-index:3;opacity:0;transition:opacity .15s}' +
-    '.ms-pw.on{opacity:1}.ms-pw i{display:block;height:100%;width:0;background:linear-gradient(90deg,#24e982,#f6c445,#ff6a4d)}' +
-    '.ms-stam{position:absolute;left:calc(env(safe-area-inset-left,0px) + 18px);bottom:calc(env(safe-area-inset-bottom,0px) + 160px);width:132px;height:6px;border-radius:9px;background:rgba(0,0,0,.55);overflow:hidden;z-index:3}.ms-stam i{display:block;height:100%;background:#6ec6ff;width:100%}' +
-    '.ms-hint{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 62px);text-align:center;font-size:.76rem;color:#cfe;background:rgba(0,0,0,.55);border-radius:10px;padding:5px 10px;z-index:3;pointer-events:none}' +
-    '.ms-panel{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(3,8,6,.82);backdrop-filter:blur(6px)}' +
-    '.ms-card{width:100%;max-width:420px;background:linear-gradient(160deg,rgba(24,36,30,.96),rgba(10,16,13,.96));border:1px solid rgba(36,233,130,.4);border-radius:20px;padding:18px;box-shadow:0 0 40px rgba(36,233,130,.15);max-height:92vh;overflow:auto;text-align:center}' +
-    '.ms-card h2{margin:0 0 4px;font-size:1.25rem}.ms-card p{margin:4px 0;color:#9fb5a9;font-size:.86rem;line-height:1.7}' +
-    '.ms-vs{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0;font-weight:800}.ms-vs b{font-size:2.2rem;color:#24e982}' +
-    '.ms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.ms-grid div{background:rgba(255,255,255,.05);border-radius:12px;padding:8px 4px}.ms-grid small{display:block;color:#9fb5a9;font-size:.68rem}.ms-grid b{font-size:1.15rem}' +
-    '.ms-act{display:block;width:100%;margin-top:10px;font:inherit;font-weight:800;border-radius:13px;padding:12px;cursor:pointer;border:2px solid #24e982;background:#24e982;color:#04110a}.ms-act.ghost{background:transparent;color:#24e982}' +
-    '.ms-opts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0}.ms-chip{font:inherit;font-size:.78rem;border-radius:99px;padding:6px 12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}.ms-chip.on{border-color:#24e982;color:#24e982;background:rgba(36,233,130,.12)}' +
-    '.ms-rate{font-size:2.4rem;font-weight:900;color:#f6c445;margin:6px 0}' +
-    '.ms-score{min-width:0;flex:0 1 auto;white-space:nowrap}.ms-clock,.ms-ibtn{flex-shrink:0}' +
-    '@media (max-width:380px){.ms-top{padding-left:6px;padding-right:6px;gap:4px}.ms-clock{min-width:44px;padding:3px 6px;font-size:.85rem}.ms-score{padding:4px 8px;gap:5px}.ms-score b{font-size:1rem;min-width:0}.ms-score span{max-width:42px;font-size:.62rem}.ms-ibtn{width:34px;height:34px;border-radius:10px}.ms-tools{gap:4px}}' +
-    '@media (max-height:700px) and (orientation:portrait){.ms-joy{width:112px;height:112px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}.ms-knob{width:48px;height:48px;margin:-24px 0 0 -24px}.ms-btns{transform:scale(.8);transform-origin:100% 100%;bottom:calc(env(safe-area-inset-bottom,0px) + 14px)}.ms-stam{width:112px;bottom:calc(env(safe-area-inset-bottom,0px) + 134px)}.ms-pw{bottom:calc(env(safe-area-inset-bottom,0px) + 156px)}}' +
-    '@media (orientation:landscape) and (max-width:899px){.ms-hint{display:none}.ms-joy{width:112px;height:112px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px)}.ms-knob{width:48px;height:48px;margin:-24px 0 0 -24px}.ms-btns{transform:scale(.82);transform-origin:100% 100%;bottom:calc(env(safe-area-inset-bottom,0px) + 8px)}.ms-stam{width:112px;bottom:calc(env(safe-area-inset-bottom,0px) + 130px)}.ms-pw{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}.ms-top{padding-top:calc(env(safe-area-inset-top,0px) + 4px)}}' +
-    '@media (min-width:900px){.ms-ctrl{height:0}.ms-joy,.ms-btns,.ms-stam{display:none}.ms-hint{top:auto;bottom:14px}.ms-pw{bottom:18px;right:18px}}' +
-    '@media (prefers-reduced-motion:reduce){.ms-banner.show{animation-duration:.4s}}';
-
-  /* ====== أصوات بسيطة بالكود (Web Audio) من غير ملفات ====== */
-  function makeSfx() {
-    let ctx = null, master = null, muted = false;
-    try { const AC = root.AudioContext || root.webkitAudioContext; ctx = new AC(); master = ctx.createGain(); master.gain.value = .5; master.connect(ctx.destination); } catch (e) { ctx = null; }
-    const resume = () => { try { if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) { /* ignore */ } };
-    const tone = (type, f1, f2, dur, vol, delay) => { if (!ctx || muted) return; const t = ctx.currentTime + (delay || 0), o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.setValueAtTime(f1, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + dur); o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .05); };
-    const noise = (dur, vol, lp, attack) => { if (!ctx || muted) return; const t = ctx.currentTime, n = Math.floor(ctx.sampleRate * dur), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; const s = ctx.createBufferSource(); s.buffer = b; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; const g = ctx.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + (attack || .02)); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(f); f.connect(g); g.connect(master); s.start(t); };
-    return {
-      resume: resume, mute: v => { muted = v; }, close: () => { try { if (ctx) ctx.close(); } catch (e) { /* ignore */ } },
-      kick: () => { tone('sine', 150, 60, .12, .35); }, shot: () => { tone('sine', 190, 50, .18, .55); noise(.12, .3, 1800); }, touch: () => { tone('sine', 300, 200, .05, .08); },
-      tackle: () => { noise(.1, .25, 900); }, save: () => { noise(.16, .35, 1400); tone('triangle', 330, 220, .15, .2); }, dive: () => { noise(.22, .12, 700); },
-      whistle: () => { tone('sine', 2850, 2650, .35, .22); tone('sine', 2900, 2700, .35, .12, .02); },
-      goalMine: () => { noise(2.4, .55, 1500, .25); tone('triangle', 392, 0, .5, .15); tone('triangle', 523, 0, .8, .15, .12); tone('triangle', 659, 0, 1.1, .15, .24); },
-      goalOpp: () => { noise(1.2, .25, 800, .2); tone('sawtooth', 120, 80, .6, .1); }
-    };
-  }
-
-  const FX_KEY = 'koraFx', SND_KEY = 'koraSfx';
-  const getLS = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
-  const setLS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } };
-
-  const POS_AR = { ST: 'مهاجم', MF: 'وسط', DF: 'مدافع', GK: 'حارس مرمى' };
-  const svg = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
-  const IC = { pause: svg('<path d="M8 5v14M16 5v14"/>'), play: svg('<path d="m7 4 13 8-13 8z"/>'), snd: svg('<path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7"/>'), mute: svg('<path d="M11 5 6 9H3v6h3l5 4zM22 9l-6 6M16 9l6 6"/>'), zoom: svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6M11 8v6"/>'), x: svg('<path d="M6 6l12 12M18 6 6 18"/>') };
-
-  function open(o, onFinish) {
-    if (!document.getElementById('msCss')) { const s = document.createElement('style'); s.id = 'msCss'; s.textContent = CSS; document.head.appendChild(s); }
-    const el = (t, c, x) => { const n = document.createElement(t); if (c) n.className = c; if (x != null) n.textContent = x; return n; };
-    const isGK = o.pos === 'GK';
-    const lowFx = getLS(FX_KEY, '') === 'low' || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 3);
-    const rootEl = el('div', 'ms-root'), cv = el('canvas', 'ms-cv'); rootEl.appendChild(cv);
-    document.body.appendChild(rootEl); document.body.style.overflow = 'hidden';
-    const g = cv.getContext('2d', { alpha: false });
-    let m = null, raf = 0, last = 0, acc = 0, paused = true, speed = 1, zoomOn = isGK, layer = null, view = { cw: 0, ch: 0, dpr: 1, scale: 1, cam: { x: W / 2, y: H / 2 } }, sfxOn = getLS(SND_KEY, '1') !== '0', ended = false;
-    const sfx = makeSfx(); sfx.mute(!sfxOn);
-    const inp = { mx: 0, my: 0, shoot: false, pass: false, sprint: false, passPress: false, actPress: false, through: false };
-    const keys = {};
-
-    function resize() {
-      const dpr = Math.min(root.devicePixelRatio || 1, lowFx ? 1.25 : 2);
-      view.dpr = dpr; view.cw = rootEl.clientWidth; view.ch = rootEl.clientHeight;
-      cv.width = Math.round(view.cw * dpr); cv.height = Math.round(view.ch * dpr);
-      /* الملعب كله ظاهر: نحجز مكان فوق (السكور) وتحت (الأزرار) */
-      const land = view.cw > view.ch && view.cw < 900;      // موبايل أفقي: الملعب أعرض ويتابع اللاعب
-      const topPad = land ? 50 : 66, botPad = land ? 6 : (view.cw < 900 ? Math.min(view.ch * .26, 150) : 20);
-      const availH = view.ch - topPad - botPad, availW = view.cw - 10;
-      view.land = land;
-      view.fit = land ? Math.max(availH / (H + 40), Math.min(availW, view.cw * .6) / (W + 40)) : Math.min(availW / (W + 40), availH / (H + 40));
-      view.padTop = topPad; view.padBot = botPad;
-      const rs = Math.min(lowFx ? 1.1 : 1.6, Math.max(.8, view.fit * dpr * (zoomOn || view.land ? 1.6 : 1.15)));
-      layer = buildPitchLayer(rs);
-    }
-    function updateCam() {
-      const fit = view.fit, follow = zoomOn || view.land, z = zoomOn ? (view.land ? 1.3 : (isGK ? 1.9 : 1.55)) : 1;
-      view.scale = fit * z;
-      const tx = follow ? (isGK ? W / 2 + (m.ball.x - W / 2) * .35 : m.user.x * .45 + m.ball.x * .55) : W / 2;
-      const ty = follow ? (isGK ? H - 240 + (m.ball.y - (H - 240)) * .25 : m.user.y * .35 + m.ball.y * .65) : H / 2;
-      const halfW = view.cw / 2 / view.scale, halfH = (view.ch - view.padTop - view.padBot) / 2 / view.scale;
-      const cx = clamp(tx, Math.min(W / 2, halfW - M + 6), Math.max(W / 2, W + M - halfW - 6)), cyRaw = clamp(ty, Math.min(H / 2, halfH - M + 6), Math.max(H / 2, H + M - halfH - 6));
-      /* ننزّل الكاميرا شوية عشان الملعب يبقى بين الشريط العلوي والأزرار */
-      const shift = (view.padTop - view.padBot) / 2 / view.scale;
-      view.cam.x += (cx - view.cam.x) * .12; view.cam.y += (cyRaw - shift - view.cam.y) * .12;
-    }
-
-    /* ====== شاشة البداية ====== */
-    const panel = el('div', 'ms-panel'); rootEl.appendChild(panel);
-    const sty = STYLES[o.style || 'possession'];
-    function showIntro() {
-      panel.textContent = ''; const c = el('div', 'ms-card');
-      c.append(el('h2', '', 'محاكاة الماتش'), el('p', '', (o.home ? 'على أرضك' : 'خارج ملعبك') + ' • أنت: ' + o.playerName + ' • ' + POS_AR[o.pos]));
-      const vs = el('div', 'ms-vs'); vs.append(el('span', '', o.myName), el('b', '', 'VS'), el('span', '', o.oppName)); c.appendChild(vs);
-      c.appendChild(el('p', '', 'الماتش 90 دقيقة على الساعة = 200 ثانية فعلية. ' + (isGK ? 'إنت حارس المرمى: حرّك الحارس بالجويستيك واضغط «ارتماء» لصدّ التسديدات، ولما تمسك الكرة وزّعها بزرار «تمرير».' : o.pos === 'DF' ? 'إنت مدافع: اقطع الهجمات بزرار «افتكاك» وابني اللعب من الخلف.' : o.pos === 'MF' ? 'إنت صانع ألعاب: اربط الخطوط ومرّر تمريرات بينية (اضغط مطوّل على «تمرير» لقوة أكبر).' : 'إنت مهاجم: اطلب الكرة وسدّد على المرمى. شدّ زرار «شوت» لتتحكم في القوة.')));
-      if (o.label) c.insertBefore(el('p', '', '🏆 ' + o.label), vs);
-      if (o.stars && o.stars.length) c.appendChild(el('p', '', '⭐ نجوم الخصم: ' + o.stars.map(x => x.n + ' (' + x.o + ')').join('، ') + ' — خلي بالك منهم!'));
-      c.appendChild(el('p', '', 'أسلوب ' + o.oppName + ' المتوقع: ' + (STYLES[m.teams[1].styleKey] || sty).ar + ' (وبيتغير حسب النتيجة).'));
-      const row = el('div', 'ms-opts');
-      const fxb = el('button', 'ms-chip' + (lowFx ? ' on' : ''), 'تأثيرات خفيفة (أداء أسرع)'); fxb.type = 'button';
-      fxb.addEventListener('click', () => { setLS(FX_KEY, lowFx ? '' : 'low'); fxb.classList.toggle('on'); fxb.textContent = 'هيتفعّل في المرة الجاية'; });
-      row.appendChild(fxb); c.appendChild(row);
-      const go = el('button', 'ms-act', 'ابدأ الماتش'); go.type = 'button';
-      const cancel = el('button', 'ms-act ghost', 'رجوع'); cancel.type = 'button';
-      go.addEventListener('click', () => { panel.remove(); sfx.resume(); sfx.whistle(); paused = false; last = performance.now(); });
-      cancel.addEventListener('click', () => close(null));
-      c.append(go, cancel); panel.appendChild(c);
-    }
-
-    /* ====== HUD ====== */
-    const top = el('div', 'ms-top');
-    const score = el('div', 'ms-score'), sA = el('span', '', o.myName), sN = el('b', '', '0 - 0'), sB = el('span', '', o.oppName);
-    score.append(sA, sN, sB);
-    const clock = el('div', 'ms-clock', "0'");
-    const tools = el('div', 'ms-tools');
-    const mkBtn = (html, label, fn) => { const b = el('button', 'ms-ibtn'); b.type = 'button'; b.innerHTML = html; b.setAttribute('aria-label', label); b.addEventListener('click', fn); return b; };
-    const bPause = mkBtn(IC.pause, 'إيقاف مؤقت', () => togglePause());
-    const bSpeed = mkBtn('x1', 'السرعة', () => { speed = speed === 1 ? 2 : speed === 2 ? 4 : 1; bSpeed.textContent = 'x' + speed; bSpeed.classList.toggle('on', speed > 1); });
-    const bZoom = mkBtn(IC.zoom, 'تقريب الكاميرا', () => { zoomOn = !zoomOn; bZoom.classList.toggle('on', zoomOn); resize(); });
-    bZoom.classList.toggle('on', zoomOn);
-    const bSnd = mkBtn(sfxOn ? IC.snd : IC.mute, 'الصوت', () => { sfxOn = !sfxOn; setLS(SND_KEY, sfxOn ? '1' : '0'); sfx.mute(!sfxOn); bSnd.innerHTML = sfxOn ? IC.snd : IC.mute; });
-    tools.append(bPause, bSpeed, bZoom, bSnd);
-    top.append(tools, score, clock);
-    const banner = el('div', 'ms-banner'); const hint = el('div', 'ms-hint');
-    hint.textContent = isGK ? 'حرّك الحارس بالجويستيك • «ارتماء» للصد • «تمرير» لما تمسك الكرة' : 'جويستيك للحركة • «شوت» و«تمرير» (اضغط مطوّل للقوة) • «افتكاك» بدون كرة';
-    rootEl.append(top, banner, hint);
-    setTimeout(() => { hint.style.display = 'none'; }, 7000);
-
-    /* أزرار الشاشة (موبايل) */
-    const ctrl = el('div', 'ms-ctrl'); const joy = el('div', 'ms-joy'), knob = el('div', 'ms-knob'); joy.appendChild(knob);
-    const stam = el('div', 'ms-stam'); const stI = el('i'); stam.appendChild(stI); if (isGK) stam.style.display = 'none';
-    const btns = el('div', 'ms-btns');
-    const bA = el('button', 'ms-b a'), bB = el('button', 'ms-b b'), bC = el('button', 'ms-b c');
-    [bA, bB, bC].forEach(b => { b.type = 'button'; });
-    btns.append(bA, bB, bC); ctrl.append(joy, btns);
-    const pw = el('div', 'ms-pw'), pwI = el('i'); pw.appendChild(pwI);
-    rootEl.append(ctrl, stam, pw);
-    function setLabels(hasBall) {
-      const set = (b, a, s) => { b.innerHTML = a + (s ? '<small>' + s + '</small>' : ''); };
-      if (isGK) { set(bA, 'ارتماء', 'Dive'); set(bB, 'تمرير', m && m.carrier === m.user ? 'Pass' : ''); bC.style.display = 'none'; bB.classList.toggle('off', !(m && m.carrier === m.user)); }
-      else if (hasBall) { set(bA, 'شوت', 'Shoot'); set(bB, 'تمرير', 'Pass'); set(bC, 'سبرنت', 'Sprint'); }
-      else { set(bA, 'افتكاك', 'Tackle'); set(bB, 'اطلب', 'Call'); set(bC, 'سبرنت', 'Sprint'); }
-    }
-    setLabels(false);
-
-    /* الجويستيك بـ Pointer Events (يدعم لمس متعدد) */
-    let joyId = null;
-    const joyMove = e => {
-      const r = joy.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R0 = r.width / 2 - 8;
-      let dx = e.clientX - cx, dy = e.clientY - cy; const d = Math.hypot(dx, dy); if (d > R0) { dx = dx / d * R0; dy = dy / d * R0; }
-      knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; inp.mx = dx / R0; inp.my = dy / R0;
-    };
-    joy.addEventListener('pointerdown', e => { joyId = e.pointerId; try { joy.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } joyMove(e); e.preventDefault(); });
-    joy.addEventListener('pointermove', e => { if (e.pointerId === joyId) joyMove(e); });
-    const joyEnd = e => { if (e.pointerId !== joyId) return; joyId = null; knob.style.transform = ''; inp.mx = inp.my = 0; };
-    joy.addEventListener('pointerup', joyEnd); joy.addEventListener('pointercancel', joyEnd);
-    const hold = (b, onDown, onUp) => {
-      let id = null;
-      b.addEventListener('pointerdown', e => { id = e.pointerId; try { b.setPointerCapture(id); } catch (x) { /* ignore */ } b.classList.add('down'); onDown(); sfx.resume(); e.preventDefault(); });
-      const up = e => { if (e.pointerId !== id) return; id = null; b.classList.remove('down'); onUp(); };
-      b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
-    };
-    hold(bA, () => { if (isGK) inp.actPress = true; else if (m.carrier === m.user) inp.shoot = true; else inp.actPress = true; }, () => { inp.shoot = false; });
-    hold(bB, () => { if (m.carrier === m.user || isGK) inp.pass = true; else inp.passPress = true; }, () => { inp.pass = false; });
-    hold(bC, () => { inp.sprint = true; }, () => { inp.sprint = false; });
-
-    /* الكيبورد (كمبيوتر) */
-    const kd = e => {
-      const k = e.key.toLowerCase(); if (keys[k]) return; keys[k] = true;
-      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'shift'].indexOf(k) > -1) e.preventDefault();
-      if (k === 'p' || k === 'escape') togglePause();
-      if (k === ' ' || k === 'j') { if (isGK) inp.actPress = true; else if (m.carrier === m.user) inp.shoot = true; else inp.actPress = true; }
-      if (k === 'k' || k === 'l') { if (m.carrier === m.user || isGK) inp.pass = true; else inp.passPress = true; }
-      if (k === 'shift') inp.sprint = true;
-      if (k === 'e') inp.through = true;
-      kbAxis();
-    };
-    const ku = e => {
-      const k = e.key.toLowerCase(); keys[k] = false;
-      if (k === ' ' || k === 'j') inp.shoot = false; if (k === 'k' || k === 'l') inp.pass = false; if (k === 'shift') inp.sprint = false; if (k === 'e') inp.through = false;
-      kbAxis();
-    };
-    function kbAxis() { if (joyId != null) return; inp.mx = ((keys.d || keys.arrowright) ? 1 : 0) - ((keys.a || keys.arrowleft) ? 1 : 0); inp.my = ((keys.s || keys.arrowdown) ? 1 : 0) - ((keys.w || keys.arrowup) ? 1 : 0); const n = Math.hypot(inp.mx, inp.my); if (n > 1) { inp.mx /= n; inp.my /= n; } }
-    document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
-    /* لو التاب اتخبّى أو الموبايل اتقفل: إيقاف مؤقت تلقائي (يوفّر بطارية ومايضيعش الماتش) */
-    const onHide = () => { if (document.hidden && !paused && !ended && !panel.isConnected) togglePause(); };
-    document.addEventListener('visibilitychange', onHide);
-
-    /* ====== إيقاف مؤقت ====== */
-    let pausePanel = null;
-    function togglePause() {
-      if (ended || panel.isConnected) return;
-      paused = !paused; bPause.innerHTML = paused ? IC.play : IC.pause;
-      if (paused) {
-        pausePanel = el('div', 'ms-panel'); const c = el('div', 'ms-card');
-        c.append(el('h2', '', 'إيقاف مؤقت'), el('p', '', o.myName + ' ' + m.score[0] + ' - ' + m.score[1] + ' ' + o.oppName + ' • الدقيقة ' + minute(m)));
-        const r = el('button', 'ms-act', 'كمّل اللعب'); r.type = 'button'; r.addEventListener('click', togglePause);
-        const q = el('button', 'ms-act ghost', 'إنهاء الماتش (سيتم حسب النتيجة الحالية)'); q.type = 'button';
-        q.addEventListener('click', () => { if (confirm('تنهي الماتش دلوقتي؟ هيتحسب بالنتيجة والإحصائيات الحالية.')) { paused = false; if (pausePanel) pausePanel.remove(); pausePanel = null; m.t = MATCH_SECONDS - .01; m.phase = 'play'; m.half = 2; } });
-        c.append(r, q); pausePanel.appendChild(c); rootEl.appendChild(pausePanel);
-      } else { if (pausePanel) pausePanel.remove(); pausePanel = null; last = performance.now(); }
-    }
-
-    /* ====== حلقة اللعب ====== */
-    const fmtClock = () => { const mn = minute(m); return (m.phase === 'ft' || m.over ? 90 : mn) + "'"; };
-    let bannerRef = null;
-    function frame(now) {
-      raf = requestAnimationFrame(frame);
-      const dt = Math.min(.05, (now - last) / 1000); last = now;
-      if (!paused && m) {
-        acc += dt * speed; let n = 0;
-        while (acc >= DT && n++ < 12) {
-          step(m, DT, inp); acc -= DT;
-          inp.actPress = false; inp.passPress = false;
-          if (m.over && !ended) { finish(); return; }
-        }
-      }
-      if (m) {
-        updateCam(); draw(g, m, view, layer, !lowFx);
-        sN.textContent = m.score[0] + ' - ' + m.score[1]; clock.textContent = fmtClock();
-        if (m.banner && m.banner.text && m.banner !== bannerRef) { bannerRef = m.banner; banner.className = 'ms-banner ' + (m.banner.kind || ''); banner.textContent = m.banner.text; void banner.offsetWidth; banner.classList.add('show'); }
-        const ch = isGK ? m.charge.pass : Math.max(m.charge.shoot, m.charge.pass);
-        pw.classList.toggle('on', ch > .02); pwI.style.width = Math.round(ch * 100) + '%';
-        stI.style.width = Math.round(m.stamina * 100) + '%';
-        const hb = m.carrier === m.user; if (hb !== setLabels.last) { setLabels.last = hb; setLabels(hb); }
-      }
-    }
-    /* المؤثر في الحاسبة: بنربط الدالة بالـ"Audio" */
-    function finish() {
-      ended = true; cancelAnimationFrame(raf); const res = summarize(m);
-      const pn = el('div', 'ms-panel'); const c = el('div', 'ms-card');
-      const win = res.ourGoals > res.oppGoals, draw0 = res.ourGoals === res.oppGoals;
-      c.append(el('h2', '', win ? 'فوز رائع!' : draw0 ? 'تعادل' : 'خسارة'), el('div', 'ms-vs'));
-      c.lastChild.append(el('span', '', o.myName), el('b', '', res.ourGoals + ' - ' + res.oppGoals), el('span', '', o.oppName));
-      c.appendChild(el('div', 'ms-rate', '\u200E' + res.rating.toFixed(1) + ' / 5'));
-      const gr = el('div', 'ms-grid');
-      const cells = isGK ? [['تصديات', res.saves], ['شباك نظيفة', res.oppGoals === 0 ? 'نعم' : 'لا'], ['تمريرات', res.detail.passes ? Math.round(res.detail.passOk / res.detail.passes * 100) + '%' : '-']] : [['أهداف', res.goals], ['أسيست', res.assists], ['تسديدات', res.detail.onTarget + '/' + res.detail.shots], ['تمريرات', res.detail.passes ? Math.round(res.detail.passOk / res.detail.passes * 100) + '%' : '-'], ['افتكاكات', res.detail.tackles], ['أخطاء', res.detail.fouls]];
-      cells.forEach(x => { const d = el('div'); d.append(el('small', '', x[0]), el('b', '', String(x[1]))); gr.appendChild(d); });
-      c.appendChild(gr);
-      c.appendChild(el('p', '', 'الإحصائيات دي هتتسجل في مسيرتك وتتحسب في موسمك.'));
-      const ok = el('button', 'ms-act', 'سجّل النتيجة في مسيرتي'); ok.type = 'button';
-      ok.addEventListener('click', () => close(res));
-      c.appendChild(ok); pn.appendChild(c); rootEl.appendChild(pn);
-      sfx.whistle();
-    }
-    function close(res) {
-      cancelAnimationFrame(raf); document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); document.removeEventListener('visibilitychange', onHide); removeEventListener('resize', resize);
-      sfx.close(); rootEl.remove(); document.body.style.overflow = '';
-      if (onFinish) onFinish(res);
-    }
-
-    m = createMatch(Object.assign({}, o, { myColor: o.myColor, oppColor: o.oppColor }));
-    m.sfx = sfx; m.lowFx = lowFx;
-    resize(); addEventListener('resize', resize);
-    view.cam.x = W / 2; view.cam.y = H / 2;
-    showIntro();
-    last = performance.now(); raf = requestAnimationFrame(frame);
-    return { close: () => close(null) };
-  }
-
-  root.KoraMatchSim = { open: open, simulate: simulateAll, createMatch: createMatch, step: step, summarize: summarize, STYLES: STYLES, MATCH_SECONDS: MATCH_SECONDS };
-  if (typeof module !== 'undefined' && module.exports) module.exports = root.KoraMatchSim;
-})(typeof window !== 'undefined' ? window : globalThis);
+    const isRef = !!p.ref;
+    const jersey = isRef ? '#14171c' : isGK ? (p.team === 0 ? '#f6c445' : '#e87bd1') : col;
+    const dark = shade(jersey, -.35), light = isRef ? '#ffffff' : shade(jersey, .3);
+ 
