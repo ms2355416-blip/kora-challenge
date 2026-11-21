@@ -5,6 +5,15 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>كارير مود | Kora Challenge</title>
+  <meta name="description" content="عيش مسيرة لاعب أو مدرب كرة قدم: انتقالات، بطولات، مؤتمرات صحفية ومحاكاة ماتشات.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Kora Challenge">
+  <meta property="og:locale" content="ar_AR">
+  <meta property="og:title" content="كارير مود | Kora Challenge">
+  <meta property="og:description" content="عيش مسيرة لاعب أو مدرب كرة قدم: انتقالات، بطولات، مؤتمرات صحفية ومحاكاة ماتشات.">
+  <meta property="og:image" content="icons/icon-512.png">
+  <meta name="twitter:card" content="summary">
+
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="careermode.css?v=16">
   <link rel="stylesheet" href="unlocks.css">
@@ -53,7 +62,7 @@
   <script src="icons.js"></script>
 <script src="pwa.js?v=2" defer></script>
   <link rel="stylesheet" href="header-btns.css?v=1">
-  <link rel="stylesheet" href="careermode-x.css?v=1">
+  <link rel="stylesheet" href="careermode-x.css?v=4">
   <link rel="stylesheet" href="modern.css?v=1">
 </head>
 <body>
@@ -168,7 +177,7 @@
 
     <div id="cmPane"></div>
 
-    <div class="cm-foot"><button class="cm-link" id="cmBackup" type="button">احفظ نسخة احتياطية</button> <button class="cm-link" id="cmRestore" type="button">استرجع من الحساب</button> <button class="cm-link" id="cmReset" type="button">مسيرة جديدة</button> <button class="cm-link" id="cmChange" type="button">تغيير المهنة</button></div>
+    <div class="cm-foot"><button class="cm-link" id="cmBackup" type="button">احفظ نسخة احتياطية</button> <button class="cm-link" id="cmRestore" type="button">استرجع من الحساب</button> <button class="cm-link" id="cmFileOut" type="button">نسخة كملف</button> <button class="cm-link" id="cmFileIn" type="button">استرجع من ملف</button><input type="file" id="cmFilePick" accept=".json,application/json" hidden> <button class="cm-link" id="cmReset" type="button">مسيرة جديدة</button> <button class="cm-link" id="cmChange" type="button">تغيير المهنة</button></div>
   </section>
 
   <!-- توقيع العقد -->
@@ -200,7 +209,8 @@
 <script src="dialog.js"></script>
 <script src="unlocks.js"></script>
 <script src="points-sync.js"></script>
-<script src="cm-boot.js?v=2"></script>
-<script src="cm-legends-hall.js?v=1" defer></script>
+<script src="cm-boot.js?v=4"></script>
+<script src="admin-loader.js?v=1" defer></script>
+<script src="cm-legends-hall.js?v=2" defer></script>
 </body>
 </html>
