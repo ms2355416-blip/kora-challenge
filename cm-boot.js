@@ -3,7 +3,7 @@
    وبتتحمل بس لما تدخل "مهنة لاعب" (أو تلمس الزرار). شاشة اختيار المهنة بتظهر فورًا. */
 (() => {
   'use strict';
-  const LIST = ['careermode-data.js', 'coach-data.js?v=8', 'coach-squads-1.js?v=8', 'coach-squads-2.js?v=8', 'careermode-rosters.js?v=2', 'careermode-world.js?v=3',
+  const LIST = ['careermode-data.js?v=1', 'coach-data.js?v=8', 'coach-squads-1.js?v=8', 'coach-squads-2.js?v=8', 'careermode-rosters.js?v=2', 'careermode-world.js?v=3',
     'careermode-art.js?v=3', 'careermode-cinema.js?v=1', 'careermode-press.js?v=4', 'ai-config.js?v=1', 'careermode-press-ai.js?v=2',
     'careermode-engine.js?v=25', 'careermode-sim.js?v=3', 'careermode-legend.js?v=2', 'careermode-x.js?v=3', 'careermode.js?v=27'];
   const $ = id => document.getElementById(id);
