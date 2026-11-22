@@ -1,0 +1,279 @@
+{
+  "rules": {
+    "rooms": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "drawrooms": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "players": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "presence": {
+          ".read": "auth != null",
+          ".write": "auth != null",
+          "$r": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+          }
+        },
+        "state": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "strokes": {
+          ".read": "auth != null",
+          ".write": "auth != null",
+          "$n": {
+            ".read": "auth != null",
+            ".write": "auth != null",
+            "$id": {
+              ".read": "auth != null",
+              ".write": "auth != null"
+            }
+          }
+        }
+      }
+    },
+    "triviarooms": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('players/A').val() === auth.uid || data.child('players/B').val() === auth.uid)",
+        "players": {
+          "B": {
+            ".write": "auth != null && (!data.exists() || data.val() === auth.uid)"
+          }
+        }
+      }
+    },
+    "drawparty": {
+      "$c": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.child('players/A').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('players/A').val() === auth.uid))",
+        "players": {
+          "$r": {
+            ".validate": "$r.matches(/^[A-F]$/)",
+            ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || data.val() === auth.uid)"
+          }
+        },
+        "members": {
+          "$u": {
+            ".write": "auth != null && $u === auth.uid"
+          }
+        },
+        "names": {
+          "$r": {
+            ".validate": "newData.isString() && newData.val().length <= 20",
+            ".write": "auth != null && root.child('drawparty/'+$c+'/players/'+$r).val() === auth.uid"
+          }
+        },
+        "presence": {
+          "$r": {
+            ".write": "auth != null && root.child('drawparty/'+$c+'/players/'+$r).val() === auth.uid"
+          }
+        },
+        "state": {
+          ".write": "auth != null && root.child('drawparty/'+$c+'/members/'+auth.uid).exists()"
+        },
+        "strokes": {
+          "$n": {
+            "$k": {
+              ".write": "auth != null && root.child('drawparty/'+$c+'/members/'+auth.uid).exists()"
+            }
+          }
+        }
+      }
+    },
+    "users": {
+      ".read": "auth != null",
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "status": {
+      "$u": {
+        ".read": "auth.uid === 'Psw0yI1FJeMzABoVPAAww3OblNg1'",
+        ".write": "auth != null && $u === auth.uid"
+      }
+    },
+    "activity": {
+      "$u": {
+        ".read": "auth.uid === 'Psw0yI1FJeMzABoVPAAww3OblNg1'",
+        ".write": "auth != null && $u === auth.uid",
+        "log": {
+          "$day": {
+            "$k": {
+              ".validate": "newData.hasChildren(['t','d','p'])"
+            }
+          }
+        }
+      }
+    },
+    "progress": {
+      "$u": {
+        ".read": "auth.uid === 'Psw0yI1FJeMzABoVPAAww3OblNg1'",
+        ".write": "auth != null && $u === auth.uid"
+      }
+    },
+    "legends_hall": {
+      ".read": "auth != null",
+      ".indexOn": [
+        "legend"
+      ],
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['name','legend','year'])",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length <= 30"
+        },
+        "legend": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+        },
+        "posAr": {
+          ".validate": "newData.isString() && newData.val().length <= 12"
+        },
+        "natCode": {
+          ".validate": "newData.isString() && newData.val().length <= 8"
+        },
+        "tier": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        "by": {
+          ".validate": "newData.isString() && newData.val().length <= 24"
+        },
+        "goals": {
+          ".validate": "newData.isNumber() && newData.val() <= 2000"
+        },
+        "assists": {
+          ".validate": "newData.isNumber() && newData.val() <= 2000"
+        },
+        "saves": {
+          ".validate": "newData.isNumber() && newData.val() <= 20000"
+        },
+        "cs": {
+          ".validate": "newData.isNumber() && newData.val() <= 2000"
+        },
+        "titles": {
+          ".validate": "newData.isNumber() && newData.val() <= 200"
+        },
+        "ballon": {
+          ".validate": "newData.isNumber() && newData.val() <= 50"
+        },
+        "apps": {
+          ".validate": "newData.isNumber() && newData.val() <= 5000"
+        },
+        "year": {
+          ".validate": "newData.isNumber()"
+        },
+        "gk": {
+          ".validate": "newData.isBoolean()"
+        },
+        "ts": {
+          ".validate": "true"
+        },
+        "$other": {
+          ".validate": "false"
+        }
+      }
+    },
+    "challengeInbox": {
+      "$o": {
+        ".read": "auth != null && auth.uid === $o",
+        "$k": {
+          ".write": "auth != null && ((!data.exists() && newData.child('fromUid').val() === auth.uid) || auth.uid === $o)",
+          ".validate": "newData.hasChildren(['from','fromUid','mine','theirs','t'])"
+        }
+      }
+    },
+    "leaderboard": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": [
+        "points"
+      ],
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "leaderboard_weekly": {
+      ".read": "auth != null",
+      "$week": {
+        ".indexOn": [
+          "points"
+        ],
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['name','points'])"
+        }
+      }
+    },
+    "careerBackup": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "chat": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "club": {
+        "$c": {
+          ".read": "auth != null",
+          "$k": {
+            ".write": "auth != null && newData.child('uid').val() === auth.uid",
+            ".validate": "newData.child('text').isString() && newData.child('text').val().length <= 200 || newData.child('aud').val() === 1"
+          }
+        }
+      },
+      "rooms": {
+        "$c": {
+          ".read": "auth != null",
+          "$k": {
+            ".write": "auth != null && newData.child('uid').val() === auth.uid",
+            ".validate": "newData.child('text').isString() && newData.child('text').val().length <= 200 || newData.child('aud').val() === 1"
+          }
+        }
+      },
+      "banned": {
+        "$u": {
+          ".read": "auth != null",
+          ".write": "auth.uid === 'Psw0yI1FJeMzABoVPAAww3OblNg1'"
+        }
+      },
+      "reports": {
+        ".read": "auth.uid === 'Psw0yI1FJeMzABoVPAAww3OblNg1'",
+        "$k": {
+          ".write": "auth != null && ((!data.exists() && newData.child('by').val() === auth.uid) || auth.uid === 'Psw0yI1FJeMzABoVPAAww3OblNg1')"
+        }
+      },
+      "audio": {
+        "$k": {
+          ".write": "auth.uid === 'Psw0yI1FJeMzABoVPAAww3OblNg1' || (auth != null && !data.exists())"
+        }
+      },
+      "global": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$msg": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        }
+      },
+      "meta": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$uid": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        }
+      }
+    }
+  }
+}
