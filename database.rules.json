@@ -274,6 +274,13 @@
           ".write": "auth != null"
         }
       }
+    },
+    "avatars": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.isString() && newData.val().length < 40000"
+      }
     }
   }
 }
