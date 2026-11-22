@@ -1035,6 +1035,7 @@
     }
 
     saveStats();
+    if (window.KoraStreak) window.KoraStreak.touch();
 
     playWhistle();
 

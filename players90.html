@@ -43,7 +43,15 @@
     if (!firebase.apps.length) firebase.initializeApp(CFG);
   } catch (e) { toLogin(); return; }
 
-  var timer = setTimeout(toLogin, 10000);
+  var timer = setTimeout(function () {
+
+    // لو عنده إشارة دخول محفوظة: استنى Firebase بدل التحويل الفوري (بيمنع loop مع صفحة اللوجين)
+
+    try { if (localStorage.getItem('koraAuthHint') === '1') return; } catch (e) { /* ignore */ }
+
+    toLogin();
+
+  }, 10000);
   firebase.auth().onAuthStateChanged(function (u) {
     clearTimeout(timer);
     if (!u) { try { localStorage.removeItem('koraAuthHint'); } catch (e) { /* ignore */ } toLogin(); return; }
@@ -275,6 +283,7 @@
 <div class="toast" id="toast" role="status"></div>
 
 <script src="script.js"></script>
+<script src="streak.js"></script>
 <script src="players90.js"></script>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>

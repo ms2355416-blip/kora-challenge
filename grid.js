@@ -341,6 +341,7 @@
     clearInterval(timerId);
     const pts = currentScore();
     if (pts > 0) saveStats(pts);
+    if (window.KoraStreak) window.KoraStreak.touch();
 
     const titles = { win: 'كملت الشبكة!', lives: 'خلصت الأرواح', time: 'الوقت خلص' };
     $('rTitle').textContent = titles[reason] || 'خلصت اللعبة';
