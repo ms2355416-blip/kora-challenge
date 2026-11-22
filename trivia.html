@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="auth-pending">
+<head>
+<meta charset="UTF-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080d0b">
+<title>تحدي المعلومات الكروية | Kora Challenge</title>
+<link rel="stylesheet" href="myteem.css?v=2">
+<link rel="stylesheet" href="buttons.css">
+<link rel="stylesheet" href="trivia.css?v=1">
+<style>html.auth-pending body{visibility:hidden}</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* حارس تسجيل الدخول: لو مفيش مستخدم مسجّل يرجّعك لصفحة login.html */
+(function () {
+  var CFG = {
+    apiKey: "AIzaSyDEDLvC4wKI9_HX7WUG6th4zuUOwxxB54k",
+    authDomain: "kora-e220c.firebaseapp.com",
+    databaseURL: "https://kora-e220c-default-rtdb.firebaseio.com",
+    projectId: "kora-e220c",
+    storageBucket: "kora-e220c.firebasestorage.app",
+    messagingSenderId: "535044321885",
+    appId: "1:535044321885:web:b89615d5eb01a93e1613b4"
+  };
+  window.KoraAuth = { user: null };
+    /* لو كان مسجّل دخول قبل كده: اعرض الصفحة فورًا والتحقق بيتم في الخلفية */
+    try { if (localStorage.getItem('koraAuthHint') === '1') document.documentElement.classList.remove('auth-pending'); } catch (e) { /* ignore */ }
+  function toLogin() {
+    var p = location.pathname.split('/').pop();
+    location.replace('login.html' + (p && p !== 'index.html' ? '?next=' + encodeURIComponent(p) : ''));
+  }
+  try { if (!firebase.apps.length) firebase.initializeApp(CFG); } catch (e) { toLogin(); return; }
+  var timer = setTimeout(function () {
+    // لو عنده إشارة دخول محفوظة: استنى Firebase بدل التحويل الفوري (بيمنع loop مع صفحة اللوجين)
+    try { if (localStorage.getItem('koraAuthHint') === '1') return; } catch (e) { /* ignore */ }
+    toLogin();
+  }, 10000);
+  firebase.auth().onAuthStateChanged(function (u) {
+    clearTimeout(timer);
+    if (!u) { try { localStorage.removeItem('koraAuthHint'); } catch (e) { /* ignore */ } toLogin(); return; }
+    window.KoraAuth.user = u;
+      try { localStorage.setItem('koraAuthHint', '1'); } catch (e) { /* ignore */ }
+    document.documentElement.classList.remove('auth-pending');
+  });
+})();
+</script>
+<script src="kora-security.js"></script>
+<script src="pwa.js?v=2" defer></script>
+</head>
+<body>
+<header class="navbar">
+  <a class="logo" href="index.html"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="4"/><path d="m32 20 10 7-4 12H26l-4-12z" fill="currentColor"/></svg>Kora <b>Challenge</b></a>
+  <div style="display:flex;gap:8px;align-items:center"><span class="chip" id="connChip" title="حالة الاتصال بالسيرفر">...</span><span class="chip hidden" id="roomChip"></span></div>
+</header>
+
+<main class="wrap">
+  <!-- القائمة الرئيسية: اختيار طريقة اللعب -->
+  <section id="lobby">
+    <div class="lobby">
+      <div>
+        <div class="eyebrow"><span class="dot"></span>أونلاين أو ضد الكمبيوتر • 10 أسئلة</div>
+        <h1>تحدي <span>المعلومات</span><br>الكروية</h1>
+        <p class="lead">أسئلة اختيارات من كل حتة في كرة القدم. جاوب صح بسرعة واملا شريط النقاط قبل خصمك. العب ضد صاحبك في غرفة بكود، أو ضد الكمبيوتر.</p>
+        <div class="tv-levels" role="radiogroup" aria-label="مستوى الكمبيوتر">
+          <span>مستوى الكمبيوتر:</span>
+          <button type="button" class="tv-lv" data-lv="easy" role="radio">سهل</button>
+          <button type="button" class="tv-lv on" data-lv="mid" role="radio">متوسط</button>
+          <button type="button" class="tv-lv" data-lv="hard" role="radio">صعب</button>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="botBtn" type="button">العب ضد الكمبيوتر</button>
+          <button class="btn btn-primary" id="createBtn" type="button">إنشاء غرفة +</button>
+          <input class="code-input" id="codeInput" maxlength="5" placeholder="الكود" autocomplete="off" inputmode="latin" aria-label="كود الغرفة">
+          <button class="btn btn-outline" id="joinBtn" type="button">انضمام</button>
+        </div>
+      </div>
+      <div class="hero-ball tv-hero" aria-hidden="true"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="5"/><path d="M44 46c0-9 7-14 16-14s16 5 16 13c0 7-5 10-10 13-4 2-6 4-6 9" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/><circle cx="60" cy="90" r="5" fill="currentColor"/></svg></div>
+    </div>
+    <div class="rules">
+      <div class="rule"><strong>10 أسئلة</strong><small>4 أو 5 اختيارات</small></div>
+      <div class="rule"><strong>50 ثانية</strong><small>لكل سؤال</small></div>
+      <div class="rule"><strong>+10</strong><small>لكل إجابة صح</small></div>
+    </div>
+  </section>
+
+  <!-- شاشة الانتظار: عدد اللاعبين وزرار ابدأ -->
+  <section id="waiting" class="hidden">
+    <div class="panel waiting tv-wait">
+      <div id="codeBox">
+        <h2>كود <span>الغرفة</span></h2>
+        <div class="big-code" id="bigCode" dir="ltr"></div>
+        <p class="lead" style="margin:6px auto 14px">ابعت الكود لصاحبك وانتظره ينضم.</p>
+      </div>
+      <h2 id="botTitle" class="hidden">ضد <span>الكمبيوتر</span></h2>
+      <div class="tv-count"><small>اللاعبين في الغرفة</small><b id="playerCount">1 / 2</b></div>
+      <div class="tv-slots" id="slots"></div>
+      <div class="actions" style="justify-content:center">
+        <button class="btn btn-primary" id="startBtn" type="button" disabled>ابدأ</button>
+        <button class="btn btn-outline" id="copyBtn" type="button">نسخ الكود</button>
+        <button class="btn btn-outline" id="leaveBtn" type="button">خروج</button>
+      </div>
+      <p class="tv-hint" id="waitHint">لازم الاتنين يدوسوا «ابدأ» عشان التحدي يبدأ.</p>
+    </div>
+  </section>
+
+  <!-- التحدي -->
+  <section id="game" class="hidden">
+    <div class="tv-head" dir="ltr">
+      <div class="tv-side">
+        <div class="tv-av" id="meAv"></div><span class="tv-mark" id="meMark"></span>
+      </div>
+      <div class="tv-bar" id="meBar">
+        <i class="tv-fill" id="meFill"></i>
+        <span class="tv-btxt" dir="rtl"><small>نقاطي</small><b id="meSc">0</b></span>
+      </div>
+      <div class="tv-timer" id="timer" aria-label="الوقت المتبقي">
+        <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" id="ring" cx="22" cy="22" r="19"/></svg>
+        <b id="tnum">50</b>
+      </div>
+      <div class="tv-bar op" id="opBar">
+        <i class="tv-fill" id="opFill"></i>
+        <span class="tv-btxt" dir="rtl"><small id="opLabel">نقاط الخصم</small><b id="opSc">0</b></span>
+      </div>
+      <div class="tv-side">
+        <div class="tv-av" id="opAv"></div><span class="tv-mark" id="opMark"></span>
+      </div>
+    </div>
+    <div class="tv-names" dir="ltr"><span id="meName">أنا</span><span id="opName">الخصم</span></div>
+
+    <div class="panel tv-qwrap">
+      <div class="tv-qno" id="qno"></div>
+      <h2 class="tv-q" id="qtext"></h2>
+      <div class="tv-opts" id="opts"></div>
+      <p class="tv-msg" id="msg" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- النهاية -->
+  <section id="end" class="hidden">
+    <div class="panel tv-end">
+      <div class="tv-trophy" id="endIcon"></div>
+      <h2 id="endTitle"></h2>
+      <div class="tv-final"><div><small id="endMeName">أنا</small><b id="endMe">0</b></div><span>-</span><div><small id="endOpName">الخصم</small><b id="endOp">0</b></div></div>
+      <p id="endText"></p>
+      <div class="actions" style="justify-content:center">
+        <button class="btn btn-primary" id="againBtn" type="button">العب تاني</button>
+        <button class="btn btn-outline" id="exitBtn" type="button">القائمة</button>
+        <a class="btn btn-outline" href="index.html">الرئيسية</a>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script src="trivia-data.js?v=1"></script>
+<script src="trivia.js?v=1"></script>
+</body>
+</html>

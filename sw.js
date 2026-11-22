@@ -3,12 +3,12 @@
    - الصفحات التقيلة (كارير مود ومود المدرب) بتتخزن أول ما تفتحها بس
    - HTML: من الكاش فورًا وبيتحدّث في الخلفية | باقي الملفات: من الكاش وتتحدّث في الخلفية
    - Firebase والطلبات اللي بتكتب: مبنلمسهاش */
-const VERSION = 'kora-v5';
+const VERSION = 'kora-v6';
 const IMG_CACHE = 'kora-img-v1';
 const LIB_CACHE = 'kora-lib-v1';
 const LIBS = ['https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js', 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js', 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js'];
 const PAGES = ['./', 'index.html', 'offline.html', 'login.html', 'privacy.html', 'terms.html', 'leaderboard.html',
-  'guess-player.html', 'grid.html', 'daily.html', 'club-quiz.html', 'country.html', 'career.html', 'players90.html', 'player-modes.html', 'draw.html', 'myteem.html', 'careermode.html', 'coach.html'];
+  'guess-player.html', 'grid.html', 'daily.html', 'club-quiz.html', 'country.html', 'career.html', 'players90.html', 'player-modes.html', 'draw.html', 'trivia.html', 'myteem.html', 'careermode.html', 'coach.html'];
 const STATIC = ['manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-192.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'favicon.png'];
 
 async function cacheOne(cache, url) {
