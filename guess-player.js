@@ -4,7 +4,6 @@
 
   const $ = (id) => document.getElementById(id);
   const STORAGE_STATS = "koraChallengeStats";
-  const STORAGE_STREAK = "koraChallengeStreak";
   const STORAGE_THEME = "koraChallengeTheme";
   const STORAGE_LANGUAGE = "koraChallengeLanguage";
   const STORAGE_FAVORITE = "koraFavoriteTeam";
@@ -626,35 +625,11 @@
     if ($("roundsPlayed")) $("roundsPlayed").textContent = stats.gamesPlayed || 0;
   }
 
-  function todayKey() {
-    const date = new Date();
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  }
-
+  /* السلسلة بتتسجّل من الوحدة المشتركة streak.js (مصدر واحد لكل الألعاب) */
   function recordDailyStreak() {
-    const today = todayKey();
-    let data;
-
-    try {
-      data = JSON.parse(localStorage.getItem(STORAGE_STREAK)) || { days: 0, lastDate: "" };
-    } catch {
-      data = { days: 0, lastDate: "" };
-    }
-
-    if (data.lastDate === today) {
-      updateStreakBadge(data.days);
-      return data.days;
-    }
-
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterday = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, "0")}-${String(yesterdayDate.getDate()).padStart(2, "0")}`;
-
-    data.days = data.lastDate === yesterday ? (data.days || 0) + 1 : 1;
-    data.lastDate = today;
-    localStorage.setItem(STORAGE_STREAK, JSON.stringify(data));
-    updateStreakBadge(data.days);
-    return data.days;
+    const s = window.KoraStreak ? window.KoraStreak.touch() : { days: 0 };
+    updateStreakBadge(s.days || 0);
+    return s.days || 0;
   }
 
   function updateStreakBadge(days) {
@@ -686,12 +661,8 @@
   }
 
   function loadStreakBadge() {
-    try {
-      const data = JSON.parse(localStorage.getItem(STORAGE_STREAK)) || { days: 0 };
-      updateStreakBadge(data.days || 0);
-    } catch {
-      updateStreakBadge(0);
-    }
+    const s = window.KoraStreak ? window.KoraStreak.get() : { days: 0 };
+    updateStreakBadge(s.days || 0);
   }
 
   function applyFavoriteTeamTheme() {
@@ -921,8 +892,8 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
 
     if (answerMatches(input, player)) {
       waiting = true;
-      // نقاط ثابتة لكل لاعب صح حسب المستوى (سهل 10 / متوسط 15 / صعب 20)
-      const earned = levelSettings[currentLevel].correctPoints;
+      // نقاط لكل لاعب صح حسب المستوى × مضاعف الاستمرار (x1 لحد x1.8)
+      const earned = Math.round(levelSettings[currentLevel].correctPoints * pointMultiplier);
       roundPoints += earned;
       roundCorrect++;
 
@@ -1166,7 +1137,7 @@ if ($("status")) $("status").textContent = player.status || "غير معروف";
 
     stats.gamesPlayed = (stats.gamesPlayed || 0) + 1;
     stats.totalPoints = (stats.totalPoints || 0) + roundPoints;
-    stats.bestScore = Math.max(stats.bestScore || 0, percentage);
+    stats.bestScore = Math.max(stats.bestScore || 0, roundPoints);
     stats.perfectLevels = Array.isArray(stats.perfectLevels) ? stats.perfectLevels : [];
 
     if (
