@@ -45,7 +45,11 @@
     try { if (localStorage.getItem('koraAuthHint') === '1') document.documentElement.classList.remove('auth-pending'); } catch (e) { /* ignore */ }
     function toLogin() { location.replace('login.html?next=' + encodeURIComponent('coach.html')); }
     try { if (!firebase.apps.length) firebase.initializeApp(CFG); } catch (e) { toLogin(); return; }
-    var timer = setTimeout(toLogin, 10000);
+    var timer = setTimeout(function () {
+      // لو عنده إشارة دخول محفوظة: استنى Firebase بدل التحويل الفوري (بيمنع loop مع صفحة اللوجين)
+      try { if (localStorage.getItem('koraAuthHint') === '1') return; } catch (e) { /* ignore */ }
+      toLogin();
+    }, 10000);
     firebase.auth().onAuthStateChanged(function (u) {
       clearTimeout(timer);
       if (!u) { try { localStorage.removeItem('koraAuthHint'); } catch (e) { /* ignore */ } toLogin(); return; }
